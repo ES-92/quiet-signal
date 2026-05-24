@@ -171,7 +171,19 @@ export const translations = {
     kindleImported: '{quotes} Zitate aus {books} Büchern importiert.',
     kindleSkipped: '{count} Duplikate übersprungen.',
     kindleNothing: 'Keine neuen Markierungen gefunden.',
-    kindleFailed: 'Diese Datei konnte nicht gelesen werden.'
+    kindleFailed: 'Diese Datei konnte nicht gelesen werden.',
+    reminders: 'Erinnerungen',
+    remindersHelp: 'Lass dich täglich an deinen Lesestapel erinnern. Alles läuft lokal auf diesem Gerät – ohne Server.',
+    enableReminder: 'Tägliche Erinnerung',
+    reminderTimeLabel: 'Uhrzeit',
+    testReminder: 'Test senden',
+    reminderTitle: 'Zeit für deinen Stapel',
+    reminderBody: 'Deine Highlights für heute warten.',
+    reminderActive: 'Tägliche Erinnerung ist aktiv.',
+    reminderTestSent: 'Test-Benachrichtigung gesendet.',
+    reminderDenied: 'Benachrichtigungen sind blockiert. Erlaube sie in den Browser-Einstellungen.',
+    reminderBackgroundNote: 'Für zuverlässige Erinnerungen im Hintergrund installiere die App (Zum Startbildschirm hinzufügen). Andernfalls erscheint die Erinnerung, sobald du die App öffnest.',
+    reminderUnsupported: 'Dieser Browser unterstützt keine Benachrichtigungen.'
   },
   en: {
     offlineFirst: 'Offline first',
@@ -334,7 +346,19 @@ export const translations = {
     kindleImported: 'Imported {quotes} quotes from {books} books.',
     kindleSkipped: 'Skipped {count} duplicates.',
     kindleNothing: 'No new highlights found.',
-    kindleFailed: 'Could not read this file.'
+    kindleFailed: 'Could not read this file.',
+    reminders: 'Reminders',
+    remindersHelp: 'Get a daily nudge to read your stack. Everything runs locally on this device — no server.',
+    enableReminder: 'Daily reminder',
+    reminderTimeLabel: 'Time',
+    testReminder: 'Send test',
+    reminderTitle: 'Time for your stack',
+    reminderBody: 'Your highlights for today are waiting.',
+    reminderActive: 'Daily reminder is active.',
+    reminderTestSent: 'Test notification sent.',
+    reminderDenied: 'Notifications are blocked. Allow them in your browser settings.',
+    reminderBackgroundNote: 'For reliable background reminders, install the app (Add to Home Screen). Otherwise the reminder appears when you next open the app.',
+    reminderUnsupported: 'This browser does not support notifications.'
   },
   es: {
     offlineFirst: 'Primero offline',
@@ -497,7 +521,19 @@ export const translations = {
     kindleImported: '{quotes} citas importadas de {books} libros.',
     kindleSkipped: '{count} duplicados omitidos.',
     kindleNothing: 'No se encontraron subrayados nuevos.',
-    kindleFailed: 'No se pudo leer este archivo.'
+    kindleFailed: 'No se pudo leer este archivo.',
+    reminders: 'Recordatorios',
+    remindersHelp: 'Recibe un aviso diario para leer tu pila. Todo funciona localmente en este dispositivo, sin servidor.',
+    enableReminder: 'Recordatorio diario',
+    reminderTimeLabel: 'Hora',
+    testReminder: 'Enviar prueba',
+    reminderTitle: 'Hora de tu pila',
+    reminderBody: 'Tus destacados de hoy te esperan.',
+    reminderActive: 'El recordatorio diario está activo.',
+    reminderTestSent: 'Notificación de prueba enviada.',
+    reminderDenied: 'Las notificaciones están bloqueadas. Permítelas en los ajustes del navegador.',
+    reminderBackgroundNote: 'Para recordatorios fiables en segundo plano, instala la app (Añadir a pantalla de inicio). Si no, el recordatorio aparecerá al abrir la app.',
+    reminderUnsupported: 'Este navegador no admite notificaciones.'
   },
   fr: {
     offlineFirst: 'Hors ligne d’abord',
@@ -660,7 +696,19 @@ export const translations = {
     kindleImported: '{quotes} citations importées de {books} livres.',
     kindleSkipped: '{count} doublons ignorés.',
     kindleNothing: 'Aucun nouveau surlignage trouvé.',
-    kindleFailed: 'Impossible de lire ce fichier.'
+    kindleFailed: 'Impossible de lire ce fichier.',
+    reminders: 'Rappels',
+    remindersHelp: 'Reçois un rappel quotidien pour lire ta pile. Tout fonctionne localement sur cet appareil — sans serveur.',
+    enableReminder: 'Rappel quotidien',
+    reminderTimeLabel: 'Heure',
+    testReminder: 'Envoyer un test',
+    reminderTitle: 'C’est l’heure de ta pile',
+    reminderBody: 'Tes extraits du jour t’attendent.',
+    reminderActive: 'Le rappel quotidien est actif.',
+    reminderTestSent: 'Notification de test envoyée.',
+    reminderDenied: 'Les notifications sont bloquées. Autorise-les dans les réglages du navigateur.',
+    reminderBackgroundNote: 'Pour des rappels fiables en arrière-plan, installe l’app (Ajouter à l’écran d’accueil). Sinon, le rappel apparaîtra à la prochaine ouverture.',
+    reminderUnsupported: 'Ce navigateur ne prend pas en charge les notifications.'
   }
 } satisfies Record<LanguageCode, Record<string, string>>
 

@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react'
 import { decryptAllQuotesAndDisable, encryptAllQuotes } from '../db/database'
 import { useI18n } from '../i18n/I18nProvider'
 import { languages, type LanguageCode } from '../i18n/translations'
+import {
+  disableReminder,
+  enableReminder,
+  isNotificationSupported,
+  notificationPermission,
+  refreshReminderConfig,
+  requestNotificationPermission,
+  sendTestReminder
+} from '../services/reminder'
 import { sampleSeed } from '../services/sampleData'
 import {
   clearPinLock,
@@ -22,16 +31,26 @@ export function SettingsPage() {
   const { language, setLanguage, t } = useI18n()
   const { quotes, loadQuotes, importQuotes, clearAll } = useQuoteStore()
   const { importBooks } = useBookStore()
-  const { dailyCount, dailyMode, setDailyCount, setDailyMode } = useSettingsStore()
+  const { dailyCount, dailyMode, reminderEnabled, reminderTime, setDailyCount, setDailyMode, setReminderEnabled, setReminderTime } =
+    useSettingsStore()
   const [pin, setPin] = useState('')
   const [password, setPassword] = useState('')
   const [securityMessage, setSecurityMessage] = useState('')
   const [securityBusy, setSecurityBusy] = useState(false)
   const [securityVersion, setSecurityVersion] = useState(0)
+  const [reminderMessage, setReminderMessage] = useState('')
 
   useEffect(() => {
     void loadQuotes()
   }, [loadQuotes])
+
+  // Keep the cached reminder text in sync when the UI language changes.
+  useEffect(() => {
+    if (reminderEnabled) {
+      void refreshReminderConfig({ time: reminderTime, title: t('reminderTitle'), body: t('reminderBody') })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language])
 
   useEffect(() => {
     function refresh() {
@@ -51,6 +70,47 @@ export function SettingsPage() {
     const seed = sampleSeed()
     await importBooks(seed.books)
     await importQuotes(seed.quotes)
+  }
+
+  async function handleToggleReminder(checked: boolean) {
+    if (!isNotificationSupported()) {
+      setReminderMessage(t('reminderUnsupported'))
+      return
+    }
+    if (checked) {
+      const result = await enableReminder({ time: reminderTime, title: t('reminderTitle'), body: t('reminderBody') })
+      if (!result.ok) {
+        setReminderMessage(t('reminderDenied'))
+        return
+      }
+      setReminderEnabled(true)
+      setReminderMessage(result.background ? t('reminderActive') : `${t('reminderActive')} ${t('reminderBackgroundNote')}`)
+    } else {
+      await disableReminder()
+      setReminderEnabled(false)
+      setReminderMessage('')
+    }
+  }
+
+  async function handleReminderTime(time: string) {
+    setReminderTime(time)
+    if (reminderEnabled) {
+      await refreshReminderConfig({ time, title: t('reminderTitle'), body: t('reminderBody') })
+    }
+  }
+
+  async function handleTestReminder() {
+    if (!isNotificationSupported()) {
+      setReminderMessage(t('reminderUnsupported'))
+      return
+    }
+    const permission = notificationPermission() === 'granted' ? 'granted' : await requestNotificationPermission()
+    if (permission !== 'granted') {
+      setReminderMessage(t('reminderDenied'))
+      return
+    }
+    await sendTestReminder(t('reminderTitle'), t('reminderBody'))
+    setReminderMessage(t('reminderTestSent'))
   }
 
   async function handleSetPin() {
@@ -165,6 +225,34 @@ export function SettingsPage() {
               <option value="random">{t('randomSelection')}</option>
             </select>
           </label>
+        </Panel>
+        <Panel title={t('reminders')}>
+          <p className="text-sm leading-6 text-graphite">{t('remindersHelp')}</p>
+          <label className="mt-4 flex items-center gap-3 text-sm text-graphite">
+            <input
+              type="checkbox"
+              checked={reminderEnabled}
+              onChange={(event) => void handleToggleReminder(event.target.checked)}
+            />
+            {t('enableReminder')}
+          </label>
+          <label className="mt-4 grid gap-2 text-sm text-graphite">
+            <span>{t('reminderTimeLabel')}</span>
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={(event) => void handleReminderTime(event.target.value)}
+              disabled={!reminderEnabled}
+              className="w-fit rounded-md border border-line bg-paper px-3 py-2 disabled:opacity-50"
+            />
+          </label>
+          <button
+            className="mt-4 rounded-md border border-line px-3 py-2 text-sm text-graphite"
+            onClick={() => void handleTestReminder()}
+          >
+            {t('testReminder')}
+          </button>
+          {reminderMessage && <p className="mt-3 text-sm leading-6 text-moss">{reminderMessage}</p>}
         </Panel>
         <Panel title={t('security')}>
           <p className="text-sm leading-6 text-graphite">{t('securityHelp')}</p>
