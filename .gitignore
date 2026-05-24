@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vercel/
+*.local
+playwright-*.png
+.DS_Store
+
+.vercel

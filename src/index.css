@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #1f1e1c;
+  background: #f7f4ef;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(166, 95, 63, 0.12), transparent 34rem),
+    linear-gradient(90deg, rgba(31, 30, 28, 0.025) 1px, transparent 1px),
+    linear-gradient(rgba(31, 30, 28, 0.018) 1px, transparent 1px),
+    #f7f4ef;
+  background-size: auto, 42px 42px, 100% 42px, auto;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #52624b;
+  outline-offset: 3px;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active,
+a:active {
+  transform: translateY(1px);
+}
+
+::selection {
+  background: #d9c7b7;
+}
+
+.classical-panel {
+  border: 1px solid #d8cfc2;
+  background: rgba(251, 248, 242, 0.78);
+  box-shadow: 0 18px 55px rgba(31, 30, 28, 0.06);
+}
+
+@keyframes likePop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.32);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.like-pop {
+  display: inline-block;
+  animation: likePop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .like-pop {
+    animation: none;
+  }
+}
