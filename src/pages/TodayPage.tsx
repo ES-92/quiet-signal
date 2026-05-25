@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, BookOpen, Clock, ExternalLink, Heart } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ExternalLink, Flame, Heart, Minus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
@@ -11,13 +11,17 @@ import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 
+const SWIPE_THRESHOLD = 80
+
 export function TodayPage() {
   const { t } = useI18n()
-  const { quotes, loading, loadQuotes, reviewQuote, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
+  const { quotes, loading, loadQuotes, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
   const { dailyCount, dailyMode } = useSettingsStore()
   const [index, setIndex] = useState(0)
+  const [drag, setDrag] = useState(0)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const draggingRef = useRef(false)
 
   useEffect(() => {
     void loadQuotes()
@@ -51,25 +55,42 @@ export function TodayPage() {
     setIndex((value) => Math.min(value + 1, Math.max(dailyQuotes.length - 1, 0)))
   }
 
-  async function complete(action: 'read' | 'later') {
-    if (!currentQuote) return
-    await reviewQuote(currentQuote.id, action)
-    setIndex((value) => Math.min(value, Math.max(dailyQuotes.length - 2, 0)))
+  function handleTouchStart(event: React.TouchEvent) {
+    const touch = event.changedTouches[0]
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    draggingRef.current = false
   }
 
-  function handleTouchEnd(touch: { clientX: number; clientY: number }) {
+  function handleTouchMove(event: React.TouchEvent) {
     const start = touchStartRef.current
-    touchStartRef.current = null
     if (!start) return
-    const dx = start.x - touch.clientX
-    const dy = start.y - touch.clientY
-    // Only treat it as a page swipe when horizontal motion clearly dominates,
-    // so vertical scrolling never accidentally flips the card.
-    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-      if (dx > 0) goNext()
-      else goPrevious()
+    const touch = event.changedTouches[0]
+    const dx = touch.clientX - start.x
+    const dy = touch.clientY - start.y
+    // Lock into a horizontal drag only once it clearly beats vertical motion.
+    if (!draggingRef.current && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+      draggingRef.current = true
     }
+    if (draggingRef.current) setDrag(dx)
   }
+
+  function handleTouchEnd(event: React.TouchEvent) {
+    const start = touchStartRef.current
+    const wasDragging = draggingRef.current
+    touchStartRef.current = null
+    draggingRef.current = false
+    if (!start || !wasDragging || !currentQuote) {
+      setDrag(0)
+      return
+    }
+    const dx = event.changedTouches[0].clientX - start.x
+    if (dx > SWIPE_THRESHOLD) void likeQuote(currentQuote.id)
+    else if (dx < -SWIPE_THRESHOLD) void dislikeQuote(currentQuote.id)
+    setDrag(0)
+  }
+
+  const likeHint = Math.max(0, Math.min(1, drag / SWIPE_THRESHOLD))
+  const dislikeHint = Math.max(0, Math.min(1, -drag / SWIPE_THRESHOLD))
 
   return (
     <div className="grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden sm:gap-6">
@@ -86,13 +107,29 @@ export function TodayPage() {
       ) : currentQuote ? (
         <section className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
           <div
-            className="relative flex min-h-0 flex-col overflow-hidden rounded-md border border-[#d4cabd] bg-[#fbf8f2] p-4 shadow-[0_24px_70px_rgba(31,30,28,0.08)] sm:p-8"
-            onTouchStart={(event) => {
-              const touch = event.changedTouches[0]
-              touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+            className="relative flex min-h-0 touch-pan-y flex-col overflow-hidden rounded-md border border-[#d4cabd] bg-[#fbf8f2] p-4 shadow-[0_24px_70px_rgba(31,30,28,0.08)] sm:p-8"
+            style={{
+              transform: `translateX(${drag}px) rotate(${drag * 0.015}deg)`,
+              transition: drag === 0 ? 'transform 0.25s ease' : 'none'
             }}
-            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0])}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
+            {/* Swipe stamps */}
+            <div
+              className="pointer-events-none absolute right-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-clay bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-clay"
+              style={{ opacity: likeHint }}
+            >
+              <Flame size={16} fill="currentColor" /> {t('like')}
+            </div>
+            <div
+              className="pointer-events-none absolute left-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-graphite bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-graphite"
+              style={{ opacity: dislikeHint }}
+            >
+              <Minus size={16} /> {t('dislike')}
+            </div>
+
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />
             <div className="flex shrink-0 items-center justify-between gap-3 text-[0.66rem] uppercase tracking-[0.18em] text-graphite sm:text-xs sm:tracking-[0.22em]">
               <span>{t('reviewStack')}</span>
@@ -158,33 +195,17 @@ export function TodayPage() {
               )}
             </div>
 
-            <div className="mt-3 grid shrink-0 grid-cols-5 gap-2 sm:mt-6 sm:flex sm:flex-wrap">
-              <button
-                className="inline-flex min-w-0 items-center justify-center gap-2 rounded-md bg-ink px-2 py-3 text-sm text-paper sm:px-4"
-                onClick={() => void complete('read')}
-              >
-                <BookOpen size={16} />
-                <span className="hidden sm:inline">{t('read')}</span>
-                <span className="sr-only sm:hidden">{t('read')}</span>
-              </button>
-              <button
-                className="inline-flex min-w-0 items-center justify-center gap-2 rounded-md border border-line px-2 py-3 text-sm text-graphite sm:px-4"
-                onClick={() => void complete('later')}
-              >
-                <Clock size={16} />
-                <span className="hidden sm:inline">{t('later')}</span>
-                <span className="sr-only sm:hidden">{t('later')}</span>
-              </button>
+            <div className="mt-3 grid shrink-0 grid-cols-3 gap-2 sm:mt-6 sm:flex sm:flex-wrap">
               <LikeControl
                 compact
-                className="w-full"
+                className="w-full sm:w-auto"
                 likes={currentQuote.likes}
                 onLike={() => void likeQuote(currentQuote.id)}
                 onDislike={() => void dislikeQuote(currentQuote.id)}
               />
               <button
                 className={[
-                  'inline-flex min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-3 text-sm sm:px-4',
+                  'inline-flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-3 text-sm sm:px-4',
                   currentQuote.favorite ? 'border-clay text-clay' : 'border-line text-graphite'
                 ].join(' ')}
                 onClick={() => void saveQuote(currentQuote.id, { favorite: !currentQuote.favorite })}
@@ -194,7 +215,7 @@ export function TodayPage() {
                 <span className="sr-only sm:hidden">{t('favorite')}</span>
               </button>
               <Link
-                className="inline-flex min-w-0 items-center justify-center gap-2 rounded-md border border-line px-2 py-3 text-sm text-graphite sm:px-4"
+                className="inline-flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-md border border-line px-2 py-3 text-sm text-graphite sm:px-4"
                 to={`/quote/${currentQuote.id}`}
               >
                 <ExternalLink size={16} />
@@ -227,10 +248,6 @@ export function TodayPage() {
             </div>
           </aside>
         </section>
-      ) : quotes.length ? (
-        <div className="min-h-0">
-          <EmptyState title={t('doneForToday')}>{t('doneForTodayBody')}</EmptyState>
-        </div>
       ) : (
         <div className="min-h-0">
           <EmptyState title={t('nothingDueToday')}>

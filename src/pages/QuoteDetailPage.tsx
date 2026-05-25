@@ -11,7 +11,7 @@ import { useQuoteStore } from '../store/useQuoteStore'
 import type { QuoteInput } from '../types/quote'
 
 export function QuoteDetailPage() {
-  const { language, t } = useI18n()
+  const { t } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
   const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote } = useQuoteStore()
@@ -79,12 +79,9 @@ export function QuoteDetailPage() {
             <p className="mt-2 leading-7">{quote.note}</p>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3 text-sm text-graphite sm:grid-cols-3">
-          <Metric label={t('reviews')} value={String(quote.reviewCount)} />
+        <div className="grid grid-cols-2 gap-3 text-sm text-graphite">
           <Metric label={t('likesLabel')} value={String(quote.likes)} />
           <Metric label={t('favorite')} value={quote.favorite ? t('yes') : t('no')} />
-          <Metric label={t('lastRead')} value={formatDate(quote.lastReviewedAt, language, t('never'))} />
-          <Metric label={t('nextDue')} value={formatDate(quote.nextReviewAt, language, t('never'))} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <LikeControl
@@ -120,9 +117,4 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-ink">{value}</p>
     </div>
   )
-}
-
-function formatDate(value: string | undefined, language: string, emptyLabel: string) {
-  if (!value) return emptyLabel
-  return new Intl.DateTimeFormat(language, { month: 'short', day: 'numeric' }).format(new Date(value))
 }
