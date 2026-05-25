@@ -183,7 +183,12 @@ export const translations = {
     reminderTestSent: 'Test-Benachrichtigung gesendet.',
     reminderDenied: 'Benachrichtigungen sind blockiert. Erlaube sie in den Browser-Einstellungen.',
     reminderBackgroundNote: 'Für zuverlässige Erinnerungen im Hintergrund installiere die App (Zum Startbildschirm hinzufügen). Andernfalls erscheint die Erinnerung, sobald du die App öffnest.',
-    reminderUnsupported: 'Dieser Browser unterstützt keine Benachrichtigungen.'
+    reminderUnsupported: 'Dieser Browser unterstützt keine Benachrichtigungen.',
+    installTitle: 'Commonplace installieren',
+    installBenefit: 'Für Offline-Zugriff und zuverlässige Erinnerungen.',
+    installIosHint: 'Tippe auf „Teilen“ und dann „Zum Home-Bildschirm“.',
+    installAction: 'Installieren',
+    installDismiss: 'Schließen'
   },
   en: {
     offlineFirst: 'Offline first',
@@ -358,7 +363,12 @@ export const translations = {
     reminderTestSent: 'Test notification sent.',
     reminderDenied: 'Notifications are blocked. Allow them in your browser settings.',
     reminderBackgroundNote: 'For reliable background reminders, install the app (Add to Home Screen). Otherwise the reminder appears when you next open the app.',
-    reminderUnsupported: 'This browser does not support notifications.'
+    reminderUnsupported: 'This browser does not support notifications.',
+    installTitle: 'Install Commonplace',
+    installBenefit: 'For offline access and reliable reminders.',
+    installIosHint: 'Tap Share, then “Add to Home Screen”.',
+    installAction: 'Install',
+    installDismiss: 'Dismiss'
   },
   es: {
     offlineFirst: 'Primero offline',
@@ -533,7 +543,12 @@ export const translations = {
     reminderTestSent: 'Notificación de prueba enviada.',
     reminderDenied: 'Las notificaciones están bloqueadas. Permítelas en los ajustes del navegador.',
     reminderBackgroundNote: 'Para recordatorios fiables en segundo plano, instala la app (Añadir a pantalla de inicio). Si no, el recordatorio aparecerá al abrir la app.',
-    reminderUnsupported: 'Este navegador no admite notificaciones.'
+    reminderUnsupported: 'Este navegador no admite notificaciones.',
+    installTitle: 'Instalar Commonplace',
+    installBenefit: 'Para acceso sin conexión y recordatorios fiables.',
+    installIosHint: 'Toca Compartir y luego “Añadir a pantalla de inicio”.',
+    installAction: 'Instalar',
+    installDismiss: 'Cerrar'
   },
   fr: {
     offlineFirst: 'Hors ligne d’abord',
@@ -708,7 +723,12 @@ export const translations = {
     reminderTestSent: 'Notification de test envoyée.',
     reminderDenied: 'Les notifications sont bloquées. Autorise-les dans les réglages du navigateur.',
     reminderBackgroundNote: 'Pour des rappels fiables en arrière-plan, installe l’app (Ajouter à l’écran d’accueil). Sinon, le rappel apparaîtra à la prochaine ouverture.',
-    reminderUnsupported: 'Ce navigateur ne prend pas en charge les notifications.'
+    reminderUnsupported: 'Ce navigateur ne prend pas en charge les notifications.',
+    installTitle: 'Installer Commonplace',
+    installBenefit: 'Pour un accès hors ligne et des rappels fiables.',
+    installIosHint: 'Touche Partager, puis « Sur l’écran d’accueil ».',
+    installAction: 'Installer',
+    installDismiss: 'Fermer'
   }
 } satisfies Record<LanguageCode, Record<string, string>>
 

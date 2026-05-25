@@ -1,6 +1,8 @@
-import { BookMarked, BookOpen, Download, Library, PenLine, Settings, Sparkles } from 'lucide-react'
+import { BookMarked, BookOpen, Download, Library, Loader2, PenLine, Settings, Sparkles } from 'lucide-react'
+import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n/I18nProvider'
+import { InstallPrompt } from './InstallPrompt'
 
 const navItems = [
   { to: '/today', labelKey: 'today', icon: Sparkles },
@@ -20,7 +22,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] text-ink sm:pb-0">
-      <header className="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-4 py-3 sm:px-8 sm:py-5">
+      <header className="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-8 sm:py-5">
         <NavLink to="/today" className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-md border border-ink bg-ink text-paper shadow-[0_10px_25px_rgba(31,30,28,0.16)] sm:h-10 sm:w-10">
             <BookOpen size={18} />
@@ -42,7 +44,9 @@ export function AppShell() {
           isToday ? 'flex min-h-0 pb-3 sm:pb-6' : 'pb-12'
         ].join(' ')}
       >
-        <Outlet />
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
       <nav
         className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-line bg-paper/95 px-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_40px_rgba(31,30,28,0.08)] backdrop-blur sm:hidden"
@@ -52,6 +56,15 @@ export function AppShell() {
           <NavButton key={item.to} item={item} compact />
         ))}
       </nav>
+      <InstallPrompt />
+    </div>
+  )
+}
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[40dvh] w-full items-center justify-center">
+      <Loader2 className="animate-spin text-graphite" size={28} aria-label="…" />
     </div>
   )
 }
