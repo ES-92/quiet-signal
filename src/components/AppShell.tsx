@@ -21,14 +21,10 @@ export function AppShell() {
   const isToday = location.pathname === '/today' || location.pathname === '/'
 
   return (
-    <div
-      className={[
-        'flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] text-ink sm:pb-0',
-        // Today fills the viewport exactly so its card can size to fit; other
-        // pages keep min-height and scroll normally.
-        isToday ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'
-      ].join(' ')}
-    >
+    // App shell fills the viewport exactly; the main area scrolls internally so
+    // the bottom nav stays pinned to the bottom on every device (incl. iOS,
+    // where a fixed bar drifts as Safari's toolbar shows/hides).
+    <div className="flex h-[100dvh] flex-col overflow-hidden text-ink">
       <header className="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-8 sm:py-5">
         <NavLink to="/today" className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-md border border-ink bg-ink text-paper shadow-[0_10px_25px_rgba(31,30,28,0.16)] sm:h-10 sm:w-10">
@@ -47,8 +43,8 @@ export function AppShell() {
       </header>
       <main
         className={[
-          'mx-auto w-full max-w-6xl flex-1 px-4 sm:px-8',
-          isToday ? 'flex min-h-0 pb-3 sm:pb-6' : 'pb-12'
+          'mx-auto w-full max-w-6xl min-h-0 flex-1 px-4 sm:px-8',
+          isToday ? 'flex overflow-hidden pb-3 sm:pb-6' : 'overflow-y-auto pb-12'
         ].join(' ')}
       >
         <Suspense fallback={<PageLoader />}>
@@ -56,7 +52,7 @@ export function AppShell() {
         </Suspense>
       </main>
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-line bg-paper/95 px-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_40px_rgba(31,30,28,0.08)] backdrop-blur sm:hidden"
+        className="z-20 grid shrink-0 grid-cols-6 border-t border-line bg-paper/95 px-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_40px_rgba(31,30,28,0.08)] backdrop-blur sm:hidden"
         aria-label={t('mobileNavigation')}
       >
         {navItems.map((item) => (

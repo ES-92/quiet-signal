@@ -87,8 +87,15 @@ export function TodayPage() {
       return
     }
     const dx = event.changedTouches[0].clientX - start.x
-    if (dx > SWIPE_THRESHOLD) void likeQuote(currentQuote.id)
-    else if (dx < -SWIPE_THRESHOLD) void dislikeQuote(currentQuote.id)
+    // A decisive swipe rates the card and advances to the next one, so you
+    // move through the stack instead of piling likes on one quote.
+    if (dx > SWIPE_THRESHOLD) {
+      void likeQuote(currentQuote.id)
+      goNext()
+    } else if (dx < -SWIPE_THRESHOLD) {
+      void dislikeQuote(currentQuote.id)
+      goNext()
+    }
     setDrag(0)
   }
 
