@@ -21,7 +21,14 @@ export function AppShell() {
   const isToday = location.pathname === '/today' || location.pathname === '/'
 
   return (
-    <div className="flex min-h-[100dvh] flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] text-ink sm:pb-0">
+    <div
+      className={[
+        'flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] text-ink sm:pb-0',
+        // Today fills the viewport exactly so its card can size to fit; other
+        // pages keep min-height and scroll normally.
+        isToday ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'
+      ].join(' ')}
+    >
       <header className="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-8 sm:py-5">
         <NavLink to="/today" className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-md border border-ink bg-ink text-paper shadow-[0_10px_25px_rgba(31,30,28,0.16)] sm:h-10 sm:w-10">

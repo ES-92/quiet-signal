@@ -5,6 +5,7 @@ import { AudioPlayer } from '../components/AudioRecorder'
 import { EmptyState } from '../components/EmptyState'
 import { LikeControl } from '../components/LikeControl'
 import { PhotoPreview } from '../components/PhotoCapture'
+import { useFitText } from '../hooks/useFitText'
 import { useI18n } from '../i18n/I18nProvider'
 import { selectDailyStack, type BookWeightMap } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
@@ -40,6 +41,8 @@ export function TodayPage() {
 
   const currentIndex = Math.min(index, Math.max(dailyQuotes.length - 1, 0))
   const currentQuote = dailyQuotes[currentIndex]
+  // Shrink long quotes to fit the card instead of clipping them.
+  const { containerRef, textRef } = useFitText(currentQuote?.id ?? '')
 
   useEffect(() => {
     if (index >= dailyQuotes.length) {
@@ -105,9 +108,9 @@ export function TodayPage() {
           {t('loadingLibrary')}
         </div>
       ) : currentQuote ? (
-        <section className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
+        <section className="flex min-h-0 flex-col gap-4 lg:flex-row">
           <div
-            className="relative flex min-h-0 touch-pan-y flex-col overflow-hidden rounded-md border border-[#d4cabd] bg-[#fbf8f2] p-4 shadow-[0_24px_70px_rgba(31,30,28,0.08)] sm:p-8"
+            className="relative flex min-h-0 flex-1 touch-pan-y flex-col overflow-hidden rounded-md border border-[#d4cabd] bg-[#fbf8f2] p-4 shadow-[0_24px_70px_rgba(31,30,28,0.08)] sm:p-8"
             style={{
               transform: `translateX(${drag}px) rotate(${drag * 0.015}deg)`,
               transition: drag === 0 ? 'transform 0.25s ease' : 'none'
@@ -154,9 +157,12 @@ export function TodayPage() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 py-3 sm:gap-5 sm:py-6">
+            <div
+              ref={containerRef}
+              className="flex min-h-0 flex-1 flex-col justify-center gap-3 overflow-hidden py-3 sm:gap-5 sm:py-6"
+            >
               {currentQuote.imageDataUrl && (
-                <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-md">
+                <div className="mx-auto w-full max-w-2xl shrink-0 overflow-hidden rounded-md">
                   <PhotoPreview
                     src={currentQuote.imageDataUrl}
                     className="max-h-[26dvh] w-full rounded-md border border-line object-cover sm:max-h-[34dvh]"
@@ -165,11 +171,21 @@ export function TodayPage() {
               )}
 
               {currentQuote.text ? (
-                <blockquote className="line-clamp-[8] break-words font-serif text-2xl leading-[1.12] text-ink sm:line-clamp-[7] sm:text-5xl">
+                <blockquote
+                  ref={(el) => {
+                    textRef.current = el
+                  }}
+                  className="break-words font-serif leading-[1.12] text-ink"
+                >
                   "{currentQuote.text}"
                 </blockquote>
               ) : (
-                <h2 className="line-clamp-[4] break-words font-serif text-3xl leading-[1.12] text-ink sm:text-5xl">
+                <h2
+                  ref={(el) => {
+                    textRef.current = el
+                  }}
+                  className="break-words font-serif leading-[1.12] text-ink"
+                >
                   {currentQuote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
                 </h2>
               )}
@@ -225,7 +241,7 @@ export function TodayPage() {
             </div>
           </div>
 
-          <aside className="hidden flex-col justify-between rounded-md border border-line bg-white/30 p-5 lg:flex">
+          <aside className="hidden shrink-0 flex-col justify-between rounded-md border border-line bg-white/30 p-5 lg:flex lg:w-60">
             <div>
               <p className="font-serif text-3xl">{t('dailyReview')}</p>
               <p className="mt-3 text-sm leading-6 text-graphite">{t('swipeHint')}</p>
