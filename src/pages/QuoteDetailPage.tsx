@@ -1,7 +1,8 @@
-import { BookMarked, Flame, Heart, RotateCcw, Trash2 } from 'lucide-react'
+import { BookMarked, Heart, Trash2 } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
+import { LikeControl } from '../components/LikeControl'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { QuoteForm } from '../components/QuoteForm'
 import { useI18n } from '../i18n/I18nProvider'
@@ -13,7 +14,7 @@ export function QuoteDetailPage() {
   const { language, t } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { quotes, loadQuotes, saveQuote, likeQuote, removeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
 
   useEffect(() => {
@@ -85,33 +86,19 @@ export function QuoteDetailPage() {
           <Metric label={t('lastRead')} value={formatDate(quote.lastReviewedAt, language, t('never'))} />
           <Metric label={t('nextDue')} value={formatDate(quote.nextReviewAt, language, t('never'))} />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <LikeControl
+            likes={quote.likes}
+            onLike={() => void likeQuote(quote.id)}
+            onDislike={() => void dislikeQuote(quote.id)}
+          />
           <button
-            className={[
-              'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm',
-              quote.likes > 0 ? 'border-clay text-clay' : 'border-line text-graphite'
-            ].join(' ')}
-            onClick={() => void likeQuote(quote.id)}
-          >
-            <Flame size={16} fill={quote.likes > 0 ? 'currentColor' : 'none'} />
-            <span key={quote.likes} className="like-pop">{t('like')}</span>
-            {quote.likes > 0 && <span className="tabular-nums">· {quote.likes}</span>}
-          </button>
-          {quote.likes > 0 && (
-            <button
-              className="inline-flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
-              onClick={() => void saveQuote(quote.id, { likes: 0 })}
-            >
-              <RotateCcw size={16} /> {t('resetLikes')}
-            </button>
-          )}
-          <button
-            className="inline-flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
             onClick={() => void saveQuote(quote.id, { favorite: !quote.favorite })}
           >
             <Heart size={16} fill={quote.favorite ? 'currentColor' : 'none'} /> {t('favorite')}
           </button>
-          <button className="inline-flex items-center gap-2 rounded-md border border-clay px-3 py-2 text-sm text-clay" onClick={() => void handleDelete()}>
+          <button className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-clay px-3 py-2 text-sm text-clay" onClick={() => void handleDelete()}>
             <Trash2 size={16} /> {t('delete')}
           </button>
         </div>

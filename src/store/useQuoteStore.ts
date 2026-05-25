@@ -8,6 +8,7 @@ import {
   upsertQuotes
 } from '../db/database'
 import { applyReview, type ReviewAction } from '../services/review'
+import { tapHaptic } from '../services/haptics'
 import type { Quote, QuoteFilters, QuoteInput } from '../types/quote'
 import { emptyFilters } from '../services/search'
 
@@ -19,6 +20,7 @@ interface QuoteStore {
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
   likeQuote: (id: string) => Promise<void>
+  dislikeQuote: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   unlinkBook: (bookId: string) => Promise<void>
   reviewQuote: (id: string, action: ReviewAction) => Promise<void>
@@ -48,11 +50,24 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   likeQuote: async (id) => {
     const quote = get().quotes.find((item) => item.id === id)
     if (!quote) return
-    // Optimistic bump so the heart count animates instantly, then persist.
+    const next = (quote.likes ?? 0) + 1
+    // Optimistic bump so the count animates instantly, then persist.
     set((state) => ({
-      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: (item.likes ?? 0) + 1 } : item))
+      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
     }))
-    await updateQuote(id, { likes: (quote.likes ?? 0) + 1 })
+    tapHaptic(8)
+    await updateQuote(id, { likes: next })
+  },
+  dislikeQuote: async (id) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return
+    const next = Math.max(0, (quote.likes ?? 0) - 1)
+    if (next === (quote.likes ?? 0)) return
+    set((state) => ({
+      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
+    }))
+    tapHaptic(12)
+    await updateQuote(id, { likes: next })
   },
   removeQuote: async (id) => {
     await deleteQuote(id)

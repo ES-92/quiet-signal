@@ -14,7 +14,7 @@ export function BookDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { books, loadBooks, setWeight, removeBook } = useBookStore()
-  const { quotes, loadQuotes, saveQuote, likeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
 
   useEffect(() => {
     void loadBooks()
@@ -91,6 +91,7 @@ export function BookDetailPage() {
               compact
               onFavorite={(quoteId) => void saveQuote(quoteId, { favorite: !quote.favorite })}
               onLike={(quoteId) => void likeQuote(quoteId)}
+              onDislike={(quoteId) => void dislikeQuote(quoteId)}
             />
           ))}
         </div>

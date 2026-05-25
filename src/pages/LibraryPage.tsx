@@ -7,7 +7,7 @@ import { useQuoteStore } from '../store/useQuoteStore'
 
 export function LibraryPage() {
   const { t } = useI18n()
-  const { quotes, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote } = useQuoteStore()
+  const { quotes, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
 
   useEffect(() => {
     void loadQuotes()
@@ -58,6 +58,7 @@ export function LibraryPage() {
               compact
               onFavorite={(id) => void saveQuote(id, { favorite: !quote.favorite })}
               onLike={(id) => void likeQuote(id)}
+              onDislike={(id) => void dislikeQuote(id)}
             />
           ))}
         </div>

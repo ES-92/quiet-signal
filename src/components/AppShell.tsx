@@ -79,7 +79,7 @@ function NavButton({ item, compact = false }: { item: NavItem; compact?: boolean
       className={({ isActive }) =>
         [
           'flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm text-graphite transition',
-          compact ? 'px-1' : '',
+          compact ? 'min-h-[44px] px-1' : '',
           isActive ? 'bg-ink text-paper shadow-[0_8px_20px_rgba(31,30,28,0.12)]' : 'hover:bg-white/50 hover:text-ink'
         ].join(' ')
       }

@@ -56,27 +56,48 @@ export function selectDailyStack(
     mode: 'balanced'
   }
 ) {
-  const today = Date.now()
+  const now = Date.now()
+  const baseDate = options.date ?? new Date()
   const weights = options.bookWeights ?? {}
-  const dateKey = formatDateKey(options.date ?? new Date())
+  const dateKey = formatDateKey(baseDate)
   const random = seededRandom(`${dateKey}:${options.limit}:${options.mode}`)
-  const eligible = quotes
-    .filter((quote) => !quote.nextReviewAt || new Date(quote.nextReviewAt).getTime() <= today)
+
+  const endOfToday = new Date(baseDate)
+  endOfToday.setHours(23, 59, 59, 999)
+  const endOfTodayMs = endOfToday.getTime()
+
+  // Items already read today drop out so the stack empties as you work through
+  // it (and so "read" entries don't immediately reappear via the backlog).
+  const reviewedToday = (quote: Quote) =>
+    Boolean(quote.lastReviewedAt) && formatDateKey(new Date(quote.lastReviewedAt as string)) === dateKey
+
+  const scored = quotes
+    .filter((quote) => !reviewedToday(quote))
     .map((quote) => ({
       quote,
-      score: stackScore(quote, today, options.mode, random, weights)
+      due: !quote.nextReviewAt || new Date(quote.nextReviewAt).getTime() <= now,
+      score: stackScore(quote, now, options.mode, random, weights)
     }))
+
+  const due = scored.filter((item) => item.due).sort((a, b) => b.score - a.score)
+  // Backlog keeps the daily stack from ever running dry: entries that aren't due
+  // until a later day (today's snoozed items are excluded — they return on their
+  // own) surface as a refresher when too few are strictly due.
+  const backlog = scored
+    .filter((item) => !item.due && new Date(item.quote.nextReviewAt as string).getTime() > endOfTodayMs)
     .sort((a, b) => b.score - a.score)
+
+  const ordered = [...due, ...backlog]
 
   const selected: Quote[] = []
   const usedAuthors = new Set<string>()
 
-  for (const item of eligible) {
+  for (const item of ordered) {
     const author = item.quote.author?.toLowerCase().trim()
     // Books marked "often" may surface more than once per stack, so don't
     // dedupe them by author the way we do for everything else.
     const allowRepeatAuthor = weights[item.quote.bookId ?? ''] === 'often'
-    if (author && usedAuthors.has(author) && !allowRepeatAuthor && eligible.length > options.limit) {
+    if (author && usedAuthors.has(author) && !allowRepeatAuthor && ordered.length > options.limit) {
       continue
     }
 
@@ -85,7 +106,7 @@ export function selectDailyStack(
     if (selected.length === options.limit) return selected
   }
 
-  for (const item of eligible) {
+  for (const item of ordered) {
     if (!selected.some((quote) => quote.id === item.quote.id)) {
       selected.push(item.quote)
       if (selected.length === options.limit) break

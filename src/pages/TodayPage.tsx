@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowRight, BookOpen, Clock, ExternalLink, Flame, Heart } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ArrowRight, BookOpen, Clock, ExternalLink, Heart } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
 import { EmptyState } from '../components/EmptyState'
+import { LikeControl } from '../components/LikeControl'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { useI18n } from '../i18n/I18nProvider'
 import { selectDailyStack, type BookWeightMap } from '../services/review'
@@ -12,11 +13,11 @@ import { useSettingsStore } from '../store/useSettingsStore'
 
 export function TodayPage() {
   const { t } = useI18n()
-  const { quotes, loading, loadQuotes, reviewQuote, saveQuote, likeQuote } = useQuoteStore()
+  const { quotes, loading, loadQuotes, reviewQuote, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
   const { dailyCount, dailyMode } = useSettingsStore()
   const [index, setIndex] = useState(0)
-  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     void loadQuotes()
@@ -56,14 +57,18 @@ export function TodayPage() {
     setIndex((value) => Math.min(value, Math.max(dailyQuotes.length - 2, 0)))
   }
 
-  function handleTouchEnd(clientX: number) {
-    if (touchStart === null) return
-    const distance = touchStart - clientX
-    if (Math.abs(distance) > 48) {
-      if (distance > 0) goNext()
+  function handleTouchEnd(touch: { clientX: number; clientY: number }) {
+    const start = touchStartRef.current
+    touchStartRef.current = null
+    if (!start) return
+    const dx = start.x - touch.clientX
+    const dy = start.y - touch.clientY
+    // Only treat it as a page swipe when horizontal motion clearly dominates,
+    // so vertical scrolling never accidentally flips the card.
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      if (dx > 0) goNext()
       else goPrevious()
     }
-    setTouchStart(null)
   }
 
   return (
@@ -82,15 +87,18 @@ export function TodayPage() {
         <section className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
           <div
             className="relative flex min-h-0 flex-col overflow-hidden rounded-md border border-[#d4cabd] bg-[#fbf8f2] p-4 shadow-[0_24px_70px_rgba(31,30,28,0.08)] sm:p-8"
-            onTouchStart={(event) => setTouchStart(event.changedTouches[0].clientX)}
-            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0].clientX)}
+            onTouchStart={(event) => {
+              const touch = event.changedTouches[0]
+              touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+            }}
+            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0])}
           >
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />
             <div className="flex shrink-0 items-center justify-between gap-3 text-[0.66rem] uppercase tracking-[0.18em] text-graphite sm:text-xs sm:tracking-[0.22em]">
               <span>{t('reviewStack')}</span>
               <div className="flex items-center gap-2">
                 <button
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-line text-graphite disabled:opacity-35"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line text-graphite disabled:opacity-35 sm:h-9 sm:w-9"
                   disabled={currentIndex === 0}
                   onClick={goPrevious}
                   aria-label={t('previous')}
@@ -99,7 +107,7 @@ export function TodayPage() {
                 </button>
                 <span className="min-w-12 text-center">{t('cardProgress', { current: currentIndex + 1, total: dailyQuotes.length })}</span>
                 <button
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-line text-graphite disabled:opacity-35"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line text-graphite disabled:opacity-35 sm:h-9 sm:w-9"
                   disabled={currentIndex >= dailyQuotes.length - 1}
                   onClick={goNext}
                   aria-label={t('next')}
@@ -167,24 +175,13 @@ export function TodayPage() {
                 <span className="hidden sm:inline">{t('later')}</span>
                 <span className="sr-only sm:hidden">{t('later')}</span>
               </button>
-              <button
-                className={[
-                  'inline-flex min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-3 text-sm sm:px-4',
-                  currentQuote.likes > 0 ? 'border-clay text-clay' : 'border-line text-graphite'
-                ].join(' ')}
-                onClick={() => void likeQuote(currentQuote.id)}
-                aria-label={t('like')}
-              >
-                <Flame size={16} fill={currentQuote.likes > 0 ? 'currentColor' : 'none'} />
-                {currentQuote.likes > 0 ? (
-                  <span key={currentQuote.likes} className="like-pop tabular-nums">{currentQuote.likes}</span>
-                ) : (
-                  <>
-                    <span className="hidden sm:inline">{t('like')}</span>
-                    <span className="sr-only sm:hidden">{t('like')}</span>
-                  </>
-                )}
-              </button>
+              <LikeControl
+                compact
+                className="w-full"
+                likes={currentQuote.likes}
+                onLike={() => void likeQuote(currentQuote.id)}
+                onDislike={() => void dislikeQuote(currentQuote.id)}
+              />
               <button
                 className={[
                   'inline-flex min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-3 text-sm sm:px-4',
