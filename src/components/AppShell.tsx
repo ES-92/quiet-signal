@@ -1,4 +1,4 @@
-import { Loader2, Menu } from 'lucide-react'
+import { Heart, Loader2, Menu } from 'lucide-react'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/I18nProvider'
@@ -7,8 +7,10 @@ import { tapHaptic } from '../services/haptics'
 import { CommandDrawer } from './CommandDrawer'
 import { InstallPrompt } from './InstallPrompt'
 import { Onboarding } from './Onboarding'
+import { SupportSheet } from './SupportSheet'
 import { Toast } from './Toast'
 import { SignalMark } from './SignalMark'
+import { WhatsNew } from './WhatsNew'
 import { ZeroCaptureSheet } from './ZeroCaptureSheet'
 
 export function AppShell() {
@@ -18,6 +20,7 @@ export function AppShell() {
   const isToday = location.pathname === '/today' || location.pathname === '/'
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [captureOpen, setCaptureOpen] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
   const [captureMode, setCaptureMode] = useState<CaptureMode>('text')
   const gestureRef = useRef<{ x: number; y: number; startedAtTop: boolean; edge: 'left' | 'right' | null } | null>(null)
 
@@ -106,17 +109,32 @@ export function AppShell() {
             <span className="hidden text-xs uppercase tracking-[0.2em] text-graphite sm:block">{t('appTagline')}</span>
           </span>
         </NavLink>
-        <button
-          type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper/70 text-graphite transition hover:border-ink/40 hover:text-ink"
-          onClick={() => {
-            tapHaptic(8)
-            setDrawerOpen(true)
-          }}
-          aria-label={t('openCommandMenu')}
-        >
-          <Menu size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          {!isToday && (
+            <button
+              type="button"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper/70 text-graphite transition hover:border-ink/40 hover:text-ink"
+              onClick={() => {
+                tapHaptic(8)
+                setSupportOpen(true)
+              }}
+              aria-label={t('supportAriaLabel')}
+            >
+              <Heart size={18} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper/70 text-graphite transition hover:border-ink/40 hover:text-ink"
+            onClick={() => {
+              tapHaptic(8)
+              setDrawerOpen(true)
+            }}
+            aria-label={t('openCommandMenu')}
+          >
+            <Menu size={18} />
+          </button>
+        </div>
       </header>
       {isToday && (
         <>
@@ -141,6 +159,8 @@ export function AppShell() {
       <InstallPrompt />
       <Onboarding />
       <Toast />
+      <SupportSheet open={supportOpen} onClose={() => setSupportOpen(false)} />
+      <WhatsNew onSupport={() => setSupportOpen(true)} />
     </div>
   )
 }
