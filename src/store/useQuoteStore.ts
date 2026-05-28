@@ -23,6 +23,11 @@ interface QuoteStore {
   dislikeQuote: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   unlinkBook: (bookId: string) => Promise<void>
+  syncBookReferences: (
+    bookId: string,
+    nextBook: { title: string; author?: string },
+    previousBook?: { title: string; author?: string }
+  ) => Promise<void>
   reviewQuote: (id: string, action: ReviewAction) => Promise<void>
   importQuotes: (quotes: Quote[]) => Promise<void>
   clearAll: () => Promise<void>
@@ -77,6 +82,34 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     const affected = get().quotes.filter((quote) => quote.bookId === bookId)
     await Promise.all(affected.map((quote) => updateQuote(quote.id, { bookId: undefined })))
     if (affected.length) await get().loadQuotes()
+  },
+  syncBookReferences: async (bookId, nextBook, previousBook) => {
+    const affected = get().quotes.filter((quote) => quote.bookId === bookId)
+    if (!affected.length) return
+
+    await Promise.all(
+      affected.map((quote) => {
+        const patch: Partial<Quote> = {
+          work: nextBook.title
+        }
+
+        if (previousBook && previousBook.author !== nextBook.author) {
+          patch.author = nextBook.author
+        }
+
+        const sourceWasBookTitle =
+          !quote.source ||
+          quote.source === previousBook?.title ||
+          quote.source === quote.work
+
+        if (sourceWasBookTitle) {
+          patch.source = nextBook.title
+        }
+
+        return updateQuote(quote.id, patch)
+      })
+    )
+    await get().loadQuotes()
   },
   reviewQuote: async (id, action) => {
     const quote = get().quotes.find((item) => item.id === id)

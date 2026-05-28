@@ -1,6 +1,7 @@
 import { Mic, Pause, Play, Trash2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '../i18n/I18nProvider'
+import { tapHaptic } from '../services/haptics'
 
 interface AudioRecorderProps {
   audioDataUrl?: string
@@ -13,7 +14,16 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
   const startedAtRef = useRef(0)
   const chunksRef = useRef<Blob[]>([])
   const [recording, setRecording] = useState(false)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!recording) return
+    const tick = () => setElapsedMs(Date.now() - startedAtRef.current)
+    tick()
+    const interval = window.setInterval(tick, 160)
+    return () => window.clearInterval(interval)
+  }, [recording])
 
   async function startRecording() {
     setError('')
@@ -29,6 +39,7 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
       const recorder = new MediaRecorder(stream)
       recorderRef.current = recorder
       startedAtRef.current = Date.now()
+      setElapsedMs(0)
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data)
@@ -43,6 +54,7 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
       }
 
       recorder.start()
+      tapHaptic(10)
       setRecording(true)
     } catch {
       setError(t('microphoneDenied'))
@@ -50,14 +62,16 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
   }
 
   function stopRecording() {
+    setElapsedMs(Date.now() - startedAtRef.current)
+    tapHaptic([8, 24, 8])
     recorderRef.current?.stop()
     recorderRef.current = null
     setRecording(false)
   }
 
   return (
-    <section className="rounded-md border border-line bg-white/30 p-4">
-      <div className="grid gap-3 sm:flex sm:items-start sm:justify-between sm:gap-4">
+    <section className="rounded-md border border-line bg-white/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+      <div className="grid gap-4">
         <div>
           <p className="font-serif text-xl sm:text-2xl">{t('voiceNote')}</p>
           <p className="mt-1 text-sm leading-6 text-graphite">{t('voiceNoteHelp')}</p>
@@ -65,17 +79,26 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
         <button
           type="button"
           className={[
-            'inline-flex shrink-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm',
-            recording ? 'bg-clay text-paper' : 'bg-ink text-paper'
+            'group relative grid min-h-[118px] place-items-center overflow-hidden rounded-md border px-4 py-4 text-center transition duration-300',
+            recording
+              ? 'border-clay bg-clay text-paper shadow-[0_18px_42px_rgba(166,95,63,0.2)]'
+              : 'border-ink bg-ink text-paper shadow-[0_18px_42px_rgba(31,30,28,0.15)] hover:bg-[#171615]'
           ].join(' ')}
           onClick={recording ? stopRecording : startRecording}
         >
-          {recording ? <Pause size={16} /> : <Mic size={16} />}
-          {recording ? t('stopRecording') : t('startRecording')}
+          <span className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-paper/45 to-transparent" />
+          <span className={['mb-2 flex h-12 w-12 items-center justify-center rounded-full border border-paper/20 bg-paper/10', recording ? 'recording-pulse' : ''].join(' ')}>
+            {recording ? <Pause size={19} /> : <Mic size={19} />}
+          </span>
+          <span className="text-sm font-medium">{recording ? t('stopRecording') : t('startRecording')}</span>
+          <span className="mt-1 font-mono text-xs tabular-nums text-paper/65">
+            {recording ? formatDuration(elapsedMs) : t('voiceNote')}
+          </span>
+          {recording && <RecordingBars />}
         </button>
       </div>
 
-      {recording && <p className="mt-3 text-sm text-clay">{t('recordingNow')}</p>}
+      {recording && <p className="mt-3 text-sm text-clay">{t('recordingNow')} - {formatDuration(elapsedMs)}</p>}
       {error && <p className="mt-3 text-sm text-clay">{error}</p>}
 
       {audioDataUrl && (
@@ -86,13 +109,27 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
           <button
             type="button"
             className="inline-flex w-fit items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
-            onClick={() => onChange(undefined)}
+            onClick={() => {
+              tapHaptic(8)
+              setElapsedMs(0)
+              onChange(undefined)
+            }}
           >
             <Trash2 size={16} /> {t('removeAudio')}
           </button>
         </div>
       )}
     </section>
+  )
+}
+
+function RecordingBars() {
+  return (
+    <span className="recording-wave mt-4 flex h-7 items-end gap-1" aria-hidden="true">
+      {[0, 1, 2, 3, 4, 5, 6].map((index) => (
+        <span key={index} style={{ animationDelay: `${index * 72}ms` }} />
+      ))}
+    </span>
   )
 }
 
@@ -118,4 +155,11 @@ function blobToDataUrl(blob: Blob) {
     reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(blob)
   })
+}
+
+function formatDuration(ms: number) {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }

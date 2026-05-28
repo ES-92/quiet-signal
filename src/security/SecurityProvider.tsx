@@ -101,9 +101,9 @@ function UnlockScreen({
   onSubmit: (event: FormEvent) => void
 }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
+    <main className="flex min-h-[100dvh] items-center justify-center bg-paper px-5 text-ink">
       <form className="classical-panel grid w-full max-w-sm gap-4 rounded-md p-6 text-center" onSubmit={onSubmit}>
-        <h1 className="font-serif text-4xl">Commonplace</h1>
+        <h1 className="font-serif text-4xl">Quiet Signal</h1>
         <p className="text-sm uppercase tracking-[0.22em] text-graphite">{title}</p>
         {children}
         {error && <p className="text-sm text-clay">{error}</p>}

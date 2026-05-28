@@ -59,19 +59,19 @@ export function InstallPrompt() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 px-4 sm:bottom-4">
-      <div className="mx-auto flex max-w-md items-center gap-3 rounded-md border border-ink/10 bg-ink px-4 py-3 text-paper shadow-[0_18px_45px_rgba(31,30,28,0.32)]">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-paper/15">
+    <div className="fixed inset-x-0 bottom-[calc(5.15rem+env(safe-area-inset-bottom))] z-30 px-4 sm:bottom-4">
+      <div className="mx-auto flex max-w-[23rem] items-center gap-2 rounded-full border border-paper/10 bg-ink px-2.5 py-2 text-paper shadow-[0_16px_40px_rgba(31,30,28,0.28)] backdrop-blur">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper/15">
           {iosHint ? <Share size={18} /> : <Download size={18} />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-serif text-base leading-tight">{t('installTitle')}</p>
-          <p className="mt-0.5 text-xs leading-snug text-paper/75">{iosHint ? t('installIosHint') : t('installBenefit')}</p>
+          <p className="truncate font-serif text-sm leading-tight">{t('installTitle')}</p>
+          <p className="truncate text-[11px] leading-snug text-paper/70">{iosHint ? t('installIosHint') : t('installBenefit')}</p>
         </div>
         {!iosHint && (
           <button
             onClick={() => void handleInstall()}
-            className="shrink-0 rounded-md bg-paper px-3 py-2 text-sm font-medium text-ink"
+            className="shrink-0 rounded-full bg-paper px-3 py-1.5 text-xs font-medium text-ink"
           >
             {t('installAction')}
           </button>
@@ -79,7 +79,7 @@ export function InstallPrompt() {
         <button
           onClick={dismiss}
           aria-label={t('installDismiss')}
-          className="shrink-0 rounded-md p-2 text-paper/70 transition hover:text-paper"
+          className="shrink-0 rounded-full p-2 text-paper/70 transition hover:text-paper"
         >
           <X size={18} />
         </button>

@@ -1,4 +1,4 @@
-import type { Quote } from '../types/quote'
+import { quoteStatus, signalStrength, type Quote, type SignalStrength } from '../types/quote'
 import { weightMultiplier, type BookWeight } from '../types/book'
 import type { DailyMode } from '../store/useSettingsStore'
 
@@ -15,15 +15,19 @@ export function nextReviewDate(quote: Quote, action: ReviewAction) {
     return new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString()
   }
 
+  const strength = signalStrength(quote)
+
   if (quote.reviewCount === 0) {
-    return new Date(now.getTime() + dayMs).toISOString()
+    return new Date(now.getTime() + (strength === 'quiet' ? 2 : 1) * dayMs).toISOString()
   }
 
   if (quote.reviewCount === 1) {
-    return new Date(now.getTime() + 3 * dayMs).toISOString()
+    const interval = strength === 'strong' ? 2 : strength === 'quiet' ? 5 : 3
+    return new Date(now.getTime() + interval * dayMs).toISOString()
   }
 
-  const interval = quote.favorite ? 5 : 7
+  const base = quote.favorite ? 5 : 7
+  const interval = strength === 'strong' ? Math.max(3, base - 2) : strength === 'quiet' ? base + 4 : base
   return new Date(now.getTime() + interval * dayMs).toISOString()
 }
 
@@ -72,6 +76,7 @@ export function selectDailyStack(
     Boolean(quote.lastReviewedAt) && formatDateKey(new Date(quote.lastReviewedAt as string)) === dateKey
 
   const scored = quotes
+    .filter((quote) => quoteStatus(quote) === 'signal')
     .filter((quote) => !reviewedToday(quote))
     .map((quote) => ({
       quote,
@@ -119,9 +124,15 @@ export function selectDailyStack(
 function stackScore(quote: Quote, today: number, mode: DailyMode, random: () => number, weights: BookWeightMap) {
   const reviewScore = scoreQuote(quote, today)
   const likeBonus = Math.min(quote.likes ?? 0, 8) * 35
-  const weighted = (reviewScore + likeBonus) * weightMultiplier(weights[quote.bookId ?? ''])
+  const weighted = (reviewScore + likeBonus) * weightMultiplier(weights[quote.bookId ?? '']) * signalMultiplier(signalStrength(quote))
   const randomScore = random() * (mode === 'random' ? 1200 : 180)
   return weighted + randomScore
+}
+
+function signalMultiplier(strength: SignalStrength) {
+  if (strength === 'strong') return 1.38
+  if (strength === 'quiet') return 0.68
+  return 1
 }
 
 function scoreQuote(quote: Quote, today: number) {

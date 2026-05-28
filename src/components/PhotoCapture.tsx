@@ -1,11 +1,15 @@
 import { Camera, Image, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useI18n } from '../i18n/I18nProvider'
+import { tapHaptic } from '../services/haptics'
 
 interface PhotoCaptureProps {
   imageDataUrl?: string
   onChange: (image?: { dataUrl: string; mimeType: string }) => void
 }
+
+const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const maxImageBytes = 12 * 1024 * 1024
 
 export function PhotoCapture({ imageDataUrl, onChange }: PhotoCaptureProps) {
   const { t } = useI18n()
@@ -17,7 +21,7 @@ export function PhotoCapture({ imageDataUrl, onChange }: PhotoCaptureProps) {
     if (!file) return
     setError('')
 
-    if (!file.type.startsWith('image/')) {
+    if (!allowedImageTypes.has(file.type) || file.size > maxImageBytes) {
       setError(t('photoUnsupported'))
       return
     }
@@ -31,7 +35,7 @@ export function PhotoCapture({ imageDataUrl, onChange }: PhotoCaptureProps) {
   }
 
   return (
-    <section className="rounded-md border border-line bg-white/30 p-4">
+    <section className="rounded-md border border-line bg-white/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-serif text-xl sm:text-2xl">{t('photoNote')}</p>
@@ -39,29 +43,80 @@ export function PhotoCapture({ imageDataUrl, onChange }: PhotoCaptureProps) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper" onClick={() => cameraInputRef.current?.click()}>
-          <Camera size={16} /> {t('takePhoto')}
-        </button>
-        <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite" onClick={() => fileInputRef.current?.click()}>
-          <Image size={16} /> {t('choosePhoto')}
-        </button>
+      <div className="mt-4 overflow-hidden rounded-md border border-dashed border-line bg-paper/55">
+        {imageDataUrl ? (
+          <div className="relative">
+            <img className="max-h-[24rem] w-full object-cover sm:max-h-[28rem]" src={imageDataUrl} alt={t('photoNote')} />
+            <button
+              type="button"
+              className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-paper/90 text-graphite shadow-[0_12px_30px_rgba(31,30,28,0.12)] backdrop-blur transition hover:text-clay"
+              aria-label={t('removePhoto')}
+              onClick={() => {
+                tapHaptic(8)
+                onChange(undefined)
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="grid min-h-[11.5rem] place-items-center px-4 py-5 text-center">
+            <div className="grid justify-items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white/40 text-graphite shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <Camera size={18} />
+              </span>
+              <div className="grid w-full grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper"
+                  onClick={() => {
+                    tapHaptic(8)
+                    cameraInputRef.current?.click()
+                  }}
+                >
+                  <Camera size={16} /> {t('takePhoto')}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-line bg-paper/70 px-3 py-2 text-sm text-graphite"
+                  onClick={() => {
+                    tapHaptic(8)
+                    fileInputRef.current?.click()
+                  }}
+                >
+                  <Image size={16} /> {t('choosePhoto')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <input ref={cameraInputRef} className="hidden" type="file" accept="image/*" capture="environment" onChange={(event) => void handleFile(event.target.files?.[0])} />
-      <input ref={fileInputRef} className="hidden" type="file" accept="image/*" onChange={(event) => void handleFile(event.target.files?.[0])} />
+      <input ref={cameraInputRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={(event) => void handleFile(event.target.files?.[0])} />
+      <input ref={fileInputRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => void handleFile(event.target.files?.[0])} />
 
       {error && <p className="mt-3 text-sm text-clay">{error}</p>}
-
       {imageDataUrl && (
-        <div className="mt-4 grid gap-3">
-          <img className="max-h-[22rem] w-full rounded-md border border-line object-cover sm:max-h-[26rem]" src={imageDataUrl} alt={t('photoNote')} />
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
-            className="inline-flex w-fit items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
-            onClick={() => onChange(undefined)}
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
+            onClick={() => {
+              tapHaptic(8)
+              cameraInputRef.current?.click()
+            }}
           >
-            <Trash2 size={16} /> {t('removePhoto')}
+            <Camera size={16} /> {t('takePhoto')}
+          </button>
+          <button
+            type="button"
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
+            onClick={() => {
+              tapHaptic(8)
+              fileInputRef.current?.click()
+            }}
+          >
+            <Image size={16} /> {t('choosePhoto')}
           </button>
         </div>
       )}

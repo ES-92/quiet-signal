@@ -1,7 +1,8 @@
 import { BookMarked } from 'lucide-react'
+import { DomainMigrationPanel } from '../components/DomainMigrationPanel'
 import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n/I18nProvider'
-import { exportCsv, exportJson, exportMarkdown, downloadText, parseCsvImport, parseJsonImport } from '../services/importExport'
+import { exportCsv, exportJson, exportMarkdown, downloadText, parseCsvImport, parseJsonImportBundle } from '../services/importExport'
 import { buildKindleImport } from '../services/kindleImport'
 import { buildReadwiseCsvImport } from '../services/readwiseCsvImport'
 import { useBookStore } from '../store/useBookStore'
@@ -24,7 +25,10 @@ export function ImportExportPage() {
     if (!file) return
     try {
       const content = await file.text()
-      const imported = file.name.toLowerCase().endsWith('.json') ? parseJsonImport(content) : parseCsvImport(content)
+      const json = file.name.toLowerCase().endsWith('.json')
+      const bundle = json ? parseJsonImportBundle(content) : { quotes: parseCsvImport(content), books: [] }
+      if (bundle.books.length) await importBooks(bundle.books)
+      const imported = bundle.quotes
       const valid = imported.filter((quote) => quote.text || quote.audioDataUrl || quote.imageDataUrl)
       await importQuotes(valid)
       setMessage(t('importedQuotes', { count: valid.length }))
@@ -82,6 +86,7 @@ export function ImportExportPage() {
         <p className="mt-4 max-w-xl leading-7 text-graphite">{t('importExportIntro')}</p>
       </section>
       <section className="grid gap-5">
+        <DomainMigrationPanel />
         <div className="rounded-md border border-line bg-white/30 p-5">
           <h2 className="font-serif text-3xl">{t('import')}</h2>
           <p className="mt-2 text-sm leading-6 text-graphite">{t('importHelp')}</p>
@@ -123,13 +128,13 @@ export function ImportExportPage() {
           <h2 className="font-serif text-3xl">{t('export')}</h2>
           <p className="mt-2 text-sm leading-6 text-graphite">{t('exportAvailable', { count: quotes.length })}</p>
           <div className="mt-5 flex flex-wrap gap-2">
-            <button className="rounded-md bg-ink px-4 py-2 text-sm text-paper" onClick={() => downloadText('commonplace.json', exportJson(quotes), 'application/json')}>
+            <button className="rounded-md bg-ink px-4 py-2 text-sm text-paper" onClick={() => downloadText('quiet-signal.json', exportJson(quotes, books), 'application/json')}>
               JSON
             </button>
-            <button className="rounded-md border border-line px-4 py-2 text-sm text-graphite" onClick={() => downloadText('commonplace.csv', exportCsv(quotes), 'text/csv')}>
+            <button className="rounded-md border border-line px-4 py-2 text-sm text-graphite" onClick={() => downloadText('quiet-signal.csv', exportCsv(quotes), 'text/csv')}>
               CSV
             </button>
-            <button className="rounded-md border border-line px-4 py-2 text-sm text-graphite" onClick={() => downloadText('commonplace.md', exportMarkdown(quotes), 'text/markdown')}>
+            <button className="rounded-md border border-line px-4 py-2 text-sm text-graphite" onClick={() => downloadText('quiet-signal.md', exportMarkdown(quotes), 'text/markdown')}>
               Markdown
             </button>
           </div>

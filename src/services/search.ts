@@ -27,6 +27,10 @@ export function filterQuotes(quotes: Quote[], filters: QuoteFilters) {
       quote.source,
       quote.year,
       quote.note,
+      quote.entryType,
+      quote.occurredAt,
+      quote.people?.join(' '),
+      quote.locationName,
       quote.tags.join(' ')
     ]
       .filter(Boolean)

@@ -1,28 +1,65 @@
-import { ArrowLeft, ArrowRight, ExternalLink, Flame, Heart, Minus } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { BookOpen, Camera, Clock3, ExternalLink, Feather, Flame, Heart, Mic, Minus, PenLine, Plus, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
-import { EmptyState } from '../components/EmptyState'
-import { LikeControl } from '../components/LikeControl'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { useFitText } from '../hooks/useFitText'
 import { useI18n } from '../i18n/I18nProvider'
+import { openCapture } from '../services/captureEvents'
+import { tapHaptic } from '../services/haptics'
+import { buildReflection } from '../services/reflections'
 import { selectDailyStack, type BookWeightMap } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 
-const SWIPE_THRESHOLD = 80
+const SWIPE_THRESHOLD = 66
+const SWIPE_DISTANCE = 76
+const SWIPE_VELOCITY = 0.44
+const EXIT_MS = 620
+
+interface DragState {
+  x: number
+  y: number
+  active: boolean
+}
+
+interface PointerSnapshot {
+  pointerId: number
+  x: number
+  y: number
+  lastX: number
+  lastY: number
+  lastTime: number
+  vx: number
+  vy: number
+}
+
+interface ExitMotion {
+  direction: -1 | 1
+  x: number
+  y: number
+  rotate: number
+}
 
 export function TodayPage() {
   const { t } = useI18n()
-  const { quotes, loading, loadQuotes, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
-  const { books, loadBooks } = useBookStore()
+  const navigate = useNavigate()
+  const { quotes, loading, loadQuotes, saveQuote, likeQuote, dislikeQuote, reviewQuote } = useQuoteStore()
+  const { books, loadBooks, saveBook } = useBookStore()
   const { dailyCount, dailyMode } = useSettingsStore()
   const [index, setIndex] = useState(0)
-  const [drag, setDrag] = useState(0)
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
-  const draggingRef = useRef(false)
+  const [drag, setDrag] = useState<DragState>({ x: 0, y: 0, active: false })
+  const [exitMotion, setExitMotion] = useState<ExitMotion | null>(null)
+  const [contextOpen, setContextOpen] = useState(false)
+  const [bookEditorOpen, setBookEditorOpen] = useState(false)
+  const [bookTitle, setBookTitle] = useState('')
+  const [bookAuthor, setBookAuthor] = useState('')
+  const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
+  const pointerRef = useRef<PointerSnapshot | null>(null)
+  const longPressTimerRef = useRef<number | null>(null)
+  const longPressFiredRef = useRef(false)
+  const thresholdHapticRef = useRef(false)
 
   useEffect(() => {
     void loadQuotes()
@@ -34,80 +71,275 @@ export function TodayPage() {
     [books]
   )
 
-  const dailyQuotes = useMemo(
+  const selectedDailyQuotes = useMemo(
     () => selectDailyStack(quotes, { limit: dailyCount, mode: dailyMode, bookWeights }),
     [bookWeights, dailyCount, dailyMode, quotes]
   )
+  const dailyQuotes = useMemo(() => {
+    if (sessionQuoteIds.length === 0) return selectedDailyQuotes
+    const quoteById = new Map(quotes.map((quote) => [quote.id, quote]))
+    return sessionQuoteIds.map((id) => quoteById.get(id)).filter(Boolean)
+  }, [quotes, selectedDailyQuotes, sessionQuoteIds])
+  const weeklyReflection = useMemo(() => buildReflection(quotes, books, 'week'), [books, quotes])
+  const showReflectionNudge = weeklyReflection.entries.length >= 3
 
-  const currentIndex = Math.min(index, Math.max(dailyQuotes.length - 1, 0))
+  const currentIndex = Math.min(index, dailyQuotes.length)
   const currentQuote = dailyQuotes[currentIndex]
+  const nextQuote = dailyQuotes[currentIndex + 1]
+  const thirdQuote = dailyQuotes[currentIndex + 2]
+  const stackCompleted = dailyQuotes.length > 0 && !currentQuote
+  const currentBook = currentQuote?.bookId ? books.find((book) => book.id === currentQuote.bookId) : undefined
   // Shrink long quotes to fit the card instead of clipping them.
   const { containerRef, textRef } = useFitText(currentQuote?.id ?? '')
 
   useEffect(() => {
-    if (index >= dailyQuotes.length) {
-      setIndex(Math.max(dailyQuotes.length - 1, 0))
+    setContextOpen(false)
+    setBookEditorOpen(false)
+  }, [currentQuote?.id])
+
+  useEffect(() => () => clearLongPressTimer(), [])
+
+  useEffect(() => {
+    const selectedIds = selectedDailyQuotes.map((quote) => quote.id)
+    setSessionQuoteIds((currentIds) => {
+      const existingIds = new Set(quotes.map((quote) => quote.id))
+      if (selectedIds.length === 0) {
+        const retainedIds = currentIds.filter((id) => existingIds.has(id))
+        return sameIds(retainedIds, currentIds) ? currentIds : retainedIds
+      }
+      if (currentIds.length === 0) return selectedIds
+      const retainedIds = currentIds.filter((id) => existingIds.has(id))
+      if (retainedIds.length === 0) return selectedIds
+      return sameIds(retainedIds, currentIds) ? currentIds : retainedIds
+    })
+  }, [quotes, selectedDailyQuotes])
+
+  useEffect(() => {
+    if (index > dailyQuotes.length) {
+      setIndex(dailyQuotes.length)
     }
   }, [dailyQuotes.length, index])
 
-  function goPrevious() {
-    setIndex((value) => Math.max(value - 1, 0))
+  function advance(direction: -1 | 1, motion?: Partial<ExitMotion>) {
+    if (exitMotion || !currentQuote) return
+    const width = window.innerWidth || 390
+    setExitMotion({
+      direction,
+      x: motion?.x ?? direction * width * 1.35,
+      y: motion?.y ?? -24,
+      rotate: motion?.rotate ?? direction * 11
+    })
+    window.setTimeout(() => {
+      setIndex((value) => Math.min(value + 1, dailyQuotes.length))
+      setDrag({ x: 0, y: 0, active: false })
+      setExitMotion(null)
+    }, EXIT_MS)
   }
 
-  function goNext() {
-    setIndex((value) => Math.min(value + 1, Math.max(dailyQuotes.length - 1, 0)))
-  }
-
-  function handleTouchStart(event: React.TouchEvent) {
-    const touch = event.changedTouches[0]
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
-    draggingRef.current = false
-  }
-
-  function handleTouchMove(event: React.TouchEvent) {
-    const start = touchStartRef.current
-    if (!start) return
-    const touch = event.changedTouches[0]
-    const dx = touch.clientX - start.x
-    const dy = touch.clientY - start.y
-    // Lock into a horizontal drag only once it clearly beats vertical motion.
-    if (!draggingRef.current && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
-      draggingRef.current = true
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
     }
-    if (draggingRef.current) setDrag(dx)
   }
 
-  function handleTouchEnd(event: React.TouchEvent) {
-    const start = touchStartRef.current
-    const wasDragging = draggingRef.current
-    touchStartRef.current = null
-    draggingRef.current = false
-    if (!start || !wasDragging || !currentQuote) {
-      setDrag(0)
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (exitMotion || !currentQuote || isInteractiveTarget(event.target)) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setContextOpen(false)
+    longPressFiredRef.current = false
+    thresholdHapticRef.current = false
+    pointerRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      lastTime: performance.now(),
+      vx: 0,
+      vy: 0
+    }
+    clearLongPressTimer()
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressFiredRef.current = true
+      setDrag({ x: 0, y: 0, active: false })
+      setContextOpen(true)
+      tapHaptic([18, 35, 18])
+    }, 520)
+    setDrag({ x: 0, y: 0, active: true })
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const start = pointerRef.current
+    if (!start || start.pointerId !== event.pointerId) return
+
+    const now = performance.now()
+    const elapsed = Math.max(now - start.lastTime, 16)
+    const rawDx = event.clientX - start.x
+    const rawDy = event.clientY - start.y
+    const dx = rubberDistance(rawDx, window.innerWidth * 0.82)
+    const dy = rubberDistance(rawDy, window.innerHeight * 0.5)
+    if (Math.hypot(rawDx, rawDy) > 12) {
+      clearLongPressTimer()
+    }
+    if (!thresholdHapticRef.current && Math.abs(rawDx) > SWIPE_THRESHOLD) {
+      thresholdHapticRef.current = true
+      tapHaptic(6)
+    }
+    if (thresholdHapticRef.current && Math.abs(rawDx) < SWIPE_THRESHOLD * 0.55) {
+      thresholdHapticRef.current = false
+    }
+    start.vx = (event.clientX - start.lastX) / elapsed
+    start.vy = (event.clientY - start.lastY) / elapsed
+    start.lastX = event.clientX
+    start.lastY = event.clientY
+    start.lastTime = now
+    setDrag({ x: dx, y: dy, active: true })
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    finishPointer(event)
+  }
+
+  function handlePointerCancel(event: React.PointerEvent<HTMLDivElement>) {
+    finishPointer(event, true)
+  }
+
+  function finishPointer(event: React.PointerEvent<HTMLDivElement>, cancelled = false) {
+    clearLongPressTimer()
+    const start = pointerRef.current
+    thresholdHapticRef.current = false
+    pointerRef.current = null
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    } catch {
+      // Pointer capture may already have been released by the browser.
+    }
+
+    if (!start || start.pointerId !== event.pointerId || !currentQuote || cancelled) {
+      setDrag({ x: 0, y: 0, active: false })
       return
     }
-    const dx = event.changedTouches[0].clientX - start.x
-    // A decisive swipe rates the card and advances to the next one, so you
-    // move through the stack instead of piling likes on one quote.
-    if (dx > SWIPE_THRESHOLD) {
-      void likeQuote(currentQuote.id)
-      goNext()
-    } else if (dx < -SWIPE_THRESHOLD) {
-      void dislikeQuote(currentQuote.id)
-      goNext()
+
+    if (longPressFiredRef.current || contextOpen) {
+      longPressFiredRef.current = false
+      setDrag({ x: 0, y: 0, active: false })
+      return
     }
-    setDrag(0)
+
+    const dx = event.clientX - start.x
+    const dy = event.clientY - start.y
+    const projectedX = dx + start.vx * 230
+    const projectedY = dy + start.vy * 170
+    const fastHorizontalThrow = Math.abs(start.vx) > SWIPE_VELOCITY && Math.abs(dx) > 22
+    const committed = Math.abs(projectedX) > SWIPE_DISTANCE || fastHorizontalThrow
+
+    if (committed) {
+      const direction = projectedX >= 0 ? 1 : -1
+      const width = window.innerWidth || 390
+      const exitX = direction * width * 1.46
+      const yRatio = clamp(projectedY / Math.max(Math.abs(projectedX), 1), -0.75, 0.75)
+      const exitY = clamp(yRatio * width * 0.78, -width * 0.52, width * 0.52)
+      const rotate = direction * clamp(8 + Math.abs(projectedY) / 24, 8, 18)
+      tapHaptic(direction > 0 ? [8, 28, 8] : 10)
+
+      if (direction > 0) {
+        void likeQuote(currentQuote.id)
+      } else {
+        void dislikeQuote(currentQuote.id)
+      }
+      const reviewedQuoteId = currentQuote.id
+      window.setTimeout(() => void reviewQuote(reviewedQuoteId, 'read'), EXIT_MS + 40)
+      advance(direction, { x: exitX, y: exitY, rotate })
+    } else {
+      setDrag({ x: 0, y: 0, active: false })
+    }
   }
 
-  const likeHint = Math.max(0, Math.min(1, drag / SWIPE_THRESHOLD))
-  const dislikeHint = Math.max(0, Math.min(1, -drag / SWIPE_THRESHOLD))
+  async function handleFavoriteToggle() {
+    if (!currentQuote) return
+    tapHaptic(10)
+    await saveQuote(currentQuote.id, { favorite: !currentQuote.favorite })
+    setContextOpen(false)
+  }
+
+  function handleLater() {
+    if (!currentQuote) return
+    const quoteId = currentQuote.id
+    tapHaptic(8)
+    setContextOpen(false)
+    advance(1, { y: 28, rotate: 5 })
+    window.setTimeout(() => void reviewQuote(quoteId, 'later'), EXIT_MS + 40)
+  }
+
+  function handleOpenDetails() {
+    if (!currentQuote) return
+    tapHaptic(8)
+    navigate(`/quote/${currentQuote.id}`)
+  }
+
+  function openBookEditor() {
+    if (!currentBook) return
+    tapHaptic(8)
+    setBookTitle(currentBook.title)
+    setBookAuthor(currentBook.author ?? '')
+    setBookEditorOpen(true)
+    setContextOpen(false)
+  }
+
+  async function handleSaveBook() {
+    if (!currentBook || !bookTitle.trim()) return
+    tapHaptic([8, 28, 8])
+    await saveBook(currentBook.id, {
+      title: bookTitle.trim(),
+      author: bookAuthor.trim() || undefined
+    })
+    setBookEditorOpen(false)
+  }
+
+  const likeHint = clamp(drag.x / SWIPE_THRESHOLD, 0, 1)
+  const dislikeHint = clamp(-drag.x / SWIPE_THRESHOLD, 0, 1)
+  const dragDistance = Math.hypot(drag.x, drag.y)
+  const horizontalIntent = Math.min(1, Math.abs(drag.x) / (SWIPE_DISTANCE * 1.15))
+  const verticalIntent = Math.min(1, Math.abs(drag.y) / (SWIPE_DISTANCE * 1.8))
+  const deckLift = exitMotion ? 1 : Math.min(1, (dragDistance / 140) * 0.48 + horizontalIntent * 0.6 + verticalIntent * 0.2)
+  const dragScale = 1 - Math.min(dragDistance / 5200, 0.03)
+  const dragRotate = drag.x * 0.014 + drag.y * 0.003
+  const dragPitch = clamp(-drag.y * 0.014, -2, 2)
+  const topTransform = exitMotion
+    ? `perspective(1100px) translate3d(${exitMotion.x}px, ${exitMotion.y}px, 0) rotate(${exitMotion.rotate}deg) scale(0.955)`
+    : `perspective(1100px) translate3d(${drag.x}px, ${drag.y}px, 0) rotateX(${dragPitch}deg) rotate(${dragRotate}deg) scale(${dragScale})`
+  const cardShadow =
+    drag.active || exitMotion
+      ? '0 36px 96px rgba(31,30,28,0.18), 0 12px 28px rgba(31,30,28,0.08)'
+      : '0 26px 78px rgba(31,30,28,0.09), 0 2px 10px rgba(31,30,28,0.04)'
+  const todayLabel = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long' }).format(new Date())
 
   return (
-    <div className="grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden sm:gap-6">
-      <section className="min-w-0 pt-1 sm:max-w-3xl sm:pt-6">
-        <p className="text-[0.68rem] uppercase tracking-[0.2em] text-graphite sm:text-sm sm:tracking-[0.24em]">{t('dailyReading')}</p>
-        <h1 className="mt-1 truncate font-serif text-3xl leading-tight sm:mt-3 sm:text-6xl">{t('todaysHighlights')}</h1>
-        <p className="mt-2 hidden max-w-2xl text-base leading-7 text-graphite sm:block">{t('todayIntro')}</p>
+    <div className="grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-2 overflow-hidden sm:gap-4">
+      <section className="flex min-w-0 items-end justify-between gap-4 pt-1 sm:pt-3">
+        <div className="min-w-0">
+          <p className="text-[0.66rem] uppercase tracking-[0.22em] text-graphite sm:text-xs">{t('today')}</p>
+          <h1 className="mt-1 truncate font-serif text-3xl leading-tight sm:text-5xl">{todayLabel}</h1>
+        </div>
+        {showReflectionNudge ? (
+          <button
+            type="button"
+            className="quiet-touch quiet-fade inline-flex h-11 shrink-0 items-center gap-2 rounded-full border border-clay/45 bg-paper/82 px-3 text-clay shadow-[0_14px_36px_rgba(31,30,28,0.08)] backdrop-blur transition duration-200 hover:border-clay hover:bg-white/40 active:scale-[0.98]"
+            aria-label={t('openReflections')}
+            title={t('reflectionNudge')}
+            onClick={() => {
+              tapHaptic(8)
+              navigate('/reflections')
+            }}
+          >
+            <Feather size={16} />
+            <span className="hidden text-xs uppercase tracking-[0.16em] sm:inline">{t('reflectionNudge')}</span>
+            <span className="rounded-full bg-clay/10 px-1.5 py-0.5 text-xs tabular-nums">{weeklyReflection.entries.length}</span>
+          </button>
+        ) : (
+          <p className="hidden max-w-44 text-right text-xs leading-5 text-graphite sm:block">{t('swipeDownCapture')}</p>
+        )}
       </section>
 
       {loading ? (
@@ -117,25 +349,50 @@ export function TodayPage() {
       ) : currentQuote ? (
         <section className="flex min-h-0 flex-col gap-4 lg:flex-row">
           <div
-            className="relative flex min-h-0 flex-1 touch-pan-y flex-col overflow-hidden rounded-md border border-[#d4cabd] bg-[#fbf8f2] p-4 shadow-[0_24px_70px_rgba(31,30,28,0.08)] sm:p-8"
-            style={{
-              transform: `translateX(${drag}px) rotate(${drag * 0.015}deg)`,
-              transition: drag === 0 ? 'transform 0.25s ease' : 'none'
-            }}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            className="relative min-h-0 flex-1 touch-none select-none overflow-hidden px-2 py-2 sm:px-4 sm:py-4"
+            style={{ perspective: '1200px' }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
           >
+            {thirdQuote && <DeckPreview quote={thirdQuote} depth={2} lift={deckLift} />}
+            {nextQuote && <DeckPreview quote={nextQuote} depth={1} lift={deckLift} />}
+
+            <article
+              key={currentQuote.id}
+              className={[
+                'deck-top-card daily-card-surface absolute inset-x-2 bottom-4 top-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-md border border-line bg-paper p-4 will-change-transform sm:inset-x-4 sm:bottom-6 sm:top-1 sm:p-8',
+                drag.active ? 'cursor-grabbing' : 'cursor-grab'
+              ].join(' ')}
+              style={{
+                boxShadow: cardShadow,
+                opacity: exitMotion ? 0.72 : 1,
+                transform: topTransform,
+                transition: exitMotion
+                  ? `opacity ${EXIT_MS}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${EXIT_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+                  : !drag.active && drag.x === 0 && drag.y === 0
+                    ? 'box-shadow 360ms cubic-bezier(0.16, 1, 0.3, 1), transform 440ms cubic-bezier(0.18, 1.22, 0.22, 1)'
+                    : 'none'
+              }}
+            >
+            <div className="daily-card-texture pointer-events-none absolute inset-0" />
             {/* Swipe stamps */}
             <div
-              className="pointer-events-none absolute right-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-clay bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-clay"
-              style={{ opacity: likeHint }}
+              className="pointer-events-none absolute right-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-clay bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-clay shadow-[0_12px_34px_rgba(166,95,63,0.12)] backdrop-blur"
+              style={{
+                opacity: likeHint,
+                transform: `translate3d(${lerp(12, 0, likeHint)}px, ${lerp(8, 0, likeHint)}px, 0) rotate(${lerp(6, 0, likeHint)}deg)`
+              }}
             >
               <Flame size={16} fill="currentColor" /> {t('like')}
             </div>
             <div
-              className="pointer-events-none absolute left-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-graphite bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-graphite"
-              style={{ opacity: dislikeHint }}
+              className="pointer-events-none absolute left-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-graphite bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-graphite shadow-[0_12px_34px_rgba(31,30,28,0.1)] backdrop-blur"
+              style={{
+                opacity: dislikeHint,
+                transform: `translate3d(${lerp(-12, 0, dislikeHint)}px, ${lerp(8, 0, dislikeHint)}px, 0) rotate(${lerp(-6, 0, dislikeHint)}deg)`
+              }}
             >
               <Minus size={16} /> {t('dislike')}
             </div>
@@ -143,25 +400,7 @@ export function TodayPage() {
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />
             <div className="flex shrink-0 items-center justify-between gap-3 text-[0.66rem] uppercase tracking-[0.18em] text-graphite sm:text-xs sm:tracking-[0.22em]">
               <span>{t('reviewStack')}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line text-graphite disabled:opacity-35 sm:h-9 sm:w-9"
-                  disabled={currentIndex === 0}
-                  onClick={goPrevious}
-                  aria-label={t('previous')}
-                >
-                  <ArrowLeft size={15} />
-                </button>
-                <span className="min-w-12 text-center">{t('cardProgress', { current: currentIndex + 1, total: dailyQuotes.length })}</span>
-                <button
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line text-graphite disabled:opacity-35 sm:h-9 sm:w-9"
-                  disabled={currentIndex >= dailyQuotes.length - 1}
-                  onClick={goNext}
-                  aria-label={t('next')}
-                >
-                  <ArrowRight size={15} />
-                </button>
-              </div>
+              <span>{t('cardProgress', { current: currentIndex + 1, total: dailyQuotes.length })}</span>
             </div>
 
             <div
@@ -218,71 +457,301 @@ export function TodayPage() {
               )}
             </div>
 
-            <div className="mt-3 grid shrink-0 grid-cols-3 gap-2 sm:mt-6 sm:flex sm:flex-wrap">
-              <LikeControl
-                compact
-                className="w-full sm:w-auto"
-                likes={currentQuote.likes}
-                onLike={() => void likeQuote(currentQuote.id)}
-                onDislike={() => void dislikeQuote(currentQuote.id)}
-              />
-              <button
-                className={[
-                  'inline-flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-3 text-sm sm:px-4',
-                  currentQuote.favorite ? 'border-clay text-clay' : 'border-line text-graphite'
-                ].join(' ')}
-                onClick={() => void saveQuote(currentQuote.id, { favorite: !currentQuote.favorite })}
+            </article>
+            {contextOpen && currentQuote && (
+              <div
+                className="quiet-pop absolute inset-x-6 bottom-7 z-30 rounded-md border border-line bg-paper/95 p-2 shadow-[0_22px_70px_rgba(31,30,28,0.18)] backdrop-blur sm:inset-x-auto sm:bottom-10 sm:right-8 sm:w-72"
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
               >
-                <Heart size={16} fill={currentQuote.favorite ? 'currentColor' : 'none'} />
-                <span className="hidden sm:inline">{t('favorite')}</span>
-                <span className="sr-only sm:hidden">{t('favorite')}</span>
-              </button>
-              <Link
-                className="inline-flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-md border border-line px-2 py-3 text-sm text-graphite sm:px-4"
-                to={`/quote/${currentQuote.id}`}
-              >
-                <ExternalLink size={16} />
-                <span className="hidden sm:inline">{t('open')}</span>
-                <span className="sr-only sm:hidden">{t('open')}</span>
-              </Link>
-            </div>
+                <div className="flex items-center justify-between gap-3 px-2 py-1">
+                  <p className="text-xs uppercase tracking-[0.16em] text-graphite">{t('contextActions')}</p>
+                  <button className="inline-flex h-8 w-8 items-center justify-center rounded-md text-graphite hover:bg-white/50" onClick={() => setContextOpen(false)} aria-label={t('close')}>
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="mt-1 grid gap-1">
+                  <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={() => void handleFavoriteToggle()}>
+                    <Heart size={17} fill={currentQuote.favorite ? 'currentColor' : 'none'} className={currentQuote.favorite ? 'text-clay' : 'text-graphite'} />
+                    {t('favorite')}
+                  </button>
+                  <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={handleLater}>
+                    <Clock3 size={17} className="text-graphite" />
+                    {t('later')}
+                  </button>
+                  <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={handleOpenDetails}>
+                    <ExternalLink size={17} className="text-graphite" />
+                    {t('openDetails')}
+                  </button>
+                  {currentBook && (
+                    <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={openBookEditor}>
+                      <BookOpen size={17} className="text-graphite" />
+                      {t('editBookInline')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-
-          <aside className="hidden shrink-0 flex-col justify-between rounded-md border border-line bg-white/30 p-5 lg:flex lg:w-60">
-            <div>
-              <p className="font-serif text-3xl">{t('dailyReview')}</p>
-              <p className="mt-3 text-sm leading-6 text-graphite">{t('swipeHint')}</p>
-            </div>
-            <div className="mt-6 grid grid-cols-2 gap-2">
-              <button
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-line px-3 py-3 text-sm text-graphite disabled:opacity-40"
-                disabled={currentIndex === 0}
-                onClick={goPrevious}
-              >
-                <ArrowLeft size={16} /> {t('previous')}
-              </button>
-              <button
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-line px-3 py-3 text-sm text-graphite disabled:opacity-40"
-                disabled={currentIndex >= dailyQuotes.length - 1}
-                onClick={goNext}
-              >
-                {t('next')} <ArrowRight size={16} />
-              </button>
-            </div>
-          </aside>
         </section>
       ) : (
-        <div className="min-h-0">
-          <EmptyState title={t('nothingDueToday')}>
-            {t('nothingDueBody')}
-            <div className="mt-5">
-              <Link className="rounded-md bg-ink px-4 py-2 text-sm text-paper" to="/add">
-                {t('addQuote')}
-              </Link>
+        <DailyRestState
+          title={stackCompleted ? t('doneForToday') : t('nothingDueToday')}
+          body={stackCompleted ? t('doneForTodayBody') : t('nothingDueBody')}
+          showReflection={showReflectionNudge}
+          onOpenReflections={() => {
+            navigate('/reflections')
+          }}
+        />
+      )}
+      {bookEditorOpen && currentBook && (
+        <div className="fixed inset-0 z-50 flex items-end bg-ink/15 p-3 backdrop-blur-[2px] sm:items-center sm:justify-center" onClick={() => setBookEditorOpen(false)}>
+          <form
+            className="grid w-full gap-3 rounded-md border border-line bg-paper p-4 shadow-[0_24px_80px_rgba(31,30,28,0.2)] sm:max-w-md"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleSaveBook()
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-serif text-2xl">{t('editBookInline')}</h2>
+              <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md text-graphite hover:bg-white/50" onClick={() => setBookEditorOpen(false)} aria-label={t('close')}>
+                <X size={17} />
+              </button>
             </div>
-          </EmptyState>
+            <label className="grid gap-2 text-sm text-graphite">
+              <span>{t('bookTitleLabel')}</span>
+              <input className="rounded-md border border-line bg-paper px-3 py-2 text-ink" value={bookTitle} onChange={(event) => setBookTitle(event.target.value)} autoFocus />
+            </label>
+            <label className="grid gap-2 text-sm text-graphite">
+              <span>{t('bookAuthorLabel')}</span>
+              <input className="rounded-md border border-line bg-paper px-3 py-2 text-ink" value={bookAuthor} onChange={(event) => setBookAuthor(event.target.value)} />
+            </label>
+            <div className="grid gap-2 sm:flex sm:justify-end">
+              <button type="button" className="rounded-md border border-line px-4 py-2 text-sm text-graphite" onClick={() => setBookEditorOpen(false)}>
+                {t('cancel')}
+              </button>
+              <button type="submit" className="rounded-md bg-ink px-4 py-2 text-sm text-paper">
+                {t('saveChanges')}
+              </button>
+            </div>
+          </form>
         </div>
       )}
+      <footer className="flex shrink-0 justify-center pb-1 sm:hidden" aria-label={t('quickNoise')}>
+        <QuickCaptureDock />
+      </footer>
     </div>
   )
+}
+
+function DailyRestState({
+  title,
+  body,
+  showReflection,
+  onOpenReflections
+}: {
+  title: string
+  body: string
+  showReflection: boolean
+  onOpenReflections: () => void
+}) {
+  const { t } = useI18n()
+
+  return (
+    <section className="flex min-h-0 items-center justify-center">
+      <div className="quiet-fade classical-panel relative grid w-full max-w-2xl gap-5 overflow-hidden rounded-md px-5 py-7 text-center sm:px-8 sm:py-10">
+        <div className="pointer-events-none absolute inset-x-10 top-5 h-24 rounded-md border border-line/70 bg-paper/35 opacity-55" />
+        <div className="pointer-events-none absolute inset-x-7 top-8 h-24 rounded-md border border-line bg-paper/55 opacity-75" />
+        <div className="relative mx-auto flex h-24 w-20 items-center justify-center rounded-md border border-line bg-paper shadow-[0_16px_44px_rgba(31,30,28,0.08)]">
+          <Feather className="text-clay" size={22} />
+        </div>
+        <div className="relative">
+          <h2 className="font-serif text-3xl leading-tight sm:text-4xl">{title}</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-graphite">{body}</p>
+        </div>
+        <div className="relative mx-auto flex max-w-full items-center justify-center gap-2 rounded-full border border-line bg-paper/80 p-1.5 shadow-[0_16px_42px_rgba(31,30,28,0.08)] backdrop-blur">
+          <RestAction label={t('text')} onClick={() => openCapture('text')}>
+            <PenLine size={17} />
+          </RestAction>
+          <RestAction label={t('photoNote')} onClick={() => openCapture('photo')}>
+            <Camera size={17} />
+          </RestAction>
+          <RestAction label={t('voiceNote')} onClick={() => openCapture('audio')}>
+            <Mic size={17} />
+          </RestAction>
+          {showReflection && (
+            <RestAction label={t('openReflections')} onClick={onOpenReflections} emphasized>
+              <Feather size={17} />
+            </RestAction>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function RestAction({
+  label,
+  children,
+  onClick,
+  emphasized = false
+}: {
+  label: string
+  children: ReactNode
+  onClick: () => void
+  emphasized?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      className={[
+        'quiet-touch inline-flex h-11 w-11 items-center justify-center rounded-full transition duration-200 active:scale-95',
+        emphasized ? 'bg-ink text-paper shadow-[0_10px_24px_rgba(31,30,28,0.14)]' : 'text-graphite hover:bg-white/45 hover:text-ink'
+      ].join(' ')}
+      aria-label={label}
+      title={label}
+      onClick={() => {
+        tapHaptic(8)
+        onClick()
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function QuickCaptureDock() {
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+
+  function toggle() {
+    tapHaptic(open ? 6 : [8, 24, 8])
+    setOpen((value) => !value)
+  }
+
+  function capture(mode: 'text' | 'photo' | 'audio') {
+    tapHaptic(8)
+    setOpen(false)
+    openCapture(mode)
+  }
+
+  return (
+    <div className="relative flex flex-col items-center">
+      {open && (
+        <div
+          className="quiet-pop absolute bottom-[4.15rem] left-1/2 z-30 -ml-[5.25rem] flex w-[10.5rem] items-center justify-between rounded-full border border-line bg-paper/92 p-1.5 shadow-[0_18px_46px_rgba(31,30,28,0.14)] backdrop-blur"
+          role="group"
+          aria-label={t('openCapture')}
+        >
+          <QuickCaptureModeButton label={t('text')} onClick={() => capture('text')}>
+            <PenLine size={18} />
+          </QuickCaptureModeButton>
+          <QuickCaptureModeButton label={t('photoNote')} onClick={() => capture('photo')}>
+            <Camera size={18} />
+          </QuickCaptureModeButton>
+          <QuickCaptureModeButton label={t('voiceNote')} onClick={() => capture('audio')}>
+            <Mic size={18} />
+          </QuickCaptureModeButton>
+        </div>
+      )}
+      <button
+        type="button"
+        className="capture-dock quiet-touch inline-flex h-14 min-w-14 items-center justify-center rounded-full border border-line bg-paper/90 text-ink shadow-[0_18px_46px_rgba(31,30,28,0.14)] backdrop-blur transition duration-200 hover:bg-white/45 active:scale-95"
+        aria-label={t('openCapture')}
+        aria-expanded={open}
+        onClick={toggle}
+      >
+        <Plus className={['transition duration-200', open ? 'rotate-45' : ''].join(' ')} size={22} />
+      </button>
+    </div>
+  )
+}
+
+function QuickCaptureModeButton({ label, children, onClick }: { label: string; children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="quiet-touch inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-graphite transition duration-200 hover:bg-white/45 hover:text-ink active:scale-95 active:bg-white/60"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
+function DeckPreview({
+  quote,
+  depth,
+  lift
+}: {
+  quote: NonNullable<ReturnType<typeof selectDailyStack>[number]>
+  depth: 1 | 2
+  lift: number
+}) {
+  const { t } = useI18n()
+  const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
+  const baseY = depth === 1 ? 18 : 34
+  const promotedY = depth === 1 ? -10 : 8
+  const baseScale = depth === 1 ? 0.946 : 0.902
+  const promotedScale = depth === 1 ? 0.992 : 0.956
+  const baseOpacity = depth === 1 ? 0.82 : 0.5
+  const promotedOpacity = depth === 1 ? 0.96 : 0.7
+  const y = lerp(baseY, promotedY, lift)
+  const scale = lerp(baseScale, promotedScale, lift)
+  const opacity = lerp(baseOpacity, promotedOpacity, lift)
+  const rotate = depth === 1 ? lerp(-0.7, 0.15, lift) : lerp(0.8, -0.2, lift)
+
+  return (
+    <article
+      aria-hidden="true"
+      className="daily-preview-card pointer-events-none absolute inset-x-4 bottom-2 top-8 z-10 flex min-h-0 flex-col justify-end overflow-hidden rounded-md border border-line bg-paper/95 p-4 shadow-[0_18px_46px_rgba(31,30,28,0.08)] will-change-transform sm:inset-x-8 sm:bottom-3 sm:top-12 sm:p-7"
+      style={{
+        opacity,
+        transform: `translate3d(0, ${y}px, 0) rotate(${rotate}deg) scale(${scale})`,
+        transition: `opacity ${lift === 1 ? EXIT_MS : 160}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${lift === 1 ? EXIT_MS : 160}ms cubic-bezier(0.16, 1, 0.3, 1)`
+      }}
+    >
+      <div className="flex shrink-0 justify-between text-[0.6rem] uppercase tracking-[0.18em] text-graphite">
+        <span>{t('reviewStack')}</span>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-hidden py-3">
+        {quote.imageDataUrl && (
+          <PhotoPreview
+            src={quote.imageDataUrl}
+            className="max-h-[22dvh] w-full rounded-md border border-line object-cover opacity-80"
+          />
+        )}
+        <p className="line-clamp-2 break-words font-serif text-xl leading-[1.12] text-ink sm:text-3xl">
+          {quote.text ? `"${quote.text}"` : quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
+        </p>
+      </div>
+      <p className="truncate border-t border-line pt-2 text-xs text-graphite sm:text-sm">{meta}</p>
+    </article>
+  )
+}
+
+function lerp(start: number, end: number, amount: number) {
+  return start + (end - start) * amount
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function rubberDistance(distance: number, dimension: number) {
+  const sign = Math.sign(distance)
+  const absolute = Math.abs(distance)
+  return sign * ((absolute * dimension) / (dimension + absolute * 0.62))
+}
+
+function sameIds(left: string[], right: string[]) {
+  return left.length === right.length && left.every((id, index) => id === right[index])
+}
+
+function isInteractiveTarget(target: EventTarget) {
+  return target instanceof HTMLElement && Boolean(target.closest('button, a, input, select, textarea, audio, summary'))
 }

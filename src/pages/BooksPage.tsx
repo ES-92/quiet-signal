@@ -1,19 +1,23 @@
-import { Plus, X } from 'lucide-react'
+import { GitMerge, Plus, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookCover } from '../components/BookCover'
 import { EmptyState } from '../components/EmptyState'
 import { useI18n } from '../i18n/I18nProvider'
+import { findBookMergeSuggestions, shouldUpdateSourceToBookTitle, type BookMergeSuggestion } from '../services/bookIntelligence'
+import { tapHaptic } from '../services/haptics'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
+import type { BookWeight } from '../types/book'
 
 export function BooksPage() {
   const { t } = useI18n()
-  const { books, loadBooks, addBook } = useBookStore()
-  const { quotes, loadQuotes } = useQuoteStore()
+  const { books, loadBooks, addBook, saveBook, removeBook } = useBookStore()
+  const { quotes, loadQuotes, saveQuote } = useQuoteStore()
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     void loadBooks()
@@ -28,6 +32,8 @@ export function BooksPage() {
     return counts
   }, [quotes])
 
+  const mergeSuggestions = useMemo(() => findBookMergeSuggestions(books, quotes), [books, quotes])
+
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault()
     if (!title.trim()) return
@@ -35,6 +41,31 @@ export function BooksPage() {
     setTitle('')
     setAuthor('')
     setAdding(false)
+  }
+
+  async function handleMerge(suggestion: BookMergeSuggestion) {
+    tapHaptic([8, 24, 8])
+    const bestWeight = strongestWeight(suggestion.books.map((book) => book.weight))
+    if (bestWeight !== suggestion.primary.weight) {
+      await saveBook(suggestion.primary.id, { weight: bestWeight })
+    }
+
+    for (const duplicate of suggestion.duplicates) {
+      const duplicateQuotes = quotes.filter((quote) => quote.bookId === duplicate.id)
+      for (const quote of duplicateQuotes) {
+        await saveQuote(quote.id, {
+          bookId: suggestion.primary.id,
+          work: suggestion.primary.title,
+          author: suggestion.primary.author ?? quote.author,
+          source: shouldUpdateSourceToBookTitle(quote, duplicate) ? suggestion.primary.title : quote.source
+        })
+      }
+      await removeBook(duplicate.id)
+    }
+
+    await loadBooks()
+    await loadQuotes()
+    setMessage(t('booksMerged', { count: suggestion.duplicates.length + 1 }))
   }
 
   return (
@@ -79,6 +110,37 @@ export function BooksPage() {
         </form>
       )}
 
+      {message && <p className="rounded-md border border-line bg-paper/80 px-4 py-3 text-sm text-moss">{message}</p>}
+
+      {mergeSuggestions.length > 0 && (
+        <section className="grid gap-3 rounded-md border border-line bg-white/30 p-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line text-clay">
+              <GitMerge size={17} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="font-serif text-2xl">{t('bookIntelligence')}</h2>
+              <p className="mt-1 text-sm leading-6 text-graphite">{t('bookIntelligenceHelp')}</p>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            {mergeSuggestions.slice(0, 3).map((suggestion) => (
+              <div key={suggestion.key} className="grid gap-3 rounded-md border border-line bg-paper/60 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{suggestion.primary.title}</p>
+                  <p className="mt-1 text-sm text-graphite">
+                    {t('bookMergeSuggestion', { books: suggestion.books.length, quotes: suggestion.quoteCount })}
+                  </p>
+                </div>
+                <button className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper" onClick={() => void handleMerge(suggestion)}>
+                  <GitMerge size={15} /> {t('mergeBooks')}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {books.length ? (
         <div className="grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
           {books.map((book) => {
@@ -108,4 +170,10 @@ export function BooksPage() {
       )}
     </div>
   )
+}
+
+function strongestWeight(weights: BookWeight[]): BookWeight {
+  if (weights.includes('often')) return 'often'
+  if (weights.includes('normal')) return 'normal'
+  return 'rare'
 }

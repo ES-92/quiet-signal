@@ -132,6 +132,9 @@ export function buildKindleImport(
       tags: [],
       favorite: false,
       likes: 0,
+      status: 'signal',
+      signalStrength: 'normal',
+      entryType: 'book_quote',
       createdAt: clip.addedAt ?? now,
       updatedAt: clip.addedAt ?? now,
       reviewCount: 0

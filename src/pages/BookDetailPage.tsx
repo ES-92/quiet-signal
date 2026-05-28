@@ -1,7 +1,8 @@
-import { ArrowLeft, Trash2 } from 'lucide-react'
-import { useEffect } from 'react'
+import { ArrowLeft, Save, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BookCover } from '../components/BookCover'
+import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EmptyState } from '../components/EmptyState'
 import { QuoteCard } from '../components/QuoteCard'
 import { WeightControl } from '../components/WeightControl'
@@ -13,8 +14,13 @@ export function BookDetailPage() {
   const { t } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { books, loadBooks, setWeight, removeBook } = useBookStore()
+  const { books, loadBooks, saveBook, setWeight, removeBook } = useBookStore()
   const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
+  const [title, setTitle] = useState('')
+  const [author, setAuthor] = useState('')
+  const [savingBook, setSavingBook] = useState(false)
+  const [bookMessage, setBookMessage] = useState('')
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   useEffect(() => {
     void loadBooks()
@@ -23,6 +29,13 @@ export function BookDetailPage() {
 
   const book = books.find((item) => item.id === id)
   const bookQuotes = quotes.filter((quote) => quote.bookId === id)
+
+  useEffect(() => {
+    if (!book) return
+    setTitle(book.title)
+    setAuthor(book.author ?? '')
+    setBookMessage('')
+  }, [book?.id, book?.title, book?.author])
 
   if (!book) {
     return (
@@ -37,9 +50,29 @@ export function BookDetailPage() {
 
   async function handleDelete() {
     if (!id) return
-    if (window.confirm(t('deleteBookConfirm'))) {
-      await removeBook(id)
-      navigate('/books')
+    setDeleteConfirmOpen(true)
+  }
+
+  async function confirmDeleteBook() {
+    if (!id) return
+    await removeBook(id)
+    setDeleteConfirmOpen(false)
+    navigate('/books')
+  }
+
+  async function handleSaveBook(event: React.FormEvent) {
+    event.preventDefault()
+    const nextTitle = title.trim()
+    if (!nextTitle || !book) return
+    setSavingBook(true)
+    try {
+      await saveBook(book.id, {
+        title: nextTitle,
+        author: author.trim() || undefined
+      })
+      setBookMessage(t('bookUpdated'))
+    } finally {
+      setSavingBook(false)
     }
   }
 
@@ -66,6 +99,32 @@ export function BookDetailPage() {
           </div>
           {book.author && <p className="mt-2 text-lg text-graphite">{book.author}</p>}
           <p className="mt-1 text-sm text-graphite">{count === 1 ? t('oneQuote') : t('quotesCount', { count })}</p>
+
+          <form className="mt-5 grid gap-3 rounded-md border border-line bg-white/30 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end" onSubmit={(event) => void handleSaveBook(event)}>
+            <label className="grid gap-2">
+              <span className="text-sm text-graphite">{t('bookTitleLabel')}</span>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="min-w-0 rounded-md border border-line bg-paper px-3 py-2"
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm text-graphite">{t('bookAuthorLabel')}</span>
+              <input
+                value={author}
+                onChange={(event) => setAuthor(event.target.value)}
+                className="min-w-0 rounded-md border border-line bg-paper px-3 py-2"
+              />
+            </label>
+            <button
+              disabled={!title.trim() || savingBook}
+              className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-sm text-paper disabled:opacity-50"
+            >
+              <Save size={16} /> {savingBook ? t('saving') : t('saveBook')}
+            </button>
+            <p className="text-sm leading-6 text-graphite sm:col-span-3">{bookMessage || t('bookEditHelp')}</p>
+          </form>
 
           <div className="mt-5 rounded-md border border-line bg-white/30 p-4">
             <p className="text-sm uppercase tracking-[0.16em] text-graphite">{t('frequency')}</p>
@@ -98,6 +157,15 @@ export function BookDetailPage() {
       ) : (
         <EmptyState title={t('noQuotesYet')}>{t('noBooksBody')}</EmptyState>
       )}
+      <ConfirmSheet
+        open={deleteConfirmOpen}
+        title={t('deleteBook')}
+        description={t('deleteBookConfirm')}
+        confirmLabel={t('delete')}
+        cancelLabel={t('cancel')}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteBook}
+      />
     </div>
   )
 }

@@ -9,7 +9,7 @@ import {
 import type { Book, BookInput } from '../types/book'
 import type { Quote, QuoteInput } from '../types/quote'
 
-class CommonplaceDatabase extends Dexie {
+class QuietSignalDatabase extends Dexie {
   quotes!: Table<Quote, string>
   books!: Table<Book, string>
 
@@ -21,15 +21,30 @@ class CommonplaceDatabase extends Dexie {
     this.version(2).stores({
       books: 'id, title, weight, createdAt, updatedAt'
     })
+    this.version(3).stores({
+      quotes: 'id, author, source, favorite, status, signalStrength, createdAt, updatedAt, nextReviewAt, *tags',
+      books: 'id, title, weight, createdAt, updatedAt'
+    })
+    this.version(4).stores({
+      quotes: 'id, author, source, favorite, status, signalStrength, entryType, createdAt, updatedAt, nextReviewAt, *tags',
+      books: 'id, title, weight, createdAt, updatedAt'
+    })
   }
 }
 
-export const db = new CommonplaceDatabase()
+export const db = new QuietSignalDatabase()
 
 const now = () => new Date().toISOString()
 
 function withQuoteDefaults(quote: Quote): Quote {
-  return { ...quote, likes: quote.likes ?? 0 }
+  return {
+    ...quote,
+    likes: quote.likes ?? 0,
+    status: quote.status ?? 'signal',
+    signalStrength: quote.signalStrength ?? 'normal',
+    entryType: quote.entryType ?? 'note',
+    people: quote.people ?? []
+  }
 }
 
 export async function listQuotes() {
@@ -53,6 +68,10 @@ export async function createQuote(input: QuoteInput) {
     tags: normalizeTags(input.tags),
     favorite: input.favorite ?? false,
     likes: 0,
+    status: input.status ?? 'signal',
+    signalStrength: input.signalStrength ?? 'normal',
+    entryType: input.entryType ?? 'note',
+    people: input.people ?? [],
     createdAt: timestamp,
     updatedAt: timestamp,
     reviewCount: 0
@@ -63,7 +82,17 @@ export async function createQuote(input: QuoteInput) {
 }
 
 export async function upsertQuotes(quotes: Quote[]) {
-  await db.quotes.bulkPut(await Promise.all(quotes.map((quote) => encryptQuoteForStorage({ ...quote, tags: normalizeTags(quote.tags) }))))
+  await db.quotes.bulkPut(
+    await Promise.all(
+      quotes.map((quote) =>
+        encryptQuoteForStorage({
+          ...withQuoteDefaults(quote),
+          tags: normalizeTags(quote.tags),
+          people: normalizePeople(quote.people)
+        })
+      )
+    )
+  )
 }
 
 export async function updateQuote(id: string, patch: Partial<Quote>) {
@@ -74,10 +103,22 @@ export async function updateQuote(id: string, patch: Partial<Quote>) {
     ...current,
     ...patch,
     tags: patch.tags ? normalizeTags(patch.tags) : current.tags,
+    people: patch.people ? normalizePeople(patch.people) : current.people,
     updatedAt: timestamp
   }
   await db.quotes.put(await encryptQuoteForStorage(nextQuote))
   return getQuote(id)
+}
+
+export function normalizePeople(people: string[] = []) {
+  return Array.from(
+    new Set(
+      people
+        .flatMap((person) => person.split(','))
+        .map((person) => person.trim())
+        .filter(Boolean)
+    )
+  )
 }
 
 export async function deleteQuote(id: string) {
@@ -86,6 +127,10 @@ export async function deleteQuote(id: string) {
 
 export async function clearQuotes() {
   await db.quotes.clear()
+}
+
+export async function clearBooks() {
+  await db.books.clear()
 }
 
 export async function encryptAllQuotes() {

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { createBook, deleteBook, listBooks, updateBook, upsertBooks } from '../db/database'
+import { clearBooks, createBook, deleteBook, listBooks, updateBook, upsertBooks } from '../db/database'
 import type { Book, BookInput, BookWeight } from '../types/book'
 import { useQuoteStore } from './useQuoteStore'
 
@@ -12,6 +12,7 @@ interface BookStore {
   setWeight: (id: string, weight: BookWeight) => Promise<void>
   removeBook: (id: string) => Promise<void>
   importBooks: (books: Book[]) => Promise<void>
+  clearAll: () => Promise<void>
 }
 
 export const useBookStore = create<BookStore>((set, get) => ({
@@ -27,7 +28,22 @@ export const useBookStore = create<BookStore>((set, get) => ({
     return book
   },
   saveBook: async (id, patch) => {
+    const previousBook = get().books.find((book) => book.id === id)
     await updateBook(id, patch)
+    const nextTitle = patch.title?.trim() || previousBook?.title
+    const nextAuthor = patch.author !== undefined ? patch.author?.trim() || undefined : previousBook?.author
+    const changedIdentity =
+      Boolean(previousBook) &&
+      ((patch.title !== undefined && nextTitle !== previousBook?.title) ||
+        (patch.author !== undefined && nextAuthor !== previousBook?.author))
+
+    if (previousBook && nextTitle && changedIdentity) {
+      await useQuoteStore.getState().syncBookReferences(
+        id,
+        { title: nextTitle, author: nextAuthor },
+        { title: previousBook.title, author: previousBook.author }
+      )
+    }
     await get().loadBooks()
   },
   setWeight: async (id, weight) => {
@@ -42,6 +58,10 @@ export const useBookStore = create<BookStore>((set, get) => ({
   },
   importBooks: async (books) => {
     await upsertBooks(books)
+    await get().loadBooks()
+  },
+  clearAll: async () => {
+    await clearBooks()
     await get().loadBooks()
   }
 }))

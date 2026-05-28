@@ -5,12 +5,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        paper: '#f7f4ef',
-        ink: '#1f1e1c',
-        graphite: '#5f5b55',
-        line: '#ddd6cb',
-        moss: '#52624b',
-        clay: '#a65f3f'
+        paper: 'rgb(var(--color-paper) / <alpha-value>)',
+        ink: 'rgb(var(--color-ink) / <alpha-value>)',
+        graphite: 'rgb(var(--color-graphite) / <alpha-value>)',
+        line: 'rgb(var(--color-line) / <alpha-value>)',
+        moss: 'rgb(var(--color-moss) / <alpha-value>)',
+        clay: 'rgb(var(--color-clay) / <alpha-value>)'
       },
       fontFamily: {
         serif: ['Iowan Old Style', 'Palatino Linotype', 'Palatino', 'Georgia', 'serif'],

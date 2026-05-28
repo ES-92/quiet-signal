@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n/I18nProvider'
 import { useBookStore } from '../store/useBookStore'
 import { bookKey } from '../types/book'
-import type { Quote, QuoteInput } from '../types/quote'
+import { entryType, type EntryType, type Quote, type QuoteInput, type SignalStrength } from '../types/quote'
 import { AudioRecorder } from './AudioRecorder'
+import { EntryTypeControl } from './EntryTypeControl'
+import { LocationCapture } from './LocationCapture'
 import { PhotoCapture } from './PhotoCapture'
+import { SignalStrengthControl } from './SignalStrengthControl'
 
 interface QuoteFormProps {
   quote?: Quote
   onSubmit: (input: QuoteInput) => Promise<void>
   submitLabel: string
+  defaultStatus?: QuoteInput['status']
 }
 
-export function QuoteForm({ quote, onSubmit, submitLabel }: QuoteFormProps) {
+export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signal' }: QuoteFormProps) {
   const { t } = useI18n()
   const { books, loadBooks } = useBookStore()
   const [text, setText] = useState(quote?.text ?? '')
@@ -29,6 +33,14 @@ export function QuoteForm({ quote, onSubmit, submitLabel }: QuoteFormProps) {
   const [imageDataUrl, setImageDataUrl] = useState(quote?.imageDataUrl)
   const [imageMimeType, setImageMimeType] = useState(quote?.imageMimeType)
   const [favorite, setFavorite] = useState(quote?.favorite ?? false)
+  const [status, setStatus] = useState<QuoteInput['status']>(quote?.status ?? defaultStatus)
+  const [signalStrength, setSignalStrength] = useState<SignalStrength>(quote?.signalStrength ?? 'normal')
+  const [draftEntryType, setDraftEntryType] = useState<EntryType>(quote ? entryType(quote) : 'note')
+  const [occurredAt, setOccurredAt] = useState(toLocalDateTime(quote?.occurredAt))
+  const [people, setPeople] = useState(quote?.people?.join(', ') ?? '')
+  const [locationName, setLocationName] = useState<string | undefined>(quote?.locationName)
+  const [locationLatitude, setLocationLatitude] = useState<number | undefined>(quote?.locationLatitude)
+  const [locationLongitude, setLocationLongitude] = useState<number | undefined>(quote?.locationLongitude)
   const [saving, setSaving] = useState(false)
   const canSave = Boolean(text.trim() || audioDataUrl || imageDataUrl)
 
@@ -69,7 +81,15 @@ export function QuoteForm({ quote, onSubmit, submitLabel }: QuoteFormProps) {
       audioDurationMs,
       imageDataUrl,
       imageMimeType,
-      favorite
+      favorite,
+      status,
+      signalStrength,
+      entryType: draftEntryType,
+      occurredAt: fromLocalDateTime(occurredAt),
+      people: splitList(people),
+      locationName: clean(locationName),
+      locationLatitude,
+      locationLongitude
     })
     setSaving(false)
   }
@@ -101,6 +121,8 @@ export function QuoteForm({ quote, onSubmit, submitLabel }: QuoteFormProps) {
         }}
       />
       <Field label={t('tags')} value={tags} onChange={setTags} placeholder="alltag, idee, buch" />
+      <EntryTypeControl value={draftEntryType} onChange={setDraftEntryType} />
+      <SignalStrengthControl value={signalStrength ?? 'normal'} onChange={setSignalStrength} />
       <label className="grid gap-2">
         <span className="text-sm text-graphite">{t('note')}</span>
         <textarea
@@ -134,6 +156,37 @@ export function QuoteForm({ quote, onSubmit, submitLabel }: QuoteFormProps) {
           <Field label={t('work')} value={work} onChange={setWork} />
           <Field label={t('source')} value={source} onChange={setSource} />
           <Field label={t('year')} value={year} onChange={setYear} />
+          <label className="grid gap-2">
+            <span className="text-sm text-graphite">{t('occurredAt')}</span>
+            <input
+              value={occurredAt}
+              type="datetime-local"
+              onChange={(event) => setOccurredAt(event.target.value)}
+              className="rounded-md border border-line bg-white/50 px-3 py-3"
+            />
+          </label>
+          <Field label={t('people')} value={people} onChange={setPeople} placeholder={t('peoplePlaceholder')} />
+          <div className="sm:col-span-2">
+            <LocationCapture
+              value={{ locationName, locationLatitude, locationLongitude }}
+              onChange={(location) => {
+                setLocationName(location.locationName)
+                setLocationLatitude(location.locationLatitude)
+                setLocationLongitude(location.locationLongitude)
+              }}
+            />
+          </div>
+          <label className="grid gap-2 sm:col-span-2">
+            <span className="text-sm text-graphite">{t('entryStatus')}</span>
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value as QuoteInput['status'])}
+              className="rounded-md border border-line bg-white/50 px-3 py-3"
+            >
+              <option value="signal">{t('entryStatus_signal')}</option>
+              <option value="inbox">{t('entryStatus_inbox')}</option>
+            </select>
+          </label>
         </div>
       </details>
       <label className="flex items-center gap-3 text-sm text-graphite">
@@ -171,7 +224,28 @@ function Field({
   )
 }
 
-function clean(value: string) {
-  const trimmed = value.trim()
+function clean(value?: string) {
+  const trimmed = value?.trim() ?? ''
   return trimmed.length ? trimmed : undefined
+}
+
+function splitList(value: string) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function toLocalDateTime(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
+function fromLocalDateTime(value: string) {
+  if (!value) return undefined
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
 }

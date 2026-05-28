@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { clientsClaim } from 'workbox-core'
-import { precacheAndRoute } from 'workbox-precaching'
+import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { NavigationRoute, registerRoute } from 'workbox-routing'
 import {
   REMINDER_TAG,
   isAfterTime,
@@ -15,6 +16,10 @@ declare const self: ServiceWorkerGlobalScope & {
 
 // Precache the build output (injected by vite-plugin-pwa).
 precacheAndRoute(self.__WB_MANIFEST)
+
+// Offline SPA fallback: direct navigations like /today or /reflections should
+// resolve to the cached shell once the PWA has been installed.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')))
 
 self.skipWaiting()
 clientsClaim()
@@ -53,7 +58,7 @@ async function maybeShowReminder(): Promise<void> {
 }
 
 async function showReminder(title?: string, body?: string): Promise<void> {
-  await self.registration.showNotification(title || 'Commonplace', {
+  await self.registration.showNotification(title || 'Quiet Signal', {
     body: body || '',
     icon: '/pwa-192x192.svg',
     badge: '/pwa-192x192.svg',

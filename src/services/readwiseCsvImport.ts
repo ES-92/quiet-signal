@@ -102,6 +102,9 @@ export function buildReadwiseCsvImport(
       note: noteParts.length ? noteParts.join('\n') : undefined,
       favorite: false,
       likes: 0,
+      status: 'signal',
+      signalStrength: 'normal',
+      entryType: 'book_quote',
       createdAt: row.highlightedAt ?? now,
       updatedAt: row.highlightedAt ?? now,
       reviewCount: 0

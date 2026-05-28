@@ -1,14 +1,15 @@
 import { BookMarked, Heart, Trash2 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
+import { ConfirmSheet } from '../components/ConfirmSheet'
 import { LikeControl } from '../components/LikeControl'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { QuoteForm } from '../components/QuoteForm'
 import { useI18n } from '../i18n/I18nProvider'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
-import type { QuoteInput } from '../types/quote'
+import { entryType, quoteStatus, signalStrength, type QuoteInput } from '../types/quote'
 
 export function QuoteDetailPage() {
   const { t } = useI18n()
@@ -16,6 +17,7 @@ export function QuoteDetailPage() {
   const navigate = useNavigate()
   const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   useEffect(() => {
     void loadQuotes()
@@ -24,6 +26,19 @@ export function QuoteDetailPage() {
 
   const quote = quotes.find((item) => item.id === id)
   const book = quote?.bookId ? books.find((item) => item.id === quote.bookId) : undefined
+  const strengthLabels = {
+    quiet: 'signalStrength_quiet',
+    normal: 'signalStrength_normal',
+    strong: 'signalStrength_strong'
+  } as const
+  const typeLabels = {
+    note: 'entryType_note',
+    memory: 'entryType_memory',
+    book_quote: 'entryType_book_quote',
+    idea: 'entryType_idea',
+    conversation: 'entryType_conversation',
+    observation: 'entryType_observation'
+  } as const
 
   if (!quote) {
     return (
@@ -43,7 +58,13 @@ export function QuoteDetailPage() {
 
   async function handleDelete() {
     if (!id) return
+    setDeleteConfirmOpen(true)
+  }
+
+  async function confirmDeleteQuote() {
+    if (!id) return
     await removeQuote(id)
+    setDeleteConfirmOpen(false)
     navigate('/library')
   }
 
@@ -82,6 +103,12 @@ export function QuoteDetailPage() {
         <div className="grid grid-cols-2 gap-3 text-sm text-graphite">
           <Metric label={t('likesLabel')} value={String(quote.likes)} />
           <Metric label={t('favorite')} value={quote.favorite ? t('yes') : t('no')} />
+          <Metric label={t('entryKind')} value={t(typeLabels[entryType(quote)])} />
+          <Metric label={t('entryStatus')} value={t(quoteStatus(quote) === 'inbox' ? 'entryStatus_inbox' : 'entryStatus_signal')} />
+          <Metric label={t('signalStrength')} value={t(strengthLabels[signalStrength(quote)])} />
+          {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString()} />}
+          {quote.locationName && <Metric label={t('locationLabel')} value={quote.locationName} />}
+          {quote.people?.length ? <Metric label={t('people')} value={quote.people.join(', ')} /> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <LikeControl
@@ -106,6 +133,15 @@ export function QuoteDetailPage() {
           <QuoteForm quote={quote} submitLabel={t('saveChanges')} onSubmit={handleSubmit} />
         </div>
       </aside>
+      <ConfirmSheet
+        open={deleteConfirmOpen}
+        title={t('delete')}
+        description={t('deleteQuoteConfirm')}
+        confirmLabel={t('delete')}
+        cancelLabel={t('cancel')}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteQuote}
+      />
     </div>
   )
 }
