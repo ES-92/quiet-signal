@@ -8,7 +8,7 @@ interface I18nContextValue {
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null)
-const storageKey = 'commonplace-language'
+const storageKey = 'quiet-signal-language'
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<LanguageCode>(() => detectInitialLanguage())

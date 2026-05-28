@@ -2,7 +2,7 @@ import { Download, Share, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n/I18nProvider'
 
-const DISMISS_KEY = 'commonplace-install-dismissed'
+const DISMISS_KEY = 'quiet-signal-install-dismissed'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>

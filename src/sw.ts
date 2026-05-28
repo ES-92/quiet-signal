@@ -37,7 +37,7 @@ self.addEventListener('periodicsync', (event: Event) => {
 // Lets the app trigger an immediate test notification from Settings.
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   const data = event.data as { type?: string; title?: string; body?: string } | undefined
-  if (data?.type === 'commonplace-test-reminder') {
+  if (data?.type === 'quiet-signal-test-reminder') {
     event.waitUntil(showReminder(data.title, data.body))
   }
 })
@@ -62,7 +62,7 @@ async function showReminder(title?: string, body?: string): Promise<void> {
     body: body || '',
     icon: '/pwa-192x192.svg',
     badge: '/pwa-192x192.svg',
-    tag: 'commonplace-daily-reminder',
+    tag: 'quiet-signal-daily-reminder',
     data: { url: '/today' }
   })
 }

@@ -1,8 +1,8 @@
 import type { Book } from '../types/book'
 import type { Quote } from '../types/quote'
 
-const pinStorageKey = 'commonplace-pin'
-const encryptionStorageKey = 'commonplace-encryption'
+const pinStorageKey = 'quiet-signal-pin'
+const encryptionStorageKey = 'quiet-signal-encryption'
 const iterations = 180000
 let activeEncryptionKey: CryptoKey | null = null
 
@@ -16,11 +16,11 @@ export interface EncryptionRecord extends SecretRecord {
 }
 
 export function notifySecurityChanged() {
-  window.dispatchEvent(new Event('commonplace-security-changed'))
+  window.dispatchEvent(new Event('quiet-signal-security-changed'))
 }
 
 export function lockAppNow() {
-  window.dispatchEvent(new Event('commonplace-lock-now'))
+  window.dispatchEvent(new Event('quiet-signal-lock-now'))
 }
 
 export function hasPinLock() {

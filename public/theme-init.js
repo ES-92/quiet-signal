@@ -1,6 +1,6 @@
 (() => {
   try {
-    const stored = JSON.parse(localStorage.getItem('commonplace-review-settings') || '{}')
+    const stored = JSON.parse(localStorage.getItem('quiet-signal-review-settings') || '{}')
     const theme =
       stored.theme === 'dark' || stored.theme === 'light'
         ? stored.theme

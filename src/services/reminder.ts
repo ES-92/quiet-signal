@@ -84,7 +84,7 @@ export async function sendTestReminder(title: string, body: string): Promise<boo
   try {
     const registration = await navigator.serviceWorker.ready
     if (registration.active) {
-      registration.active.postMessage({ type: 'commonplace-test-reminder', title, body })
+      registration.active.postMessage({ type: 'quiet-signal-test-reminder', title, body })
       return true
     }
     await registration.showNotification(title, { body, icon: '/pwa-192x192.svg' })

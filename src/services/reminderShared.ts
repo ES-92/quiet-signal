@@ -1,9 +1,9 @@
 // Shared between the app and the service worker. Keep it free of any
 // window/DOM-only APIs — `caches`, `Response` and `Date` exist in both.
 
-export const REMINDER_CACHE = 'commonplace-reminder'
-export const REMINDER_KEY = '/__commonplace_reminder__'
-export const REMINDER_TAG = 'commonplace-daily-reminder'
+export const REMINDER_CACHE = 'quiet-signal-reminder'
+export const REMINDER_KEY = '/__quiet_signal_reminder__'
+export const REMINDER_TAG = 'quiet-signal-daily-reminder'
 
 export interface ReminderConfig {
   enabled: boolean

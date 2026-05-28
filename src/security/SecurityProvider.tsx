@@ -19,11 +19,11 @@ export function SecurityProvider({ children }: { children: ReactNode }) {
       setError('')
     }
 
-    window.addEventListener('commonplace-security-changed', refresh)
-    window.addEventListener('commonplace-lock-now', lock)
+    window.addEventListener('quiet-signal-security-changed', refresh)
+    window.addEventListener('quiet-signal-lock-now', lock)
     return () => {
-      window.removeEventListener('commonplace-security-changed', refresh)
-      window.removeEventListener('commonplace-lock-now', lock)
+      window.removeEventListener('quiet-signal-security-changed', refresh)
+      window.removeEventListener('quiet-signal-lock-now', lock)
     }
 
     function lock() {

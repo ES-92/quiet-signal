@@ -14,7 +14,7 @@ class QuietSignalDatabase extends Dexie {
   books!: Table<Book, string>
 
   constructor() {
-    super('commonplace')
+    super('quiet-signal')
     this.version(1).stores({
       quotes: 'id, author, source, favorite, createdAt, updatedAt, nextReviewAt, *tags'
     })

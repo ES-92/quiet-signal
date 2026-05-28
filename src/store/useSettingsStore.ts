@@ -16,7 +16,7 @@ interface AppSettings {
   setReminderTime: (reminderTime: string) => void
 }
 
-const storageKey = 'commonplace-review-settings'
+const storageKey = 'quiet-signal-review-settings'
 
 type Persisted = Pick<AppSettings, 'dailyCount' | 'dailyMode' | 'theme' | 'reminderEnabled' | 'reminderTime'>
 

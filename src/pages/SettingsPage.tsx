@@ -68,8 +68,8 @@ export function SettingsPage() {
     function refresh() {
       setSecurityVersion((value) => value + 1)
     }
-    window.addEventListener('commonplace-security-changed', refresh)
-    return () => window.removeEventListener('commonplace-security-changed', refresh)
+    window.addEventListener('quiet-signal-security-changed', refresh)
+    return () => window.removeEventListener('quiet-signal-security-changed', refresh)
   }, [])
 
   async function handleClearAll() {
