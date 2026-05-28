@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions & ideas (Discussions)
+    url: https://github.com/ES-92/quiet-signal/discussions
+    about: For open-ended questions, workflow ideas, and show-and-tell.
+  - name: Support the project
+    url: https://ko-fi.com/esc92
+    about: Quiet Signal is free — you can optionally support its development.
