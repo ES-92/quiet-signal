@@ -1,4 +1,4 @@
-import { BookMarked, Coffee, Download, Feather, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
+import { BookMarked, Coffee, Download, Feather, Hand, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useI18n } from '../i18n/I18nProvider'
@@ -15,6 +15,7 @@ const commandItems = [
   { to: '/books', labelKey: 'books', icon: BookMarked },
   { to: '/import', labelKey: 'data', icon: Download },
   { to: '/trash', labelKey: 'trash', icon: Trash2 },
+  { to: '/gestures', labelKey: 'gestures', icon: Hand },
   { to: '/settings', labelKey: 'settings', icon: Settings }
 ] as const
 
