@@ -9,6 +9,10 @@ It's a [Readwise](https://readwise.io)-style review flow for your *own* thoughts
 > **Live app:** https://quiet-signal.vercel.app · **Tagline:** *Ruhig sammeln. Klar behalten.*
 
 <p align="center">
+  <img src="docs/screenshots/demo.gif" alt="Swiping through the daily review deck" width="260">
+</p>
+
+<p align="center">
   <img src="docs/screenshots/today.png" alt="Daily review deck" width="200">
   <img src="docs/screenshots/library.png" alt="Your collection" width="200">
   <img src="docs/screenshots/books.png" alt="Books" width="200">
