@@ -28,8 +28,8 @@ export function DomainMigrationPanel() {
       if (event.origin !== oldOrigin) return
       if (event.data?.type !== 'quiet-signal-migration') return
 
-      let books: Book[] = []
-      let quotes: Quote[] = []
+      let books: Book[]
+      let quotes: Quote[]
       try {
         const bundle = parseJsonImportBundle(JSON.stringify(event.data.payload ?? {}))
         books = bundle.books

@@ -24,6 +24,7 @@ const ADDED_ON = /(?:Added on|Hinzugefügt am|Ajouté le|Añadido el|Aggiunto il
 /** Parse the raw contents of a Kindle `My Clippings.txt` file into clippings. */
 export function parseKindleClippings(content: string): KindleClipping[] {
   const blocks = content
+    // eslint-disable-next-line no-irregular-whitespace -- strips the U+FEFF BOM Kindle prepends to My Clippings.txt
     .replace(/^﻿/, '')
     .split('\n')
     .reduce<string[][]>(
