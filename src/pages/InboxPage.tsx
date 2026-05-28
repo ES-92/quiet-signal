@@ -1,17 +1,18 @@
 import { ArrowRight, Clock3, SlidersHorizontal, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { AudioPlayer, AudioRecorder } from '../components/AudioRecorder'
 import { EntryTypeControl } from '../components/EntryTypeControl'
 import { EmptyState } from '../components/EmptyState'
 import { LocationCapture } from '../components/LocationCapture'
 import { PhotoCapture } from '../components/PhotoCapture'
 import { SignalStrengthControl } from '../components/SignalStrengthControl'
+import { useSwipeDeck } from '../hooks/useSwipeDeck'
 import { useI18n } from '../i18n/I18nProvider'
 import { openCapture } from '../services/captureEvents'
-import { tapHaptic } from '../services/haptics'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
-import { entryType, quoteStatus, type EntryType, type Quote, type SignalStrength } from '../types/quote'
+import { useToastStore } from '../store/useToastStore'
+import { entryType, isSnoozed, quoteStatus, type EntryType, type Quote, type SignalStrength } from '../types/quote'
 
 const typeLabels = {
   note: 'entryType_note',
@@ -22,38 +23,10 @@ const typeLabels = {
   observation: 'entryType_observation'
 } as const
 
-const CLARIFY_THRESHOLD = 64
-const CLARIFY_DISTANCE = 76
-const CLARIFY_VELOCITY = 0.4
-const CLARIFY_EXIT_MS = 340
-
-interface ClarifyDrag {
-  x: number
-  y: number
-  active: boolean
-}
-
-interface ClarifyPointer {
-  pointerId: number
-  x: number
-  y: number
-  lastX: number
-  lastY: number
-  lastTime: number
-  vx: number
-  vy: number
-}
-
-interface ClarifyExit {
-  x: number
-  y: number
-  rotate: number
-  opacity: number
-}
-
 export function InboxPage() {
   const { t } = useI18n()
-  const { quotes, loadQuotes, addQuote, saveQuote, removeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, addQuote, saveQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
   const [text, setText] = useState('')
   const [tags, setTags] = useState('')
@@ -81,10 +54,6 @@ export function InboxPage() {
   const [draftLocationLatitude, setDraftLocationLatitude] = useState<number | undefined>()
   const [draftLocationLongitude, setDraftLocationLongitude] = useState<number | undefined>()
   const [message, setMessage] = useState('')
-  const [clarifyDrag, setClarifyDrag] = useState<ClarifyDrag>({ x: 0, y: 0, active: false })
-  const [clarifyExit, setClarifyExit] = useState<ClarifyExit | null>(null)
-  const clarifyPointerRef = useRef<ClarifyPointer | null>(null)
-  const clarifyThresholdHapticRef = useRef(false)
   const canSave = Boolean(text.trim() || imageDataUrl || audioDataUrl)
 
   useEffect(() => {
@@ -92,7 +61,19 @@ export function InboxPage() {
     void loadBooks()
   }, [loadQuotes, loadBooks])
 
-  const inboxQuotes = useMemo(() => quotes.filter((quote) => quoteStatus(quote) === 'inbox'), [quotes])
+  const inboxQuotes = useMemo(() => {
+    const now = Date.now()
+    return quotes
+      .filter((quote) => quoteStatus(quote) === 'inbox')
+      .filter((quote) => !isSnoozed(quote, now))
+      .sort((a, b) => {
+        const aDue = a.snoozedUntil ? new Date(a.snoozedUntil).getTime() : 0
+        const bDue = b.snoozedUntil ? new Date(b.snoozedUntil).getTime() : 0
+        // Recently-unsnoozed entries first, then oldest-created first (FIFO).
+        if (aDue !== bDue) return bDue - aDue
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      })
+  }, [quotes])
   const currentQuote = inboxQuotes[currentIndex] ?? inboxQuotes[0]
   const nextInboxQuote = inboxQuotes.length > 1 ? inboxQuotes[(currentIndex + 1) % inboxQuotes.length] : undefined
   const thirdInboxQuote = inboxQuotes.length > 2 ? inboxQuotes[(currentIndex + 2) % inboxQuotes.length] : undefined
@@ -104,9 +85,6 @@ export function InboxPage() {
   useEffect(() => {
     if (!currentQuote) return
     setDetailsOpen(false)
-    setClarifyDrag({ x: 0, y: 0, active: false })
-    setClarifyExit(null)
-    clarifyThresholdHapticRef.current = false
     setDraftText(currentQuote.text ?? '')
     setDraftTags(currentQuote.tags.join(', '))
     setDraftNote(currentQuote.note ?? '')
@@ -196,151 +174,32 @@ export function InboxPage() {
     setMessage(t('keptInNoise'))
   }
 
-  function clarifyLater() {
-    if (!inboxQuotes.length) return
-    setCurrentIndex((index) => (index + 1) % inboxQuotes.length)
-    setDetailsOpen(false)
-    setMessage('')
+  async function snoozeCurrent() {
+    if (!currentQuote) return
+    await snoozeQuote(currentQuote.id)
+    showToast({ message: t('snoozedToast') })
   }
 
   async function discardCurrent() {
     if (!currentQuote) return
-    await removeQuote(currentQuote.id)
-    setMessage('')
+    const id = currentQuote.id
+    await discardQuote(id)
+    showToast({ message: t('discardedToast'), actionLabel: t('undo'), onAction: () => void restoreQuote(id) })
   }
 
-  function handleClarifyPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (!currentQuote || clarifyExit || isInteractiveTarget(event.target)) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setMessage('')
-    clarifyThresholdHapticRef.current = false
-    clarifyPointerRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      lastTime: performance.now(),
-      vx: 0,
-      vy: 0
-    }
-    setClarifyDrag({ x: 0, y: 0, active: true })
-  }
-
-  function handleClarifyPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const start = clarifyPointerRef.current
-    if (!start || start.pointerId !== event.pointerId) return
-
-    const now = performance.now()
-    const elapsed = Math.max(now - start.lastTime, 16)
-    const rawDx = event.clientX - start.x
-    const rawDy = event.clientY - start.y
-    const dx = rubberDistance(rawDx, window.innerWidth * 0.82)
-    const dy = rubberDistance(rawDy, window.innerHeight * 0.48)
-    const intent = Math.max(Math.abs(rawDx), Math.abs(rawDy))
-
-    if (!clarifyThresholdHapticRef.current && intent > CLARIFY_THRESHOLD) {
-      clarifyThresholdHapticRef.current = true
-      tapHaptic(6)
-    }
-    if (clarifyThresholdHapticRef.current && intent < CLARIFY_THRESHOLD * 0.52) {
-      clarifyThresholdHapticRef.current = false
-    }
-
-    start.vx = (event.clientX - start.lastX) / elapsed
-    start.vy = (event.clientY - start.lastY) / elapsed
-    start.lastX = event.clientX
-    start.lastY = event.clientY
-    start.lastTime = now
-    setClarifyDrag({ x: dx, y: dy, active: true })
-  }
-
-  function handleClarifyPointerUp(event: PointerEvent<HTMLDivElement>) {
-    finishClarifyPointer(event)
-  }
-
-  function handleClarifyPointerCancel(event: PointerEvent<HTMLDivElement>) {
-    finishClarifyPointer(event, true)
-  }
-
-  function finishClarifyPointer(event: PointerEvent<HTMLDivElement>, cancelled = false) {
-    const start = clarifyPointerRef.current
-    clarifyThresholdHapticRef.current = false
-    clarifyPointerRef.current = null
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    } catch {
-      // Pointer capture can be released by the browser before cancel events.
-    }
-
-    if (!start || start.pointerId !== event.pointerId || cancelled || !currentQuote) {
-      resetClarifyGesture()
-      return
-    }
-
-    const dx = event.clientX - start.x
-    const dy = event.clientY - start.y
-    const projectedX = dx + start.vx * 230
-    const projectedY = dy + start.vy * 210
-    const horizontal = Math.abs(projectedX) >= Math.abs(projectedY) * 0.72
-    const vertical = Math.abs(projectedY) > Math.abs(projectedX) * 0.72
-    const fastThrow = Math.max(Math.abs(start.vx), Math.abs(start.vy)) > CLARIFY_VELOCITY
-
-    if (horizontal && (Math.abs(projectedX) > CLARIFY_DISTANCE || (fastThrow && Math.abs(dx) > 20))) {
-      commitClarify(projectedX > 0 ? 'signal' : 'delete', projectedX, projectedY)
-      return
-    }
-
-    if (vertical && (Math.abs(projectedY) > CLARIFY_DISTANCE || (fastThrow && Math.abs(dy) > 20))) {
-      if (projectedY < 0) {
-        tapHaptic(8)
-        setDetailsOpen(true)
-        resetClarifyGesture()
-      } else {
-        commitClarify('later', projectedX, projectedY)
-      }
-      return
-    }
-
-    resetClarifyGesture()
-  }
-
-  function commitClarify(action: 'signal' | 'delete' | 'later', projectedX: number, projectedY: number) {
-    if (!currentQuote) return
-    const width = window.innerWidth || 390
-    const horizontal = action === 'signal' || action === 'delete'
-    const direction = action === 'delete' ? -1 : 1
-    const exitX = horizontal ? direction * width * 1.38 : clamp(projectedX, -width * 0.32, width * 0.32)
-    const exitY = action === 'later' ? width * 0.82 : clamp(projectedY, -width * 0.4, width * 0.4)
-    const rotate = horizontal ? direction * clamp(7 + Math.abs(projectedY) / 26, 7, 17) : clamp(projectedX / 20, -9, 9)
-
-    tapHaptic(action === 'signal' ? [8, 24, 8] : action === 'delete' ? 12 : 8)
-    setClarifyExit({ x: exitX, y: exitY, rotate, opacity: action === 'later' ? 0.55 : 0.72 })
-
-    window.setTimeout(() => {
-      setClarifyExit(null)
-      setClarifyDrag({ x: 0, y: 0, active: false })
-      if (action === 'signal') void finishSignal()
-      if (action === 'delete') void discardCurrent()
-      if (action === 'later') clarifyLater()
-    }, CLARIFY_EXIT_MS)
-  }
-
-  function resetClarifyGesture() {
-    setClarifyDrag({ x: 0, y: 0, active: false })
-  }
+  const deck = useSwipeDeck(
+    {
+      right: () => void finishSignal(),
+      left: () => void snoozeCurrent(),
+      up: () => setDetailsOpen(true),
+      down: () => void discardCurrent()
+    },
+    { enabled: Boolean(currentQuote) && !detailsOpen, distance: 76, exitMs: 340 }
+  )
 
   const contextDetails = draftEntryType === 'memory' || draftEntryType === 'conversation' || draftEntryType === 'observation'
   const bookDetails = draftEntryType === 'book_quote'
-  const clarifyDistance = Math.hypot(clarifyDrag.x, clarifyDrag.y)
-  const clarifyLift = clarifyExit ? 1 : Math.min(1, clarifyDistance / 132)
-  const signalHint = clamp(clarifyDrag.x / CLARIFY_THRESHOLD, 0, 1)
-  const deleteHint = clamp(-clarifyDrag.x / CLARIFY_THRESHOLD, 0, 1)
-  const detailsHint = clamp(-clarifyDrag.y / CLARIFY_THRESHOLD, 0, 1)
-  const laterHint = clamp(clarifyDrag.y / CLARIFY_THRESHOLD, 0, 1)
-  const clarifyTransform = clarifyExit
-    ? `translate3d(${clarifyExit.x}px, ${clarifyExit.y}px, 0) rotate(${clarifyExit.rotate}deg) scale(0.95)`
-    : `perspective(1000px) translate3d(${clarifyDrag.x}px, ${clarifyDrag.y}px, 0) rotateX(${clamp(-clarifyDrag.y * 0.012, -1.8, 1.8)}deg) rotate(${clarifyDrag.x * 0.012}deg) scale(${1 - Math.min(clarifyDistance / 6200, 0.022)})`
+  const clarifyLift = deck.exit ? 1 : Math.min(1, Math.hypot(deck.drag.x, deck.drag.y) / 132)
 
   return (
     <div className="grid gap-5 pt-3 sm:gap-8 sm:pt-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
@@ -413,31 +272,30 @@ export function InboxPage() {
                 {nextInboxQuote && <ClarifyPreviewCard quote={nextInboxQuote} depth={1} lift={clarifyLift} />}
                 <article
                   className="clarify-top-card relative z-20 touch-none select-none overflow-hidden rounded-md border border-line bg-paper p-4 shadow-[0_22px_62px_rgba(31,30,28,0.14)] will-change-transform"
-                  onPointerDown={handleClarifyPointerDown}
-                  onPointerMove={handleClarifyPointerMove}
-                  onPointerUp={handleClarifyPointerUp}
-                  onPointerCancel={handleClarifyPointerCancel}
+                  {...deck.bind}
                   style={{
-                    opacity: clarifyExit ? clarifyExit.opacity : 1,
-                    transform: clarifyTransform,
-                    transition: clarifyExit
-                      ? `opacity ${CLARIFY_EXIT_MS}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${CLARIFY_EXIT_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
-                      : clarifyDrag.active
+                    opacity: deck.exit ? 0.72 : 1,
+                    transform: deck.exit
+                      ? `translate3d(${deck.exit.x}px, ${deck.exit.y}px, 0) rotate(${deck.exit.rotate}deg) scale(0.95)`
+                      : `perspective(1000px) translate3d(${deck.drag.x}px, ${deck.drag.y}px, 0) rotate(${deck.drag.x * 0.012}deg) scale(${1 - Math.min(Math.hypot(deck.drag.x, deck.drag.y) / 6200, 0.022)})`,
+                    transition: deck.exit
+                      ? `opacity ${deck.exitMs}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${deck.exitMs}ms cubic-bezier(0.16, 1, 0.3, 1)`
+                      : deck.drag.active
                         ? 'none'
                         : 'transform 420ms cubic-bezier(0.18, 1.22, 0.22, 1), box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1)'
                   }}
                 >
-                  <GestureStamp className="right-3 top-16 border-clay text-clay" opacity={signalHint} rotate={5} x={12}>
+                  <GestureStamp className="right-3 top-16 border-clay text-clay" opacity={deck.hints.right} rotate={5} x={12}>
                     <ArrowRight size={15} /> {t('finishSignal')}
                   </GestureStamp>
-                  <GestureStamp className="left-3 top-16 border-clay text-clay" opacity={deleteHint} rotate={-5} x={-12}>
-                    <Trash2 size={15} /> {t('deleteNoise')}
+                  <GestureStamp className="left-3 top-16 border-graphite text-graphite" opacity={deck.hints.left} rotate={-5} x={-12}>
+                    <Clock3 size={15} /> {t('later')}
                   </GestureStamp>
-                  <GestureStamp className="left-1/2 top-3 -translate-x-1/2 border-graphite text-graphite" opacity={detailsHint} rotate={0} y={-10}>
+                  <GestureStamp className="left-1/2 top-3 -translate-x-1/2 border-graphite text-graphite" opacity={deck.hints.up} rotate={0} y={-10}>
                     <SlidersHorizontal size={15} /> {t('detailsAction')}
                   </GestureStamp>
-                  <GestureStamp className="bottom-3 left-1/2 -translate-x-1/2 border-graphite text-graphite" opacity={laterHint} rotate={0} y={10}>
-                    <Clock3 size={15} /> {t('clarifyLater')}
+                  <GestureStamp className="bottom-3 left-1/2 -translate-x-1/2 border-clay text-clay" opacity={deck.hints.down} rotate={0} y={10}>
+                    <Trash2 size={15} /> {t('deleteNoise')}
                   </GestureStamp>
 
                   <div className="flex flex-wrap gap-2">
@@ -468,7 +326,7 @@ export function InboxPage() {
                 <button className="quiet-touch inline-flex h-11 items-center justify-center rounded-full border border-line text-graphite" aria-label={t('detailsAction')} title={t('detailsAction')} onClick={() => setDetailsOpen((open) => !open)}>
                   <SlidersHorizontal size={16} />
                 </button>
-                <button className="quiet-touch inline-flex h-11 items-center justify-center rounded-full border border-line text-graphite" aria-label={t('clarifyLater')} title={t('clarifyLater')} onClick={clarifyLater}>
+                <button className="quiet-touch inline-flex h-11 items-center justify-center rounded-full border border-line text-graphite" aria-label={t('later')} title={t('later')} onClick={() => void snoozeCurrent()}>
                   <Clock3 size={16} />
                 </button>
                 <button className="quiet-touch inline-flex h-11 items-center justify-center rounded-full border border-clay text-clay" aria-label={t('deleteNoise')} title={t('deleteNoise')} onClick={() => void discardCurrent()}>
@@ -658,20 +516,6 @@ function clean(value?: string) {
 
 function lerp(start: number, end: number, amount: number) {
   return start + (end - start) * amount
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function rubberDistance(distance: number, dimension: number) {
-  const sign = Math.sign(distance)
-  const absolute = Math.abs(distance)
-  return sign * ((absolute * dimension) / (dimension + absolute * 0.62))
-}
-
-function isInteractiveTarget(target: EventTarget) {
-  return target instanceof HTMLElement && Boolean(target.closest('button, a, input, select, textarea, audio, summary'))
 }
 
 function toLocalDateTime(value?: string) {
