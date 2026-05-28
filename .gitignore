@@ -4,5 +4,6 @@ dist/
 *.local
 playwright-*.png
 .DS_Store
+.superpowers/
 
 .vercel
