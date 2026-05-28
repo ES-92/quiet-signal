@@ -1,14 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="112" fill="#141312"/>
-  <circle cx="256" cy="256" r="196" fill="#f7f4ef" opacity="0.06"/>
-  <circle cx="256" cy="256" r="108" fill="none" stroke="#f7f4ef" stroke-width="20" opacity="0.22"/>
-  <path d="M128 256c35-54 78-81 128-81s93 27 128 81c-35 54-78 81-128 81s-93-27-128-81Z" fill="none" stroke="#f7f4ef" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M192 256c19-28 40-42 64-42s45 14 64 42c-19 28-40 42-64 42s-45-14-64-42Z" fill="none" stroke="#cf845e" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="256" cy="256" r="24" fill="#cf845e"/>
-  <circle cx="126" cy="130" r="8" fill="#f7f4ef" opacity="0.34"/>
-  <circle cx="384" cy="122" r="6" fill="#f7f4ef" opacity="0.28"/>
-  <circle cx="100" cy="365" r="6" fill="#f7f4ef" opacity="0.28"/>
-  <circle cx="405" cy="378" r="9" fill="#f7f4ef" opacity="0.34"/>
-  <circle cx="356" cy="78" r="3" fill="#cf845e" opacity="0.7"/>
-  <circle cx="169" cy="420" r="4" fill="#cf845e" opacity="0.65"/>
+  <circle cx="256" cy="256" r="208" fill="#f7f4ef" opacity="0.06"/>
+  <circle cx="256" cy="256" r="96" fill="none" stroke="#f7f4ef" stroke-width="21" opacity="0.7"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#f7f4ef" stroke-width="18" opacity="0.38"/>
+  <circle cx="256" cy="256" r="40" fill="#cf845e"/>
+  <circle cx="120" cy="116" r="8" fill="#f7f4ef" opacity="0.32"/>
+  <circle cx="400" cy="396" r="8.5" fill="#f7f4ef" opacity="0.32"/>
 </svg>
