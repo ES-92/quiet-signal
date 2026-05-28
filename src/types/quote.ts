@@ -35,11 +35,13 @@ export interface Quote {
   reviewCount: number
   lastReviewedAt?: string
   nextReviewAt?: string
+  snoozedUntil?: string
+  deletedAt?: string
 }
 
 export type QuoteInput = Omit<
   Quote,
-  'id' | 'createdAt' | 'updatedAt' | 'reviewCount' | 'lastReviewedAt' | 'nextReviewAt' | 'likes'
+  'id' | 'createdAt' | 'updatedAt' | 'reviewCount' | 'lastReviewedAt' | 'nextReviewAt' | 'likes' | 'snoozedUntil' | 'deletedAt'
 >
 
 export interface QuoteFilters {
@@ -61,4 +63,12 @@ export function signalStrength(quote: Pick<Quote, 'signalStrength'>): SignalStre
 
 export function entryType(quote: Pick<Quote, 'entryType'>): EntryType {
   return quote.entryType ?? 'note'
+}
+
+export function isSnoozed(quote: Pick<Quote, 'snoozedUntil'>, now = Date.now()): boolean {
+  return Boolean(quote.snoozedUntil) && new Date(quote.snoozedUntil as string).getTime() > now
+}
+
+export function isDeleted(quote: Pick<Quote, 'deletedAt'>): boolean {
+  return Boolean(quote.deletedAt)
 }
