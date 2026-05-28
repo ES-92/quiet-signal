@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { tapHaptic } from '../services/haptics'
 
 export type SwipeDirection = 'right' | 'left' | 'up' | 'down'
@@ -60,6 +60,17 @@ export function useSwipeDeck(actions: SwipeDeckActions, options: SwipeDeckOption
   const pointerRef = useRef<PointerSnapshot | null>(null)
   const longPressTimer = useRef<number | null>(null)
   const longPressFired = useRef(false)
+  const exitTimer = useRef<number | null>(null)
+
+  // Cancel pending timers if the deck unmounts mid-gesture (e.g. navigating
+  // away during the exit animation) so callbacks don't fire after unmount.
+  useEffect(
+    () => () => {
+      if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current)
+      if (exitTimer.current !== null) window.clearTimeout(exitTimer.current)
+    },
+    []
+  )
 
   function clearLongPress() {
     if (longPressTimer.current !== null) {
@@ -82,7 +93,8 @@ export function useSwipeDeck(actions: SwipeDeckActions, options: SwipeDeckOption
       y: direction === 'down' ? width * 0.85 : direction === 'up' ? -width * 0.7 : -24,
       rotate: horizontal ? sign * 12 : 0
     })
-    window.setTimeout(() => {
+    exitTimer.current = window.setTimeout(() => {
+      exitTimer.current = null
       setExit(null)
       reset()
       action?.()
