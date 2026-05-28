@@ -1,9 +1,10 @@
-import { BookOpen, Camera, Clock3, ExternalLink, Feather, Flame, Heart, Mic, Minus, PenLine, Plus, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { BookOpen, Camera, Clock3, ExternalLink, Feather, Flame, Heart, Inbox, Mic, Minus, PenLine, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { useFitText } from '../hooks/useFitText'
+import { useSwipeDeck } from '../hooks/useSwipeDeck'
 import { useI18n } from '../i18n/I18nProvider'
 import { openCapture } from '../services/captureEvents'
 import { tapHaptic } from '../services/haptics'
@@ -12,54 +13,24 @@ import { selectDailyStack, type BookWeightMap } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
+import { useToastStore } from '../store/useToastStore'
+import { quoteStatus } from '../types/quote'
 
-const SWIPE_THRESHOLD = 66
-const SWIPE_DISTANCE = 76
-const SWIPE_VELOCITY = 0.44
 const EXIT_MS = 620
-
-interface DragState {
-  x: number
-  y: number
-  active: boolean
-}
-
-interface PointerSnapshot {
-  pointerId: number
-  x: number
-  y: number
-  lastX: number
-  lastY: number
-  lastTime: number
-  vx: number
-  vy: number
-}
-
-interface ExitMotion {
-  direction: -1 | 1
-  x: number
-  y: number
-  rotate: number
-}
 
 export function TodayPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { quotes, loading, loadQuotes, saveQuote, likeQuote, dislikeQuote, reviewQuote } = useQuoteStore()
+  const { quotes, loading, loadQuotes, saveQuote, likeQuote, dislikeQuote, reviewQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { showToast } = useToastStore()
   const { books, loadBooks, saveBook } = useBookStore()
   const { dailyCount, dailyMode } = useSettingsStore()
   const [index, setIndex] = useState(0)
-  const [drag, setDrag] = useState<DragState>({ x: 0, y: 0, active: false })
-  const [exitMotion, setExitMotion] = useState<ExitMotion | null>(null)
   const [contextOpen, setContextOpen] = useState(false)
   const [bookEditorOpen, setBookEditorOpen] = useState(false)
   const [bookTitle, setBookTitle] = useState('')
   const [bookAuthor, setBookAuthor] = useState('')
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
-  const pointerRef = useRef<PointerSnapshot | null>(null)
-  const longPressTimerRef = useRef<number | null>(null)
-  const longPressFiredRef = useRef(false)
-  const thresholdHapticRef = useRef(false)
 
   useEffect(() => {
     void loadQuotes()
@@ -82,6 +53,7 @@ export function TodayPage() {
   }, [quotes, selectedDailyQuotes, sessionQuoteIds])
   const weeklyReflection = useMemo(() => buildReflection(quotes, books, 'week'), [books, quotes])
   const showReflectionNudge = weeklyReflection.entries.length >= 3
+  const inboxCount = useMemo(() => quotes.filter((quote) => quoteStatus(quote) === 'inbox' && !quote.deletedAt).length, [quotes])
 
   const currentIndex = Math.min(index, dailyQuotes.length)
   const currentQuote = dailyQuotes[currentIndex]
@@ -96,8 +68,6 @@ export function TodayPage() {
     setContextOpen(false)
     setBookEditorOpen(false)
   }, [currentQuote?.id])
-
-  useEffect(() => () => clearLongPressTimer(), [])
 
   useEffect(() => {
     const selectedIds = selectedDailyQuotes.map((quote) => quote.id)
@@ -120,141 +90,42 @@ export function TodayPage() {
     }
   }, [dailyQuotes.length, index])
 
-  function advance(direction: -1 | 1, motion?: Partial<ExitMotion>) {
-    if (exitMotion || !currentQuote) return
-    const width = window.innerWidth || 390
-    setExitMotion({
-      direction,
-      x: motion?.x ?? direction * width * 1.35,
-      y: motion?.y ?? -24,
-      rotate: motion?.rotate ?? direction * 11
-    })
-    window.setTimeout(() => {
-      setIndex((value) => Math.min(value + 1, dailyQuotes.length))
-      setDrag({ x: 0, y: 0, active: false })
-      setExitMotion(null)
-    }, EXIT_MS)
+  function advanceIndex() {
+    setIndex((value) => Math.min(value + 1, dailyQuotes.length))
   }
 
-  function clearLongPressTimer() {
-    if (longPressTimerRef.current !== null) {
-      window.clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = null
-    }
+  function handleKeep() {
+    if (!currentQuote) return
+    const id = currentQuote.id
+    void likeQuote(id)
+    void reviewQuote(id, 'read')
+    advanceIndex()
   }
 
-  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (exitMotion || !currentQuote || isInteractiveTarget(event.target)) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setContextOpen(false)
-    longPressFiredRef.current = false
-    thresholdHapticRef.current = false
-    pointerRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      lastTime: performance.now(),
-      vx: 0,
-      vy: 0
-    }
-    clearLongPressTimer()
-    longPressTimerRef.current = window.setTimeout(() => {
-      longPressFiredRef.current = true
-      setDrag({ x: 0, y: 0, active: false })
-      setContextOpen(true)
-      tapHaptic([18, 35, 18])
-    }, 520)
-    setDrag({ x: 0, y: 0, active: true })
+  function handleSnooze() {
+    if (!currentQuote) return
+    void snoozeQuote(currentQuote.id)
+    advanceIndex()
   }
 
-  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    const start = pointerRef.current
-    if (!start || start.pointerId !== event.pointerId) return
-
-    const now = performance.now()
-    const elapsed = Math.max(now - start.lastTime, 16)
-    const rawDx = event.clientX - start.x
-    const rawDy = event.clientY - start.y
-    const dx = rubberDistance(rawDx, window.innerWidth * 0.82)
-    const dy = rubberDistance(rawDy, window.innerHeight * 0.5)
-    if (Math.hypot(rawDx, rawDy) > 12) {
-      clearLongPressTimer()
-    }
-    if (!thresholdHapticRef.current && Math.abs(rawDx) > SWIPE_THRESHOLD) {
-      thresholdHapticRef.current = true
-      tapHaptic(6)
-    }
-    if (thresholdHapticRef.current && Math.abs(rawDx) < SWIPE_THRESHOLD * 0.55) {
-      thresholdHapticRef.current = false
-    }
-    start.vx = (event.clientX - start.lastX) / elapsed
-    start.vy = (event.clientY - start.lastY) / elapsed
-    start.lastX = event.clientX
-    start.lastY = event.clientY
-    start.lastTime = now
-    setDrag({ x: dx, y: dy, active: true })
+  function handleDiscard() {
+    if (!currentQuote) return
+    const id = currentQuote.id
+    void discardQuote(id)
+    showToast({ message: t('discardedToast'), actionLabel: t('undo'), onAction: () => void restoreQuote(id) })
+    advanceIndex()
   }
 
-  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    finishPointer(event)
-  }
-
-  function handlePointerCancel(event: React.PointerEvent<HTMLDivElement>) {
-    finishPointer(event, true)
-  }
-
-  function finishPointer(event: React.PointerEvent<HTMLDivElement>, cancelled = false) {
-    clearLongPressTimer()
-    const start = pointerRef.current
-    thresholdHapticRef.current = false
-    pointerRef.current = null
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    } catch {
-      // Pointer capture may already have been released by the browser.
-    }
-
-    if (!start || start.pointerId !== event.pointerId || !currentQuote || cancelled) {
-      setDrag({ x: 0, y: 0, active: false })
-      return
-    }
-
-    if (longPressFiredRef.current || contextOpen) {
-      longPressFiredRef.current = false
-      setDrag({ x: 0, y: 0, active: false })
-      return
-    }
-
-    const dx = event.clientX - start.x
-    const dy = event.clientY - start.y
-    const projectedX = dx + start.vx * 230
-    const projectedY = dy + start.vy * 170
-    const fastHorizontalThrow = Math.abs(start.vx) > SWIPE_VELOCITY && Math.abs(dx) > 22
-    const committed = Math.abs(projectedX) > SWIPE_DISTANCE || fastHorizontalThrow
-
-    if (committed) {
-      const direction = projectedX >= 0 ? 1 : -1
-      const width = window.innerWidth || 390
-      const exitX = direction * width * 1.46
-      const yRatio = clamp(projectedY / Math.max(Math.abs(projectedX), 1), -0.75, 0.75)
-      const exitY = clamp(yRatio * width * 0.78, -width * 0.52, width * 0.52)
-      const rotate = direction * clamp(8 + Math.abs(projectedY) / 24, 8, 18)
-      tapHaptic(direction > 0 ? [8, 28, 8] : 10)
-
-      if (direction > 0) {
-        void likeQuote(currentQuote.id)
-      } else {
-        void dislikeQuote(currentQuote.id)
-      }
-      const reviewedQuoteId = currentQuote.id
-      window.setTimeout(() => void reviewQuote(reviewedQuoteId, 'read'), EXIT_MS + 40)
-      advance(direction, { x: exitX, y: exitY, rotate })
-    } else {
-      setDrag({ x: 0, y: 0, active: false })
-    }
-  }
+  const deck = useSwipeDeck(
+    {
+      right: handleKeep,
+      left: handleSnooze,
+      down: handleDiscard,
+      up: () => setContextOpen(true),
+      longPress: () => setContextOpen(true)
+    },
+    { enabled: Boolean(currentQuote) && !contextOpen, distance: 76, exitMs: 620 }
+  )
 
   async function handleFavoriteToggle() {
     if (!currentQuote) return
@@ -263,13 +134,18 @@ export function TodayPage() {
     setContextOpen(false)
   }
 
-  function handleLater() {
+  function handleContextSnooze() {
     if (!currentQuote) return
-    const quoteId = currentQuote.id
-    tapHaptic(8)
+    const id = currentQuote.id
     setContextOpen(false)
-    advance(1, { y: 28, rotate: 5 })
-    window.setTimeout(() => void reviewQuote(quoteId, 'later'), EXIT_MS + 40)
+    void snoozeQuote(id)
+    advanceIndex()
+  }
+
+  function handleDislike() {
+    if (!currentQuote) return
+    void dislikeQuote(currentQuote.id)
+    setContextOpen(false)
   }
 
   function handleOpenDetails() {
@@ -297,20 +173,14 @@ export function TodayPage() {
     setBookEditorOpen(false)
   }
 
-  const likeHint = clamp(drag.x / SWIPE_THRESHOLD, 0, 1)
-  const dislikeHint = clamp(-drag.x / SWIPE_THRESHOLD, 0, 1)
-  const dragDistance = Math.hypot(drag.x, drag.y)
-  const horizontalIntent = Math.min(1, Math.abs(drag.x) / (SWIPE_DISTANCE * 1.15))
-  const verticalIntent = Math.min(1, Math.abs(drag.y) / (SWIPE_DISTANCE * 1.8))
-  const deckLift = exitMotion ? 1 : Math.min(1, (dragDistance / 140) * 0.48 + horizontalIntent * 0.6 + verticalIntent * 0.2)
-  const dragScale = 1 - Math.min(dragDistance / 5200, 0.03)
-  const dragRotate = drag.x * 0.014 + drag.y * 0.003
-  const dragPitch = clamp(-drag.y * 0.014, -2, 2)
-  const topTransform = exitMotion
-    ? `perspective(1100px) translate3d(${exitMotion.x}px, ${exitMotion.y}px, 0) rotate(${exitMotion.rotate}deg) scale(0.955)`
-    : `perspective(1100px) translate3d(${drag.x}px, ${drag.y}px, 0) rotateX(${dragPitch}deg) rotate(${dragRotate}deg) scale(${dragScale})`
+  const likeHint = deck.hints.right
+  const dislikeHint = deck.hints.left
+  const deckLift = deck.exit ? 1 : Math.min(1, Math.hypot(deck.drag.x, deck.drag.y) / 140 + deck.hints.right * 0.6)
+  const topTransform = deck.exit
+    ? `perspective(1100px) translate3d(${deck.exit.x}px, ${deck.exit.y}px, 0) rotate(${deck.exit.rotate}deg) scale(0.955)`
+    : `perspective(1100px) translate3d(${deck.drag.x}px, ${deck.drag.y}px, 0) rotate(${deck.drag.x * 0.014 + deck.drag.y * 0.003}deg) scale(${1 - Math.min(Math.hypot(deck.drag.x, deck.drag.y) / 5200, 0.03)})`
   const cardShadow =
-    drag.active || exitMotion
+    deck.drag.active || deck.exit
       ? '0 36px 96px rgba(31,30,28,0.18), 0 12px 28px rgba(31,30,28,0.08)'
       : '0 26px 78px rgba(31,30,28,0.09), 0 2px 10px rgba(31,30,28,0.04)'
   const todayLabel = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long' }).format(new Date())
@@ -351,10 +221,7 @@ export function TodayPage() {
           <div
             className="relative min-h-0 flex-1 touch-none select-none overflow-hidden px-2 py-2 sm:px-4 sm:py-4"
             style={{ perspective: '1200px' }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
+            {...deck.bind}
           >
             {thirdQuote && <DeckPreview quote={thirdQuote} depth={2} lift={deckLift} />}
             {nextQuote && <DeckPreview quote={nextQuote} depth={1} lift={deckLift} />}
@@ -363,15 +230,15 @@ export function TodayPage() {
               key={currentQuote.id}
               className={[
                 'deck-top-card daily-card-surface absolute inset-x-2 bottom-4 top-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-md border border-line bg-paper p-4 will-change-transform sm:inset-x-4 sm:bottom-6 sm:top-1 sm:p-8',
-                drag.active ? 'cursor-grabbing' : 'cursor-grab'
+                deck.drag.active ? 'cursor-grabbing' : 'cursor-grab'
               ].join(' ')}
               style={{
                 boxShadow: cardShadow,
-                opacity: exitMotion ? 0.72 : 1,
+                opacity: deck.exit ? 0.72 : 1,
                 transform: topTransform,
-                transition: exitMotion
-                  ? `opacity ${EXIT_MS}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${EXIT_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
-                  : !drag.active && drag.x === 0 && drag.y === 0
+                transition: deck.exit
+                  ? `opacity ${deck.exitMs}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${deck.exitMs}ms cubic-bezier(0.16, 1, 0.3, 1)`
+                  : !deck.drag.active && deck.drag.x === 0 && deck.drag.y === 0
                     ? 'box-shadow 360ms cubic-bezier(0.16, 1, 0.3, 1), transform 440ms cubic-bezier(0.18, 1.22, 0.22, 1)'
                     : 'none'
               }}
@@ -394,7 +261,7 @@ export function TodayPage() {
                 transform: `translate3d(${lerp(-12, 0, dislikeHint)}px, ${lerp(8, 0, dislikeHint)}px, 0) rotate(${lerp(-6, 0, dislikeHint)}deg)`
               }}
             >
-              <Minus size={16} /> {t('dislike')}
+              <Clock3 size={16} /> {t('later')}
             </div>
 
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />
@@ -475,9 +342,13 @@ export function TodayPage() {
                     <Heart size={17} fill={currentQuote.favorite ? 'currentColor' : 'none'} className={currentQuote.favorite ? 'text-clay' : 'text-graphite'} />
                     {t('favorite')}
                   </button>
-                  <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={handleLater}>
+                  <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={handleContextSnooze}>
                     <Clock3 size={17} className="text-graphite" />
                     {t('later')}
+                  </button>
+                  <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={handleDislike}>
+                    <Minus size={17} className="text-graphite" />
+                    {t('dislike')}
                   </button>
                   <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={handleOpenDetails}>
                     <ExternalLink size={17} className="text-graphite" />
@@ -499,9 +370,9 @@ export function TodayPage() {
           title={stackCompleted ? t('doneForToday') : t('nothingDueToday')}
           body={stackCompleted ? t('doneForTodayBody') : t('nothingDueBody')}
           showReflection={showReflectionNudge}
-          onOpenReflections={() => {
-            navigate('/reflections')
-          }}
+          onOpenReflections={() => navigate('/reflections')}
+          inboxCount={inboxCount}
+          onOpenInbox={() => navigate('/inbox')}
         />
       )}
       {bookEditorOpen && currentBook && (
@@ -550,12 +421,16 @@ function DailyRestState({
   title,
   body,
   showReflection,
-  onOpenReflections
+  onOpenReflections,
+  inboxCount,
+  onOpenInbox
 }: {
   title: string
   body: string
   showReflection: boolean
   onOpenReflections: () => void
+  inboxCount: number
+  onOpenInbox: () => void
 }) {
   const { t } = useI18n()
 
@@ -571,6 +446,20 @@ function DailyRestState({
           <h2 className="font-serif text-3xl leading-tight sm:text-4xl">{title}</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-graphite">{body}</p>
         </div>
+        {inboxCount > 0 && (
+          <button
+            type="button"
+            className="quiet-touch relative mx-auto inline-flex items-center gap-2 rounded-full border border-clay/45 bg-paper/82 px-4 py-2 text-sm text-clay shadow-[0_14px_36px_rgba(31,30,28,0.08)] backdrop-blur transition active:scale-[0.98]"
+            onClick={() => {
+              tapHaptic(8)
+              onOpenInbox()
+            }}
+          >
+            <Inbox size={16} />
+            <span>{t('noiseWaiting')}</span>
+            <span className="rounded-full bg-clay/10 px-1.5 py-0.5 text-xs tabular-nums">{inboxCount}</span>
+          </button>
+        )}
         <div className="relative mx-auto flex max-w-full items-center justify-center gap-2 rounded-full border border-line bg-paper/80 p-1.5 shadow-[0_16px_42px_rgba(31,30,28,0.08)] backdrop-blur">
           <RestAction label={t('text')} onClick={() => openCapture('text')}>
             <PenLine size={17} />
@@ -738,20 +627,6 @@ function lerp(start: number, end: number, amount: number) {
   return start + (end - start) * amount
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function rubberDistance(distance: number, dimension: number) {
-  const sign = Math.sign(distance)
-  const absolute = Math.abs(distance)
-  return sign * ((absolute * dimension) / (dimension + absolute * 0.62))
-}
-
 function sameIds(left: string[], right: string[]) {
   return left.length === right.length && left.every((id, index) => id === right[index])
-}
-
-function isInteractiveTarget(target: EventTarget) {
-  return target instanceof HTMLElement && Boolean(target.closest('button, a, input, select, textarea, audio, summary'))
 }
