@@ -16,6 +16,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ de
 const MigrationPage = lazy(() => import('./pages/MigrationPage').then((m) => ({ default: m.MigrationPage })))
 const ShareTargetPage = lazy(() => import('./pages/ShareTargetPage').then((m) => ({ default: m.ShareTargetPage })))
 const ReflectionsPage = lazy(() => import('./pages/ReflectionsPage').then((m) => ({ default: m.ReflectionsPage })))
+const TrashPage = lazy(() => import('./pages/TrashPage').then((m) => ({ default: m.TrashPage })))
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/export" element={<Navigate to="/import" replace />} />
           <Route path="/share-target" element={<ShareTargetPage />} />
           <Route path="/reflections" element={<ReflectionsPage />} />
+          <Route path="/trash" element={<TrashPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>
