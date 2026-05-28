@@ -1,6 +1,6 @@
-import { Check, ChevronDown, Coffee, Copy, CreditCard, Crown, DatabaseBackup, ExternalLink, FileText, HeartHandshake, Moon, RotateCcw, ShieldCheck, Sparkles, Sun } from 'lucide-react'
+import { Check, ChevronDown, Coffee, Copy, CreditCard, DatabaseBackup, ExternalLink, FileText, HeartHandshake, Moon, RotateCcw, ShieldCheck, Sparkles, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { decryptAllQuotesAndDisable, encryptAllQuotes } from '../db/database'
 import { useI18n } from '../i18n/I18nProvider'
@@ -440,24 +440,6 @@ export function SettingsPage() {
             </div>
           </div>
         </Panel>
-        <Panel title={t('quietSignalPlus')}>
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line bg-paper text-clay">
-              <Crown size={18} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm leading-6 text-graphite">{t('plusSettingsBody')}</p>
-              <div className="mt-4 grid gap-2">
-                <PlusFeature title={t('plusWeeklyLetter')} body={t('plusWeeklyLetterBody')} />
-                <PlusFeature title={t('plusPatternMemory')} body={t('plusPatternMemoryBody')} />
-                <PlusFeature title={t('plusBookRhythm')} body={t('plusBookRhythmBody')} />
-              </div>
-              <Link className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper" to="/reflections">
-                <Sparkles size={16} /> {t('openReflections')}
-              </Link>
-            </div>
-          </div>
-        </Panel>
         <Panel title={t('dangerZone')}>
           <button className="mt-4 rounded-md border border-clay px-4 py-2 text-sm text-clay" onClick={() => void handleClearAll()}>
             {t('deleteAllLocalData')}
@@ -557,15 +539,6 @@ function ReleaseFact({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-3 border-t border-line pt-2 text-sm">
       <span className="text-graphite">{label}</span>
       <span className="text-right text-ink">{value}</span>
-    </div>
-  )
-}
-
-function PlusFeature({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-md border border-line bg-paper/60 p-3">
-      <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-1 text-sm leading-6 text-graphite">{body}</p>
     </div>
   )
 }

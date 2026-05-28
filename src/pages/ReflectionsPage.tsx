@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, Clock3, Crown, Download, Feather, Inbox, MapPin, Save, Sparkles, Tags } from 'lucide-react'
+import { BookOpen, CalendarDays, Clock3, Download, Inbox, MapPin, Save, Sparkles, Tags } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '../components/EmptyState'
 import { useI18n } from '../i18n/I18nProvider'
@@ -55,9 +55,6 @@ export function ReflectionsPage() {
       <section className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('reflectionsEyebrow')}</p>
-          <span className="rounded-full border border-clay/50 px-2.5 py-1 text-[0.62rem] uppercase tracking-[0.16em] text-clay">
-            {t('plusPreview')}
-          </span>
         </div>
         <h1 className="mt-2 font-serif text-4xl leading-tight sm:text-5xl">{t('reflections')}</h1>
         <p className="mt-4 max-w-2xl leading-7 text-graphite">{t('reflectionsIntro')}</p>
@@ -116,7 +113,6 @@ export function ReflectionsPage() {
         </div>
 
         <aside className="grid gap-3">
-          <PlusRoadmap />
           <MetricGroup icon={<Tags size={16} />} title={t('reflectionTags')} metrics={summary.topTags} />
           <MetricGroup icon={<BookOpen size={16} />} title={t('reflectionBooks')} metrics={summary.topBooks} />
           <MetricGroup icon={<MapPin size={16} />} title={t('reflectionPlaces')} metrics={summary.topPlaces} />
@@ -124,39 +120,6 @@ export function ReflectionsPage() {
         </aside>
       </section>
     </div>
-  )
-}
-
-function PlusRoadmap() {
-  const { t } = useI18n()
-
-  return (
-    <section className="rounded-md border border-clay/45 bg-paper/65 p-4 shadow-[0_14px_34px_rgba(31,30,28,0.06)]">
-      <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md border border-clay/45 text-clay">
-          <Crown size={16} />
-        </span>
-        <div>
-          <p className="text-[0.62rem] uppercase tracking-[0.16em] text-clay">{t('plusPreview')}</p>
-          <h3 className="font-serif text-2xl">{t('quietSignalPlus')}</h3>
-        </div>
-      </div>
-      <p className="mt-3 text-sm leading-6 text-graphite">{t('plusReflectionBody')}</p>
-      <div className="mt-4 grid gap-2 text-sm">
-        <div className="flex gap-2">
-          <Feather className="mt-0.5 shrink-0 text-clay" size={15} />
-          <span>{t('plusWeeklyLetter')}</span>
-        </div>
-        <div className="flex gap-2">
-          <MapPin className="mt-0.5 shrink-0 text-clay" size={15} />
-          <span>{t('plusPatternMemory')}</span>
-        </div>
-        <div className="flex gap-2">
-          <BookOpen className="mt-0.5 shrink-0 text-clay" size={15} />
-          <span>{t('plusBookRhythm')}</span>
-        </div>
-      </div>
-    </section>
   )
 }
 
