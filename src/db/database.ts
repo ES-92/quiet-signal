@@ -29,6 +29,10 @@ class QuietSignalDatabase extends Dexie {
       quotes: 'id, author, source, favorite, status, signalStrength, entryType, createdAt, updatedAt, nextReviewAt, *tags',
       books: 'id, title, weight, createdAt, updatedAt'
     })
+    this.version(5).stores({
+      quotes: 'id, author, source, favorite, status, signalStrength, entryType, snoozedUntil, deletedAt, createdAt, updatedAt, nextReviewAt, *tags',
+      books: 'id, title, weight, createdAt, updatedAt'
+    })
   }
 }
 
@@ -50,7 +54,25 @@ function withQuoteDefaults(quote: Quote): Quote {
 export async function listQuotes() {
   const rows = await db.quotes.orderBy('createdAt').reverse().toArray()
   const quotes = await Promise.all(rows.map((quote) => decryptQuoteFromStorage(quote)))
-  return quotes.filter((quote): quote is Quote => Boolean(quote)).map(withQuoteDefaults)
+  return quotes
+    .filter((quote): quote is Quote => Boolean(quote))
+    .filter((quote) => !quote.deletedAt)
+    .map(withQuoteDefaults)
+}
+
+export async function listTrashed() {
+  const rows = await db.quotes.toArray()
+  const quotes = await Promise.all(rows.map((quote) => decryptQuoteFromStorage(quote)))
+  return quotes
+    .filter((quote): quote is Quote => Boolean(quote))
+    .filter((quote) => Boolean(quote.deletedAt))
+    .map(withQuoteDefaults)
+    .sort((a, b) => (b.deletedAt as string).localeCompare(a.deletedAt as string))
+}
+
+export async function emptyTrash() {
+  const trashed = await listTrashed()
+  await db.quotes.bulkDelete(trashed.map((quote) => quote.id))
 }
 
 export async function getQuote(id: string) {
