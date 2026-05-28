@@ -1,10 +1,19 @@
-import { quoteStatus, signalStrength, type Quote, type SignalStrength } from '../types/quote'
+import { quoteStatus, signalStrength, isSnoozed, type Quote, type SignalStrength } from '../types/quote'
 import { weightMultiplier, type BookWeight } from '../types/book'
 import type { DailyMode } from '../store/useSettingsStore'
 
 export type BookWeightMap = Record<string, BookWeight>
 
 const dayMs = 24 * 60 * 60 * 1000
+
+const snoozeHour = 6
+
+export function nextMorningISO(now = new Date()): string {
+  const next = new Date(now)
+  next.setDate(next.getDate() + 1)
+  next.setHours(snoozeHour, 0, 0, 0)
+  return next.toISOString()
+}
 
 export type ReviewAction = 'read' | 'later'
 
@@ -77,6 +86,8 @@ export function selectDailyStack(
 
   const scored = quotes
     .filter((quote) => quoteStatus(quote) === 'signal')
+    .filter((quote) => !quote.deletedAt)
+    .filter((quote) => !isSnoozed(quote, now))
     .filter((quote) => !reviewedToday(quote))
     .map((quote) => ({
       quote,
