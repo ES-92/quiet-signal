@@ -30,8 +30,13 @@ There is no automated test suite yet; **`npm run build` and `npm run lint` must 
 - Keep components focused; comments explain *why*, not *what*.
 - Commits: short, imperative, ideally prefixed (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).
 
-## Architecture pointers
+## Architecture at a glance
 
-See [CLAUDE.md](CLAUDE.md) for a concise architecture overview (local-first data flow, the encryption layer, the spaced-repetition review logic, the PWA service worker, and the i18n setup).
+- **Local-first, no backend.** All data lives in the browser via IndexedDB (Dexie); settings in `localStorage`.
+- **All persistence goes through `src/db/database.ts`** — the optional encryption layer lives there. Don't touch the Dexie tables directly.
+- **State:** Zustand stores in `src/store/`. **UI:** pages in `src/pages/`, shared components in `src/components/`.
+- **Daily resurfacing / spaced repetition:** `src/services/review.ts`.
+- **PWA:** custom service worker in `src/sw.ts`; manifest in `vite.config.ts`.
+- **i18n:** `src/i18n/translations.ts` (de/en/es/fr — keys must exist in all four).
 
 By contributing, you agree that your contributions are licensed under the project's [MIT License](LICENSE).

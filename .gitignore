@@ -6,5 +6,9 @@ playwright-*.png
 .DS_Store
 .superpowers/
 docs/launch/
+docs/superpowers/
+docs/mockups/
+security_best_practices_report.md
+CLAUDE.md
 
 .vercel
