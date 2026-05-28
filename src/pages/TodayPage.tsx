@@ -142,6 +142,15 @@ export function TodayPage() {
     advanceIndex()
   }
 
+  function handleContextDiscard() {
+    if (!currentQuote) return
+    const id = currentQuote.id
+    setContextOpen(false)
+    void discardQuote(id)
+    showToast({ message: t('discardedToast'), actionLabel: t('undo'), onAction: () => void restoreQuote(id) })
+    advanceIndex()
+  }
+
   function handleDislike() {
     if (!currentQuote) return
     void dislikeQuote(currentQuote.id)
@@ -360,6 +369,10 @@ export function TodayPage() {
                       {t('editBookInline')}
                     </button>
                   )}
+                  <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-graphite hover:bg-white/50" onClick={handleContextDiscard}>
+                    <Trash2 size={17} className="text-graphite" />
+                    {t('deleteNoise')}
+                  </button>
                 </div>
               </div>
             )}
