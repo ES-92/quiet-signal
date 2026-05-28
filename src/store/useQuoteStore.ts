@@ -3,11 +3,12 @@ import {
   clearQuotes,
   createQuote,
   deleteQuote,
+  emptyTrash as emptyTrashDb,
   listQuotes,
   updateQuote,
   upsertQuotes
 } from '../db/database'
-import { applyReview, type ReviewAction } from '../services/review'
+import { applyReview, nextMorningISO, type ReviewAction } from '../services/review'
 import { tapHaptic } from '../services/haptics'
 import type { Quote, QuoteFilters, QuoteInput } from '../types/quote'
 import { emptyFilters } from '../services/search'
@@ -22,6 +23,10 @@ interface QuoteStore {
   likeQuote: (id: string) => Promise<void>
   dislikeQuote: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
+  snoozeQuote: (id: string) => Promise<void>
+  discardQuote: (id: string) => Promise<void>
+  restoreQuote: (id: string) => Promise<void>
+  emptyTrash: () => Promise<void>
   unlinkBook: (bookId: string) => Promise<void>
   syncBookReferences: (
     bookId: string,
@@ -76,6 +81,22 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   },
   removeQuote: async (id) => {
     await deleteQuote(id)
+    await get().loadQuotes()
+  },
+  snoozeQuote: async (id) => {
+    await updateQuote(id, { snoozedUntil: nextMorningISO() })
+    await get().loadQuotes()
+  },
+  discardQuote: async (id) => {
+    await updateQuote(id, { deletedAt: new Date().toISOString() })
+    await get().loadQuotes()
+  },
+  restoreQuote: async (id) => {
+    await updateQuote(id, { deletedAt: undefined })
+    await get().loadQuotes()
+  },
+  emptyTrash: async () => {
+    await emptyTrashDb()
     await get().loadQuotes()
   },
   unlinkBook: async (bookId) => {
