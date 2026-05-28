@@ -7,6 +7,7 @@ import { tapHaptic } from '../services/haptics'
 import { CommandDrawer } from './CommandDrawer'
 import { InstallPrompt } from './InstallPrompt'
 import { Onboarding } from './Onboarding'
+import { Toast } from './Toast'
 import { SignalMark } from './SignalMark'
 import { ZeroCaptureSheet } from './ZeroCaptureSheet'
 
@@ -139,6 +140,7 @@ export function AppShell() {
       <ZeroCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} initialMode={captureMode} />
       <InstallPrompt />
       <Onboarding />
+      <Toast />
     </div>
   )
 }
