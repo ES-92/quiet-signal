@@ -2,11 +2,13 @@ import { BookOpen, Camera, Clock3, ExternalLink, Feather, Flame, Heart, Inbox, M
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
+import { GestureCoach } from '../components/GestureCoach'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { useFitText } from '../hooks/useFitText'
 import { useSwipeDeck } from '../hooks/useSwipeDeck'
 import { useI18n } from '../i18n/I18nProvider'
 import { openCapture } from '../services/captureEvents'
+import { markCoachmarkSeen, shouldShowCoachmark } from '../services/coach'
 import { tapHaptic } from '../services/haptics'
 import { buildReflection } from '../services/reflections'
 import { selectDailyStack, type BookWeightMap } from '../services/review'
@@ -31,6 +33,7 @@ export function TodayPage() {
   const [bookTitle, setBookTitle] = useState('')
   const [bookAuthor, setBookAuthor] = useState('')
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
+  const [coachVisible, setCoachVisible] = useState(false)
 
   useEffect(() => {
     void loadQuotes()
@@ -90,6 +93,15 @@ export function TodayPage() {
     }
   }, [dailyQuotes.length, index])
 
+  useEffect(() => {
+    if (currentQuote && shouldShowCoachmark()) setCoachVisible(true)
+  }, [currentQuote])
+
+  function dismissCoach() {
+    markCoachmarkSeen()
+    setCoachVisible(false)
+  }
+
   function advanceIndex() {
     setIndex((value) => Math.min(value + 1, dailyQuotes.length))
   }
@@ -124,7 +136,7 @@ export function TodayPage() {
       up: () => setContextOpen(true),
       longPress: () => setContextOpen(true)
     },
-    { enabled: Boolean(currentQuote) && !contextOpen, distance: 76, exitMs: 620 }
+    { enabled: Boolean(currentQuote) && !contextOpen && !coachVisible, distance: 76, exitMs: 620 }
   )
 
   async function handleFavoriteToggle() {
@@ -376,6 +388,7 @@ export function TodayPage() {
                 </div>
               </div>
             )}
+            {coachVisible && currentQuote && <GestureCoach deck="today" onDismiss={dismissCoach} />}
           </div>
         </section>
       ) : (

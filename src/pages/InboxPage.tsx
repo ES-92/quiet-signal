@@ -3,12 +3,14 @@ import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type 
 import { AudioPlayer, AudioRecorder } from '../components/AudioRecorder'
 import { EntryTypeControl } from '../components/EntryTypeControl'
 import { EmptyState } from '../components/EmptyState'
+import { GestureCoach } from '../components/GestureCoach'
 import { LocationCapture } from '../components/LocationCapture'
 import { PhotoCapture } from '../components/PhotoCapture'
 import { SignalStrengthControl } from '../components/SignalStrengthControl'
 import { useSwipeDeck } from '../hooks/useSwipeDeck'
 import { useI18n } from '../i18n/I18nProvider'
 import { openCapture } from '../services/captureEvents'
+import { markCoachmarkSeen, shouldShowCoachmark } from '../services/coach'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
@@ -54,6 +56,7 @@ export function InboxPage() {
   const [draftLocationLatitude, setDraftLocationLatitude] = useState<number | undefined>()
   const [draftLocationLongitude, setDraftLocationLongitude] = useState<number | undefined>()
   const [message, setMessage] = useState('')
+  const [coachVisible, setCoachVisible] = useState(false)
   const canSave = Boolean(text.trim() || imageDataUrl || audioDataUrl)
 
   useEffect(() => {
@@ -101,6 +104,15 @@ export function InboxPage() {
     setDraftLocationLatitude(currentQuote.locationLatitude)
     setDraftLocationLongitude(currentQuote.locationLongitude)
   }, [currentQuote?.id])
+
+  useEffect(() => {
+    if (currentQuote && shouldShowCoachmark()) setCoachVisible(true)
+  }, [currentQuote])
+
+  function dismissCoach() {
+    markCoachmarkSeen()
+    setCoachVisible(false)
+  }
 
   async function handleCapture(event: FormEvent) {
     event.preventDefault()
@@ -194,7 +206,7 @@ export function InboxPage() {
       up: () => setDetailsOpen(true),
       down: () => void discardCurrent()
     },
-    { enabled: Boolean(currentQuote) && !detailsOpen, distance: 76, exitMs: 340 }
+    { enabled: Boolean(currentQuote) && !detailsOpen && !coachVisible, distance: 76, exitMs: 340 }
   )
 
   const contextDetails = draftEntryType === 'memory' || draftEntryType === 'conversation' || draftEntryType === 'observation'
@@ -317,6 +329,7 @@ export function InboxPage() {
                   )}
                   {currentQuote.note && <p className="mt-4 text-sm leading-6 text-graphite">{currentQuote.note}</p>}
                 </article>
+                {coachVisible && currentQuote && <GestureCoach deck="inbox" onDismiss={dismissCoach} />}
               </div>
 
               <div className="grid grid-cols-4 gap-2">
