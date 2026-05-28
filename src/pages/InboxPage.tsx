@@ -1,6 +1,9 @@
 import { ArrowRight, Clock3, SlidersHorizontal, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { AudioPlayer, AudioRecorder } from '../components/AudioRecorder'
+import { ClarifyPreviewCard } from '../components/deck/ClarifyPreviewCard'
+import { Field } from '../components/deck/Field'
+import { GestureStamp } from '../components/deck/GestureStamp'
 import { EntryTypeControl } from '../components/EntryTypeControl'
 import { EmptyState } from '../components/EmptyState'
 import { GestureCoach } from '../components/GestureCoach'
@@ -434,87 +437,6 @@ export function InboxPage() {
   )
 }
 
-function GestureStamp({
-  className,
-  opacity,
-  rotate = 0,
-  x = 0,
-  y = 0,
-  children
-}: {
-  className: string
-  opacity: number
-  rotate?: number
-  x?: number
-  y?: number
-  children: ReactNode
-}) {
-  return (
-    <div
-      className={[
-        'pointer-events-none absolute z-10 inline-flex items-center gap-1.5 rounded-full border-2 bg-paper/86 px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] shadow-[0_12px_30px_rgba(31,30,28,0.1)] backdrop-blur transition-opacity',
-        className
-      ].join(' ')}
-      style={
-        {
-          opacity,
-          translate: `${x * (1 - opacity)}px ${y * (1 - opacity)}px`,
-          rotate: `${rotate * opacity}deg`,
-          scale: `${0.94 + opacity * 0.06}`
-        } as CSSProperties
-      }
-    >
-      {children}
-    </div>
-  )
-}
-
-function ClarifyPreviewCard({ quote, depth, lift }: { quote: Quote; depth: 1 | 2; lift: number }) {
-  const { t } = useI18n()
-  const y = depth === 1 ? lerp(18, 2, lift) : lerp(34, 16, lift)
-  const scale = depth === 1 ? lerp(0.946, 0.982, lift) : lerp(0.902, 0.948, lift)
-  const opacity = depth === 1 ? lerp(0.76, 0.92, lift) : lerp(0.44, 0.64, lift)
-  const rotate = depth === 1 ? lerp(-0.6, 0.1, lift) : lerp(0.8, -0.2, lift)
-
-  return (
-    <article
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-x-4 top-7 z-10 min-h-[16.5rem] overflow-hidden rounded-md border border-line bg-paper/80 p-4 shadow-[0_18px_46px_rgba(31,30,28,0.08)] will-change-transform"
-      style={{
-        opacity,
-        transform: `translate3d(0, ${y}px, 0) rotate(${rotate}deg) scale(${scale})`,
-        transition: 'opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1)'
-      }}
-    >
-      <div className="flex flex-wrap gap-2">
-        <span className="rounded border border-line px-2 py-1 text-xs text-graphite">{t('entryStatus_inbox')}</span>
-      </div>
-      <p className="mt-5 line-clamp-4 break-words font-serif text-2xl leading-tight text-ink">
-        {quote.text ? `"${quote.text}"` : quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
-      </p>
-    </article>
-  )
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-}) {
-  return (
-    <label className="grid gap-2">
-      <span className="text-sm text-graphite">{label}</span>
-      <input className="rounded-md border border-line bg-white/50 px-3 py-3" value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
-    </label>
-  )
-}
-
 function splitList(value: string) {
   return value
     .split(',')
@@ -525,10 +447,6 @@ function splitList(value: string) {
 function clean(value?: string) {
   const trimmed = value?.trim() ?? ''
   return trimmed.length ? trimmed : undefined
-}
-
-function lerp(start: number, end: number, amount: number) {
-  return start + (end - start) * amount
 }
 
 function toLocalDateTime(value?: string) {

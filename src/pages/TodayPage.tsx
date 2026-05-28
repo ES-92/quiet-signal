@@ -1,13 +1,15 @@
-import { BookOpen, Camera, Clock3, ExternalLink, Feather, Flame, Heart, Inbox, Mic, Minus, PenLine, Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { BookOpen, Clock3, ExternalLink, Feather, Flame, Heart, Minus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
+import { DailyRestState } from '../components/deck/DailyRestState'
+import { DeckPreview } from '../components/deck/DeckPreview'
+import { QuickCaptureDock } from '../components/deck/QuickCaptureDock'
 import { GestureCoach } from '../components/GestureCoach'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { useFitText } from '../hooks/useFitText'
 import { useSwipeDeck } from '../hooks/useSwipeDeck'
 import { useI18n } from '../i18n/I18nProvider'
-import { openCapture } from '../services/captureEvents'
 import { markCoachmarkSeen, shouldShowCoachmark } from '../services/coach'
 import { tapHaptic } from '../services/haptics'
 import { buildReflection } from '../services/reflections'
@@ -17,8 +19,7 @@ import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useToastStore } from '../store/useToastStore'
 import { quoteStatus } from '../types/quote'
-
-const EXIT_MS = 620
+import { lerp } from '../utils/math'
 
 export function TodayPage() {
   const { t } = useI18n()
@@ -441,216 +442,6 @@ export function TodayPage() {
       </footer>
     </div>
   )
-}
-
-function DailyRestState({
-  title,
-  body,
-  showReflection,
-  onOpenReflections,
-  inboxCount,
-  onOpenInbox
-}: {
-  title: string
-  body: string
-  showReflection: boolean
-  onOpenReflections: () => void
-  inboxCount: number
-  onOpenInbox: () => void
-}) {
-  const { t } = useI18n()
-
-  return (
-    <section className="flex min-h-0 items-center justify-center">
-      <div className="quiet-fade classical-panel relative grid w-full max-w-2xl gap-5 overflow-hidden rounded-md px-5 py-7 text-center sm:px-8 sm:py-10">
-        <div className="pointer-events-none absolute inset-x-10 top-5 h-24 rounded-md border border-line/70 bg-paper/35 opacity-55" />
-        <div className="pointer-events-none absolute inset-x-7 top-8 h-24 rounded-md border border-line bg-paper/55 opacity-75" />
-        <div className="relative mx-auto flex h-24 w-20 items-center justify-center rounded-md border border-line bg-paper shadow-[0_16px_44px_rgba(31,30,28,0.08)]">
-          <Feather className="text-clay" size={22} />
-        </div>
-        <div className="relative">
-          <h2 className="font-serif text-3xl leading-tight sm:text-4xl">{title}</h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-graphite">{body}</p>
-        </div>
-        {inboxCount > 0 && (
-          <button
-            type="button"
-            className="quiet-touch relative mx-auto inline-flex items-center gap-2 rounded-full border border-clay/45 bg-paper/82 px-4 py-2 text-sm text-clay shadow-[0_14px_36px_rgba(31,30,28,0.08)] backdrop-blur transition active:scale-[0.98]"
-            onClick={() => {
-              tapHaptic(8)
-              onOpenInbox()
-            }}
-          >
-            <Inbox size={16} />
-            <span>{t('noiseWaiting')}</span>
-            <span className="rounded-full bg-clay/10 px-1.5 py-0.5 text-xs tabular-nums">{inboxCount}</span>
-          </button>
-        )}
-        <div className="relative mx-auto flex max-w-full items-center justify-center gap-2 rounded-full border border-line bg-paper/80 p-1.5 shadow-[0_16px_42px_rgba(31,30,28,0.08)] backdrop-blur">
-          <RestAction label={t('text')} onClick={() => openCapture('text')}>
-            <PenLine size={17} />
-          </RestAction>
-          <RestAction label={t('photoNote')} onClick={() => openCapture('photo')}>
-            <Camera size={17} />
-          </RestAction>
-          <RestAction label={t('voiceNote')} onClick={() => openCapture('audio')}>
-            <Mic size={17} />
-          </RestAction>
-          {showReflection && (
-            <RestAction label={t('openReflections')} onClick={onOpenReflections} emphasized>
-              <Feather size={17} />
-            </RestAction>
-          )}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function RestAction({
-  label,
-  children,
-  onClick,
-  emphasized = false
-}: {
-  label: string
-  children: ReactNode
-  onClick: () => void
-  emphasized?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      className={[
-        'quiet-touch inline-flex h-11 w-11 items-center justify-center rounded-full transition duration-200 active:scale-95',
-        emphasized ? 'bg-ink text-paper shadow-[0_10px_24px_rgba(31,30,28,0.14)]' : 'text-graphite hover:bg-white/45 hover:text-ink'
-      ].join(' ')}
-      aria-label={label}
-      title={label}
-      onClick={() => {
-        tapHaptic(8)
-        onClick()
-      }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function QuickCaptureDock() {
-  const { t } = useI18n()
-  const [open, setOpen] = useState(false)
-
-  function toggle() {
-    tapHaptic(open ? 6 : [8, 24, 8])
-    setOpen((value) => !value)
-  }
-
-  function capture(mode: 'text' | 'photo' | 'audio') {
-    tapHaptic(8)
-    setOpen(false)
-    openCapture(mode)
-  }
-
-  return (
-    <div className="relative flex flex-col items-center">
-      {open && (
-        <div
-          className="quiet-pop absolute bottom-[4.15rem] left-1/2 z-30 -ml-[5.25rem] flex w-[10.5rem] items-center justify-between rounded-full border border-line bg-paper/92 p-1.5 shadow-[0_18px_46px_rgba(31,30,28,0.14)] backdrop-blur"
-          role="group"
-          aria-label={t('openCapture')}
-        >
-          <QuickCaptureModeButton label={t('text')} onClick={() => capture('text')}>
-            <PenLine size={18} />
-          </QuickCaptureModeButton>
-          <QuickCaptureModeButton label={t('photoNote')} onClick={() => capture('photo')}>
-            <Camera size={18} />
-          </QuickCaptureModeButton>
-          <QuickCaptureModeButton label={t('voiceNote')} onClick={() => capture('audio')}>
-            <Mic size={18} />
-          </QuickCaptureModeButton>
-        </div>
-      )}
-      <button
-        type="button"
-        className="capture-dock quiet-touch inline-flex h-14 min-w-14 items-center justify-center rounded-full border border-line bg-paper/90 text-ink shadow-[0_18px_46px_rgba(31,30,28,0.14)] backdrop-blur transition duration-200 hover:bg-white/45 active:scale-95"
-        aria-label={t('openCapture')}
-        aria-expanded={open}
-        onClick={toggle}
-      >
-        <Plus className={['transition duration-200', open ? 'rotate-45' : ''].join(' ')} size={22} />
-      </button>
-    </div>
-  )
-}
-
-function QuickCaptureModeButton({ label, children, onClick }: { label: string; children: ReactNode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className="quiet-touch inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-graphite transition duration-200 hover:bg-white/45 hover:text-ink active:scale-95 active:bg-white/60"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  )
-}
-
-function DeckPreview({
-  quote,
-  depth,
-  lift
-}: {
-  quote: NonNullable<ReturnType<typeof selectDailyStack>[number]>
-  depth: 1 | 2
-  lift: number
-}) {
-  const { t } = useI18n()
-  const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
-  const baseY = depth === 1 ? 18 : 34
-  const promotedY = depth === 1 ? -10 : 8
-  const baseScale = depth === 1 ? 0.946 : 0.902
-  const promotedScale = depth === 1 ? 0.992 : 0.956
-  const baseOpacity = depth === 1 ? 0.82 : 0.5
-  const promotedOpacity = depth === 1 ? 0.96 : 0.7
-  const y = lerp(baseY, promotedY, lift)
-  const scale = lerp(baseScale, promotedScale, lift)
-  const opacity = lerp(baseOpacity, promotedOpacity, lift)
-  const rotate = depth === 1 ? lerp(-0.7, 0.15, lift) : lerp(0.8, -0.2, lift)
-
-  return (
-    <article
-      aria-hidden="true"
-      className="daily-preview-card pointer-events-none absolute inset-x-4 bottom-2 top-8 z-10 flex min-h-0 flex-col justify-end overflow-hidden rounded-md border border-line bg-paper/95 p-4 shadow-[0_18px_46px_rgba(31,30,28,0.08)] will-change-transform sm:inset-x-8 sm:bottom-3 sm:top-12 sm:p-7"
-      style={{
-        opacity,
-        transform: `translate3d(0, ${y}px, 0) rotate(${rotate}deg) scale(${scale})`,
-        transition: `opacity ${lift === 1 ? EXIT_MS : 160}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${lift === 1 ? EXIT_MS : 160}ms cubic-bezier(0.16, 1, 0.3, 1)`
-      }}
-    >
-      <div className="flex shrink-0 justify-between text-[0.6rem] uppercase tracking-[0.18em] text-graphite">
-        <span>{t('reviewStack')}</span>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-hidden py-3">
-        {quote.imageDataUrl && (
-          <PhotoPreview
-            src={quote.imageDataUrl}
-            className="max-h-[22dvh] w-full rounded-md border border-line object-cover opacity-80"
-          />
-        )}
-        <p className="line-clamp-2 break-words font-serif text-xl leading-[1.12] text-ink sm:text-3xl">
-          {quote.text ? `"${quote.text}"` : quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
-        </p>
-      </div>
-      <p className="truncate border-t border-line pt-2 text-xs text-graphite sm:text-sm">{meta}</p>
-    </article>
-  )
-}
-
-function lerp(start: number, end: number, amount: number) {
-  return start + (end - start) * amount
 }
 
 function sameIds(left: string[], right: string[]) {
