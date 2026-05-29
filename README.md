@@ -6,7 +6,7 @@ Most highlights and notes disappear into an archive you never open again. Quiet 
 
 It's a [Readwise](https://readwise.io)-style review flow for your *own* thoughts — without an account, a subscription, a cloud, or any tracking. Everything stays in your browser.
 
-> **Live app:** https://quiet-signal.vercel.app · **Tagline:** *Ruhig sammeln. Klar behalten.*
+> **Live app:** https://quiet-signal.vercel.app ·
 
 <p align="center">
   <img src="docs/screenshots/demo.gif" alt="Swiping through the daily review deck" width="260">
