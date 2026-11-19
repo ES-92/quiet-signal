@@ -1,6 +1,6 @@
 import { BookOpen, Clock, ExternalLink, Heart, MapPin, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { entryType, quoteStatus, signalStrength, type Quote } from '../types/quote'
 import { AudioPlayer } from './AudioRecorder'
 import { LikeControl } from './LikeControl'

@@ -1,7 +1,7 @@
 import { ArrowRight, Check, Inbox, PenLine, Radio, ShieldCheck, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { openCapture } from '../services/captureEvents'
 import { onboardingEventName, markOnboardingSeen, shouldShowOnboarding } from '../services/onboarding'
 import { tapHaptic } from '../services/haptics'

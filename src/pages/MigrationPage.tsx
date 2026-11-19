@@ -1,7 +1,7 @@
 import { ArrowRightLeft } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { SignalMark } from '../components/SignalMark'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { decryptAllQuotesAndDisable, encryptAllQuotes } from '../db/database'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { languages, type LanguageCode } from '../i18n/translations'
 import { backupAgeDays, backupState, downloadBackup, getLastBackupAt } from '../services/backup'
 import { openOnboarding } from '../services/onboarding'

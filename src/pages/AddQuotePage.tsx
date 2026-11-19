@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { QuoteForm } from '../components/QuoteForm'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { useQuoteStore } from '../store/useQuoteStore'
 import type { QuoteInput } from '../types/quote'
 

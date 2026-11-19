@@ -1,7 +1,7 @@
 import { BookOpen, CalendarDays, Clock3, Download, Inbox, MapPin, Save, Sparkles, Tags } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '../components/EmptyState'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { downloadText } from '../services/importExport'
 import { buildReflection, reflectionMarkdown, type ReflectionMetric, type ReflectionPeriod, type ReflectionSummary } from '../services/reflections'
 import { tapHaptic } from '../services/haptics'

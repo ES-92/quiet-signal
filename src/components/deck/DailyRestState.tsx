@@ -1,6 +1,6 @@
 import { Camera, Feather, Inbox, Mic, PenLine } from 'lucide-react'
 import { type ReactNode } from 'react'
-import { useI18n } from '../../i18n/I18nProvider'
+import { useI18n } from '../../i18n/useI18n'
 import { openCapture } from '../../services/captureEvents'
 import { tapHaptic } from '../../services/haptics'
 

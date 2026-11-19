@@ -1,6 +1,6 @@
 import { Coffee, CreditCard, Heart, X } from 'lucide-react'
 import { useEffect, useId } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 
 interface SupportSheetProps {
   open: boolean

@@ -1,6 +1,6 @@
 import { ArrowRightLeft, ChevronDown, ExternalLink } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { parseJsonImportBundle } from '../services/importExport'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'

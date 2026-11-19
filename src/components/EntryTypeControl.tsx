@@ -1,5 +1,5 @@
 import { BookOpen, Lightbulb, MapPinned, MessageCircle, NotebookText, Sparkles } from 'lucide-react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import type { EntryType } from '../types/quote'
 
 const types: Array<{ value: EntryType; label: EntryTypeLabel; icon: typeof NotebookText }> = [

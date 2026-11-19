@@ -1,7 +1,7 @@
 import { BookMarked } from 'lucide-react'
 import { DomainMigrationPanel } from '../components/DomainMigrationPanel'
 import { useEffect, useState } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { exportCsv, exportJson, exportMarkdown, downloadText, parseCsvImport, parseJsonImportBundle } from '../services/importExport'
 import { buildKindleImport } from '../services/kindleImport'
 import { buildReadwiseCsvImport } from '../services/readwiseCsvImport'

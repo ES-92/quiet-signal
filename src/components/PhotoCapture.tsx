@@ -1,6 +1,6 @@
 import { Camera, Image, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { tapHaptic } from '../services/haptics'
 
 interface PhotoCaptureProps {

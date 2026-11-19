@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { useBookStore } from '../store/useBookStore'
 import { bookKey } from '../types/book'
 import { entryType, type EntryType, type Quote, type QuoteInput, type SignalStrength } from '../types/quote'

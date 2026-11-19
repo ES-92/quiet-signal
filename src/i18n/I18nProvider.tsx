@@ -1,13 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { defaultLanguage, languages, translations, type LanguageCode, type TranslationKey } from './translations'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { I18nContext, type I18nContextValue } from './useI18n'
+import { defaultLanguage, languages, translations, type LanguageCode } from './translations'
 
-interface I18nContextValue {
-  language: LanguageCode
-  setLanguage: (language: LanguageCode) => void
-  t: (key: TranslationKey, values?: Record<string, string | number>) => string
-}
-
-const I18nContext = createContext<I18nContextValue | null>(null)
 const storageKey = 'quiet-signal-language'
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -28,14 +22,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   )
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
-}
-
-export function useI18n() {
-  const context = useContext(I18nContext)
-  if (!context) {
-    throw new Error('useI18n must be used inside I18nProvider')
-  }
-  return context
 }
 
 function detectInitialLanguage(): LanguageCode {
