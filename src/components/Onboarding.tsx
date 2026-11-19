@@ -10,7 +10,7 @@ import { SignalMark } from './SignalMark'
 export function Onboarding() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(shouldShowOnboarding)
   const [step, setStep] = useState(0)
 
   const steps = useMemo(
@@ -46,10 +46,6 @@ export function Onboarding() {
     ],
     [t]
   )
-
-  useEffect(() => {
-    setVisible(shouldShowOnboarding())
-  }, [])
 
   useEffect(() => {
     function showOnboarding() {
