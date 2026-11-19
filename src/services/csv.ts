@@ -33,7 +33,7 @@ export function parseCsv(input: string) {
 }
 
 export function csvEscape(value: string) {
-  if (/[",\n]/.test(value)) {
+  if (/[",\r\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`
   }
   return value

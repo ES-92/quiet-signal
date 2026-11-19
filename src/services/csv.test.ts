@@ -52,4 +52,17 @@ describe('csvEscape', () => {
     // Assert
     expect(parsed[0]).toEqual(row)
   })
+
+  it('ergibt beim Roundtrip mit \\r und \\r\\n in Feldern wieder die Ausgangswerte', () => {
+    // Arrange
+    const row = ['a\rb', 'a\r\nb']
+
+    // Act
+    const escaped = row.map(csvEscape)
+    const parsed = parseCsv(escaped.join(','))
+
+    // Assert
+    expect(escaped[0]).toBe('"a\rb"')
+    expect(parsed).toEqual([row])
+  })
 })
