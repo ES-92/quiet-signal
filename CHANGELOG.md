@@ -14,6 +14,14 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Characterization tests for the database layer against fake-indexeddb (defaults, normalization, trash, legacy v1 schema upgrade, encryption roundtrip and locked behavior, corrupt-row and double-enable data-safety cases).
 - Characterization tests for the spaced-repetition review algorithm (interval table, `applyReview`, daily stack selection and determinism), including a pinned UTC-vs-local-day behavior around midnight.
 - Characterization tests for reflections, book merge suggestions, backup state, release notes and quote search/filtering, including pinned UTC-vs-local date quirks.
+- GitHub Actions CI workflow (lint, typecheck, tests, build on push to `main` and on pull requests) and a CI status badge in the README.
+- Dependabot configuration for npm and GitHub Actions with weekly, grouped minor/patch updates.
+
+### Changed
+- Moved build-only packages `vite-plugin-pwa` and `@vitejs/plugin-react` from `dependencies` to `devDependencies`.
+
+### Security
+- Ran `npm audit fix` (no breaking changes): `npm audit --omit=dev` now reports 0 vulnerabilities (previously 17, incl. 8 high, e.g. in `vite`, `react-router`, `source-map-js`).
 
 ## [0.2.0] - 2026-05-28
 
