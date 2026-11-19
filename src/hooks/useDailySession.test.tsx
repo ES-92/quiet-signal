@@ -131,6 +131,31 @@ describe('useDailySession', () => {
     expect(ids(result.current.dailyQuotes)).toEqual(order)
   })
 
+  it('setzt eine verworfene Karte nach dem Neuladen per showQuote an ihrer ursprünglichen Position wieder ein', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1' }), makeQuote({ id: 't-2' }), makeQuote({ id: 't-3' })])
+    const { result } = await renderSession()
+    act(() => result.current.advanceIndex())
+    const order = ids(result.current.dailyQuotes)
+    const middle = result.current.currentQuote?.id as string
+    act(() => result.current.hideQuote(middle))
+    await act(async () => {
+      await useQuoteStore.getState().discardQuote(middle)
+    })
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2))
+
+    // Act
+    await act(async () => {
+      result.current.showQuote(middle)
+      await useQuoteStore.getState().restoreQuote(middle)
+    })
+
+    // Assert
+    await waitFor(() => expect(ids(result.current.dailyQuotes)).toEqual(order))
+    expect(result.current.currentIndex).toBe(1)
+    expect(result.current.currentQuote?.id).toBe(middle)
+  })
+
   it('zählt Reflexionseinträge der Woche und Eingangseinträge', async () => {
     // Arrange
     const now = new Date().toISOString()

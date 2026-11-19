@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildReflection } from '../services/reflections'
 import { selectDailyStack, type BookWeightMap } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
@@ -15,6 +15,9 @@ export function useDailySession() {
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
   // Discarded cards vanish from the deck at once, before the store has finished persisting and reloading.
   const [discardedIds, setDiscardedIds] = useState<string[]>([])
+
+  // Original deck position of each hidden card, so undo can put it back after the reload dropped its id.
+  const hiddenPositions = useRef(new Map<string, number>())
 
   useEffect(() => {
     void loadQuotes()
@@ -72,8 +75,19 @@ export function useDailySession() {
     showReflectionNudge: weeklyReflection.entries.length >= 3,
     inboxCount,
     advanceIndex: () => setIndex((value) => Math.min(value + 1, dailyQuotes.length)),
-    hideQuote: (id: string) => setDiscardedIds((ids) => [...ids, id]),
-    showQuote: (id: string) => setDiscardedIds((ids) => ids.filter((item) => item !== id))
+    hideQuote: (id: string) => {
+      const position = sessionQuoteIds.indexOf(id)
+      if (position >= 0) hiddenPositions.current.set(id, position)
+      setDiscardedIds((ids) => [...ids, id])
+    },
+    showQuote: (id: string) => {
+      const position = hiddenPositions.current.get(id)
+      hiddenPositions.current.delete(id)
+      if (position !== undefined) {
+        setSessionQuoteIds((ids) => (ids.includes(id) ? ids : [...ids.slice(0, position), id, ...ids.slice(position)]))
+      }
+      setDiscardedIds((ids) => ids.filter((item) => item !== id))
+    }
   }
 }
 

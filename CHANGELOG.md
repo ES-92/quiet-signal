@@ -26,6 +26,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Split `TodayPage` (470 lines) into components under `src/components/today/` (`TodayHeader`, `TodayDeckStack`, `TodayTopCard`, `TodayContextMenu`, `TodayBookEditor`) and hooks (`useDailySession`, `useTodayActions`); the page is now about 110 lines. No visible behavior change; covered by extended page tests and new hook tests.
 
 ### Fixed
+- Undo after discarding a daily card now brings the card back to the deck at its previous position (#18).
 - Quick-capture sheet no longer discards the draft when the app re-renders while it is open.
 - CSV export now quotes fields containing a carriage return (`\r`), so they survive a CSV export/import roundtrip instead of splitting into extra rows (#13).
 - Import no longer produces `NaN` for non-numeric `reviewCount`/`audioDurationMs` (now 0/unset), and empty or `null` location coordinates are no longer turned into `0`; an explicit `0` is kept (#12).

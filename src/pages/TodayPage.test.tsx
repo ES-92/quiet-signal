@@ -415,7 +415,7 @@ describe('TodayPage', () => {
     expect(await screen.findByText(en.contextActions, undefined, SLOW)).toBeInTheDocument()
   })
 
-  it('stellt eine verworfene Karte über die Rückgängig-Aktion wieder her', async () => {
+  it('stellt eine verworfene Karte über die Rückgängig-Aktion wieder her und zeigt sie wieder im Stapel', async () => {
     // Arrange
     await seedStack()
     await renderToday()
@@ -435,8 +435,8 @@ describe('TodayPage', () => {
     // Assert
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(3), SLOW)
     expect((await getQuote(firstId))?.deletedAt).toBeUndefined()
-    // CHARACTERIZATION: the restored card is not re-added to this visit's deck (the session ids dropped it when it left the store)
-    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('1 of 3')).toBeInTheDocument(), SLOW)
+    expect(currentText()).toBe(first)
   })
 
   it('markiert über das Kontextmenü einen Favoriten und schließt das Menü', async () => {
