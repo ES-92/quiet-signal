@@ -387,12 +387,7 @@ describe('selectDailyStack – Autoren-Dedupe', () => {
 })
 
 describe('selectDailyStack – Zeitzone um Mitternacht', () => {
-  // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-  // formatDateKey() nutzt toISOString() (UTC), endOfToday dagegen setHours() (Ortszeit).
-  // Um 00:30 Uhr Berliner Zeit (= 23:30 UTC am Vortag) gilt als "heute" daher noch der
-  // 09.03. Erwartet (lokaler Tag): Der 10.03. hat begonnen, ein Zitat, das am 09.03. um
-  // 20:00 Uhr Ortszeit gelesen wurde, ist NICHT "heute gelesen" und gehört wieder in den Stack.
-  it('behandelt ein um 20:00 am Vortag gelesenes Zitat um 00:30 noch als heute gelesen', () => {
+  it('behandelt ein um 20:00 am Vortag gelesenes Zitat um 00:30 nicht als heute gelesen', () => {
     // Arrange
     vi.setSystemTime(new Date('2026-03-10T00:30:00+01:00'))
     const readEveningBefore = makeQuote({ lastReviewedAt: '2026-03-09T20:00:00+01:00' })
@@ -402,13 +397,11 @@ describe('selectDailyStack – Zeitzone um Mitternacht', () => {
     const result = ids(selectDailyStack([readEveningBefore, unread], { limit: 5, mode: 'balanced' }))
 
     // Assert
-    expect(result).toEqual([unread.id]) // erwartet wäre: beide
+    expect(result).toHaveLength(2)
+    expect(result).toEqual(expect.arrayContaining([readEveningBefore.id, unread.id]))
   })
 
-  // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-  // Folge für den Tages-Seed: Der Seed basiert auf dem UTC-Datum, daher ist der Stapel um
-  // 00:30 Uhr identisch mit dem vom Vorabend. Erwartet: neuer Tag, neuer Seed.
-  it('verwendet um 00:30 denselben Tages-Seed wie am Vorabend', () => {
+  it('wechselt den Tages-Seed um Mitternacht Ortszeit (00:30 anderer Seed als am Vorabend)', () => {
     // Arrange
     const quotes = Array.from({ length: 8 }, () => makeQuote())
     const options = { limit: 5, mode: 'balanced' } as const
@@ -420,7 +413,7 @@ describe('selectDailyStack – Zeitzone um Mitternacht', () => {
     const afterMidnight = ids(selectDailyStack(quotes, options))
 
     // Assert
-    expect(afterMidnight).toEqual(evening) // erwartet wäre: neuer Seed, Reihenfolge darf abweichen
+    expect(afterMidnight).not.toEqual(evening)
   })
 
   it('zählt um 10:00 Uhr am selben Tag das zuvor um 08:00 gelesene Zitat als heute gelesen', () => {

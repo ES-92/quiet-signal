@@ -1,6 +1,7 @@
 import { quoteStatus, signalStrength, isSnoozed, type Quote, type SignalStrength } from '../types/quote'
 import { weightMultiplier, type BookWeight } from '../types/book'
 import type { DailyMode } from '../store/useSettingsStore'
+import { localDateKey } from '../utils/date'
 
 export type BookWeightMap = Record<string, BookWeight>
 
@@ -72,7 +73,7 @@ export function selectDailyStack(
   const now = Date.now()
   const baseDate = options.date ?? new Date()
   const weights = options.bookWeights ?? {}
-  const dateKey = formatDateKey(baseDate)
+  const dateKey = localDateKey(baseDate)
   const random = seededRandom(`${dateKey}:${options.limit}:${options.mode}`)
 
   const endOfToday = new Date(baseDate)
@@ -82,7 +83,7 @@ export function selectDailyStack(
   // Items already read today drop out so the stack empties as you work through
   // it (and so "read" entries don't immediately reappear via the backlog).
   const reviewedToday = (quote: Quote) =>
-    Boolean(quote.lastReviewedAt) && formatDateKey(new Date(quote.lastReviewedAt as string)) === dateKey
+    Boolean(quote.lastReviewedAt) && localDateKey(new Date(quote.lastReviewedAt as string)) === dateKey
 
   const scored = quotes
     .filter((quote) => quoteStatus(quote) === 'signal')
@@ -153,10 +154,6 @@ function scoreQuote(quote: Quote, today: number) {
 
   const daysSinceReview = Math.floor((today - new Date(quote.lastReviewedAt).getTime()) / dayMs)
   return daysSinceReview * 10 + (quote.favorite ? 60 : 0) - quote.reviewCount
-}
-
-function formatDateKey(date: Date) {
-  return date.toISOString().slice(0, 10)
 }
 
 function seededRandom(seed: string) {
