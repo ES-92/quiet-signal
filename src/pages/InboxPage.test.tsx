@@ -1,12 +1,12 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getQuote, upsertQuotes } from '../db/database'
+import { db, getQuote, listQuotes, upsertBooks as upsertBooksForTest, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
 import { coachKey } from '../services/coach'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
-import { makeQuote, resetFactories } from '../test/factories'
+import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import { renderWithProviders } from '../test/render'
 import { InboxPage } from './InboxPage'
 
@@ -14,8 +14,20 @@ const en = translations.en
 
 async function seedInbox() {
   await upsertQuotes([
-    makeQuote({ id: 'i-1', text: 'Erste Notiz', status: 'inbox', tags: ['alpha'], createdAt: '2026-01-01T09:00:00.000Z' }),
-    makeQuote({ id: 'i-2', text: 'Zweite Notiz', status: 'inbox', tags: ['beta'], createdAt: '2026-01-01T10:00:00.000Z' }),
+    makeQuote({
+      id: 'i-1',
+      text: 'Erste Notiz',
+      status: 'inbox',
+      tags: ['alpha'],
+      createdAt: '2026-01-01T09:00:00.000Z'
+    }),
+    makeQuote({
+      id: 'i-2',
+      text: 'Zweite Notiz',
+      status: 'inbox',
+      tags: ['beta'],
+      createdAt: '2026-01-01T10:00:00.000Z'
+    }),
     makeQuote({ id: 'i-3', text: 'Dritte Notiz', status: 'inbox', createdAt: '2026-01-01T11:00:00.000Z' })
   ])
 }
@@ -28,6 +40,12 @@ async function renderInbox() {
     expect(useBookStore.getState().loading).toBe(false)
   })
   return result
+}
+
+// The capture form and the draft form both render a strength control and a finish button; the draft's come last.
+function lastButton(name: string) {
+  const buttons = screen.getAllByRole('button', { name })
+  return buttons[buttons.length - 1]
 }
 
 function currentCardText() {
@@ -91,7 +109,13 @@ describe('InboxPage', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-03-01T08:00:00.000Z'))
     await upsertQuotes([
-      makeQuote({ id: 's-1', text: 'Schlummert', status: 'inbox', snoozedUntil: '2026-03-01T09:00:00.000Z', createdAt: '2026-01-01T09:00:00.000Z' }),
+      makeQuote({
+        id: 's-1',
+        text: 'Schlummert',
+        status: 'inbox',
+        snoozedUntil: '2026-03-01T09:00:00.000Z',
+        createdAt: '2026-01-01T09:00:00.000Z'
+      }),
       makeQuote({ id: 's-2', text: 'Wach', status: 'inbox', createdAt: '2026-01-02T09:00:00.000Z' })
     ])
     await renderInbox()
@@ -247,5 +271,228 @@ describe('InboxPage', () => {
 
     // Assert
     expect(screen.queryByRole('dialog', { name: en.gestures })).not.toBeInTheDocument()
+  })
+
+  describe('Schnellerfassung', () => {
+    it('sperrt das Speichern, solange nichts erfasst ist', async () => {
+      // Arrange / Act
+      await renderInbox()
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.captureNoise })).toBeDisabled()
+    })
+
+    it('legt einen Eintrag im Eingang an, meldet das und leert das Formular', async () => {
+      // Arrange
+      await renderInbox()
+      fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: '  Neuer Gedanke  ' } })
+      fireEvent.change(screen.getByPlaceholderText(en.noiseTagsPlaceholder), { target: { value: 'eins, , zwei ' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.captureNoise }))
+
+      // Assert
+      expect(await screen.findByText(en.noiseSaved)).toBeInTheDocument()
+      const saved = (await listQuotes()).find((quote) => quote.text === 'Neuer Gedanke')
+      expect(saved).toMatchObject({
+        status: 'inbox',
+        signalStrength: 'quiet',
+        entryType: 'note',
+        tags: ['eins', 'zwei']
+      })
+      expect(screen.getByPlaceholderText(en.noisePlaceholder)).toHaveValue('')
+      expect(screen.getByPlaceholderText(en.noiseTagsPlaceholder)).toHaveValue('')
+      expect(screen.getByRole('button', { name: en.captureNoise })).toBeDisabled()
+    })
+
+    it('übernimmt die gewählte Signalstärke und setzt sie danach auf leise zurück', async () => {
+      // Arrange
+      await renderInbox()
+      const form = screen.getByRole('button', { name: en.captureNoise }).closest('form') as HTMLElement
+      fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: 'Stark' } })
+      fireEvent.click(within(form).getByRole('button', { name: en.signalStrength_strong }))
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.captureNoise }))
+
+      // Assert
+      await screen.findByText(en.noiseSaved)
+      expect((await listQuotes()).find((quote) => quote.text === 'Stark')?.signalStrength).toBe('strong')
+      expect(within(form).getByRole('button', { name: en.signalStrength_quiet }).className).toContain('bg-ink')
+    })
+  })
+
+  describe('Karte', () => {
+    it('zeigt Notiz und die folgenden Karten als Vorschau', async () => {
+      // Arrange
+      await upsertQuotes([
+        makeQuote({
+          id: 'c-1',
+          text: 'Oben',
+          status: 'inbox',
+          note: 'Eine Anmerkung',
+          createdAt: '2026-01-01T09:00:00.000Z'
+        }),
+        makeQuote({ id: 'c-2', text: 'Mitte', status: 'inbox', createdAt: '2026-01-01T10:00:00.000Z' }),
+        makeQuote({ id: 'c-3', text: 'Unten', status: 'inbox', createdAt: '2026-01-01T11:00:00.000Z' })
+      ])
+
+      // Act
+      await renderInbox()
+
+      // Assert
+      await screen.findByRole('blockquote')
+      expect(screen.getByText('Eine Anmerkung')).toBeInTheDocument()
+      expect(screen.getByText('"Mitte"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
+      expect(screen.getByText('"Unten"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
+      expect(screen.getByText(en.entryType_note)).toBeInTheDocument()
+    })
+
+    it('zeigt für reine Foto- und Sprachnotizen einen Platzhaltertitel', async () => {
+      // Arrange
+      await upsertQuotes([
+        makeQuote({
+          id: 'p-1',
+          text: '',
+          status: 'inbox',
+          imageDataUrl: 'data:image/png;base64,AAAA',
+          createdAt: '2026-01-01T09:00:00.000Z'
+        }),
+        makeQuote({
+          id: 'p-2',
+          text: '',
+          status: 'inbox',
+          audioDataUrl: 'data:audio/webm;base64,AAAA',
+          createdAt: '2026-01-01T10:00:00.000Z'
+        })
+      ])
+      await renderInbox()
+
+      // Assert
+      const photo = await screen.findByAltText(en.photoNote)
+      expect(photo).toHaveAttribute('src', 'data:image/png;base64,AAAA')
+      expect(screen.getAllByText(en.untitledPhotoNote).length).toBeGreaterThan(0)
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.later }))
+
+      // Assert
+      await waitFor(() => expect(screen.queryByAltText(en.photoNote)).not.toBeInTheDocument())
+      expect(screen.getByText(en.untitledVoiceNote)).toBeInTheDocument()
+      expect(document.querySelector('audio')).toHaveAttribute('src', 'data:audio/webm;base64,AAAA')
+    })
+  })
+
+  describe('Details', () => {
+    async function openDetails() {
+      await seedInbox()
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      await screen.findByLabelText(en.text)
+    }
+
+    it('klappt die Details über dieselbe Taste wieder zu', async () => {
+      // Arrange
+      await openDetails()
+
+      // Act
+      fireEvent.click(screen.getAllByRole('button', { name: en.detailsAction })[0])
+
+      // Assert
+      expect(screen.queryByLabelText(en.text)).not.toBeInTheDocument()
+    })
+
+    it('zeigt Kontextfelder für Notizen und Buchfelder nur für Buchzitate', async () => {
+      // Arrange
+      await openDetails()
+
+      // Assert (Notiz)
+      expect(screen.getByText(en.contextDetails)).toBeInTheDocument()
+      expect(screen.queryByText(en.bookDetails)).not.toBeInTheDocument()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.entryType_book_quote }))
+
+      // Assert (Buchzitat)
+      expect(screen.getByText(en.bookDetails)).toBeInTheDocument()
+      expect(screen.queryByText(en.contextDetails)).not.toBeInTheDocument()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.entryType_memory }))
+
+      // Assert (Erinnerung)
+      expect(screen.queryByText(en.bookDetails)).not.toBeInTheDocument()
+      expect(screen.getByText(en.contextDetails)).toBeInTheDocument()
+    })
+
+    it('übernimmt Titel und Autor aus dem gewählten Buch', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox', entryType: 'book_quote' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel', author: 'Die Autorin' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+
+      // Act
+      fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+
+      // Assert
+      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
+      expect(screen.getByLabelText(en.author)).toHaveValue('Die Autorin')
+      expect(screen.getByRole('option', { name: 'Der Titel - Die Autorin' })).toBeInTheDocument()
+    })
+
+    it('speichert den bereinigten Entwurf beim Abschluss als Signal', async () => {
+      // Arrange
+      await upsertQuotes([
+        makeQuote({ id: 'f-1', text: 'Roh', status: 'inbox', nextReviewAt: '2026-02-01T09:00:00.000Z' })
+      ])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.change(await screen.findByLabelText(en.text), { target: { value: '  Fertig  ' } })
+      fireEvent.change(screen.getByLabelText(en.tags), { target: { value: 'Gross, KLEIN' } })
+      fireEvent.change(screen.getByLabelText(en.people), { target: { value: 'Anna,  Bob ' } })
+      fireEvent.change(screen.getByLabelText(en.note), { target: { value: '   ' } })
+      fireEvent.change(screen.getByLabelText(en.occurredAt), { target: { value: '2026-03-04T10:30' } })
+      fireEvent.click(lastButton(en.signalStrength_strong))
+
+      // Act
+      fireEvent.click(lastButton(en.finishSignal))
+
+      // Assert
+      expect(await screen.findByText(en.movedToSignals)).toBeInTheDocument()
+      const saved = await getQuote('f-1')
+      expect(saved).toMatchObject({
+        text: 'Fertig',
+        status: 'signal',
+        signalStrength: 'strong',
+        tags: ['gross', 'klein'],
+        people: ['Anna', 'Bob']
+      })
+      expect(saved?.note).toBeUndefined()
+      expect(saved?.nextReviewAt).toBeUndefined()
+      expect(new Date(saved?.occurredAt ?? '').getTime()).toBe(new Date('2026-03-04T10:30').getTime())
+    })
+
+    it('behält beim Speichern der Details den nächsten Wiedervorlagetermin', async () => {
+      // Arrange
+      await upsertQuotes([
+        makeQuote({ id: 'k-1', text: 'Bleibt', status: 'inbox', nextReviewAt: '2026-02-01T09:00:00.000Z' })
+      ])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.change(await screen.findByLabelText(en.note), { target: { value: 'Notiz dazu' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.saveDetails }))
+
+      // Assert
+      await screen.findByText(en.keptInNoise)
+      const saved = await getQuote('k-1')
+      expect(saved).toMatchObject({ status: 'inbox', note: 'Notiz dazu', nextReviewAt: '2026-02-01T09:00:00.000Z' })
+    })
   })
 })
