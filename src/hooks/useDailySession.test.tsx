@@ -1,0 +1,151 @@
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { db, upsertBooks, upsertQuotes } from '../db/database'
+import { useBookStore } from '../store/useBookStore'
+import { useQuoteStore } from '../store/useQuoteStore'
+import { makeBook, makeQuote, resetFactories } from '../test/factories'
+import { nextSessionIds, useDailySession } from './useDailySession'
+
+beforeEach(async () => {
+  resetFactories()
+  await db.delete()
+  await db.open()
+  useQuoteStore.setState({ quotes: [], loading: true })
+  useBookStore.setState({ books: [], loading: true })
+})
+
+async function renderSession() {
+  const hook = renderHook(() => useDailySession())
+  await waitFor(() => {
+    expect(useQuoteStore.getState().loading).toBe(false)
+    expect(useBookStore.getState().loading).toBe(false)
+  })
+  return hook
+}
+
+const ids = (quotes: { id: string }[]) => quotes.map((quote) => quote.id)
+
+describe('nextSessionIds', () => {
+  const a = makeQuote({ id: 'a' })
+  const b = makeQuote({ id: 'b' })
+  const c = makeQuote({ id: 'c' })
+
+  it('übernimmt die Auswahl, solange die Sitzung noch leer ist', () => {
+    // Arrange / Act
+    const next = nextSessionIds([], [a, b, c], [a, b])
+
+    // Assert
+    expect(next).toEqual(['a', 'b'])
+  })
+
+  it('behält dieselbe Referenz, wenn sich die Sitzung nicht ändert', () => {
+    // Arrange
+    const current = ['a', 'b']
+
+    // Act
+    const next = nextSessionIds(current, [a, b, c], [c])
+
+    // Assert
+    expect(next).toBe(current)
+  })
+
+  it('entfernt Karten, die nicht mehr im Speicher sind, und behält die Reihenfolge', () => {
+    // Arrange / Act
+    const next = nextSessionIds(['a', 'b', 'c'], [a, c], [c])
+
+    // Assert
+    expect(next).toEqual(['a', 'c'])
+  })
+
+  it('übernimmt die neue Auswahl, wenn keine Karte der Sitzung mehr existiert', () => {
+    // Arrange / Act
+    const next = nextSessionIds(['a'], [c], [c])
+
+    // Assert
+    expect(next).toEqual(['c'])
+  })
+
+  it('entfernt bei leerer Auswahl nur nicht mehr vorhandene Karten', () => {
+    // Arrange / Act
+    const next = nextSessionIds(['a', 'b'], [a], [])
+
+    // Assert
+    expect(next).toEqual(['a'])
+  })
+})
+
+describe('useDailySession', () => {
+  it('lädt die Bibliothek und liefert die erste, zweite und dritte Karte samt Buch', async () => {
+    // Arrange
+    await upsertBooks([makeBook({ id: 'b-1' })])
+    await upsertQuotes([
+      makeQuote({ id: 't-1', bookId: 'b-1' }),
+      makeQuote({ id: 't-2', bookId: 'b-1' }),
+      makeQuote({ id: 't-3', bookId: 'b-1' }),
+      makeQuote({ id: 't-4', bookId: 'b-1' })
+    ])
+
+    // Act
+    const { result } = await renderSession()
+
+    // Assert
+    const { currentQuote, nextQuote, thirdQuote, dailyQuotes } = result.current
+    expect(new Set([currentQuote?.id, nextQuote?.id, thirdQuote?.id]).size).toBe(3)
+    expect(ids(dailyQuotes)).toContain(currentQuote?.id)
+    expect(result.current.currentIndex).toBe(0)
+    expect(result.current.currentBook?.id).toBe('b-1')
+    expect(result.current.stackCompleted).toBe(false)
+  })
+
+  it('rückt per advanceIndex vor und begrenzt den Index auf die Stapelgröße', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1' }), makeQuote({ id: 't-2' })])
+    const { result } = await renderSession()
+
+    // Act
+    act(() => result.current.advanceIndex())
+    act(() => result.current.advanceIndex())
+    act(() => result.current.advanceIndex())
+
+    // Assert
+    expect(result.current.currentIndex).toBe(2)
+    expect(result.current.currentQuote).toBeUndefined()
+    expect(result.current.stackCompleted).toBe(true)
+  })
+
+  it('blendet per hideQuote sofort aus, ohne den Index zu ändern, und holt per showQuote zurück', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1' }), makeQuote({ id: 't-2' }), makeQuote({ id: 't-3' })])
+    const { result } = await renderSession()
+    const first = result.current.currentQuote?.id as string
+    const order = ids(result.current.dailyQuotes)
+
+    // Act
+    act(() => result.current.hideQuote(first))
+    const hidden = ids(result.current.dailyQuotes)
+    act(() => result.current.showQuote(first))
+
+    // Assert
+    expect(hidden).toEqual(order.filter((id) => id !== first))
+    expect(result.current.currentIndex).toBe(0)
+    expect(ids(result.current.dailyQuotes)).toEqual(order)
+  })
+
+  it('zählt Reflexionseinträge der Woche und Eingangseinträge', async () => {
+    // Arrange
+    const now = new Date().toISOString()
+    await upsertQuotes([
+      makeQuote({ id: 't-1', createdAt: now, updatedAt: now }),
+      makeQuote({ id: 't-2', createdAt: now, updatedAt: now }),
+      makeQuote({ id: 't-3', createdAt: now, updatedAt: now, status: 'inbox' })
+    ])
+
+    // Act
+    const { result } = await renderSession()
+
+    // Assert
+    expect(result.current.reflectionCount).toBe(3)
+    expect(result.current.showReflectionNudge).toBe(true)
+    expect(result.current.inboxCount).toBe(1)
+  })
+})
