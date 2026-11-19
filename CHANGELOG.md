@@ -27,6 +27,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Weekly reflection range now ends on Sunday 23:59:59.999 local time even in weeks with a daylight-saving change (#10).
 - One undecryptable encrypted row no longer makes the whole library unreadable (#3): it is skipped with a console warning while all other quotes and books load; encrypt-all/decrypt-all now abort instead of silently dropping such rows.
 - Enabling encryption twice no longer overwrites the salt and key (which made all encrypted rows unreadable); `enableEncryption` now rejects with "Encryption is already enabled." and leaves the vault untouched (#4).
+- Enabling or disabling encryption no longer deletes quotes in the trash; they stay in the trash and can still be restored (#14).
 
 ### Security
 - Ran `npm audit fix` (no breaking changes): `npm audit --omit=dev` now reports 0 vulnerabilities (previously 17, incl. 8 high, e.g. in `vite`, `react-router`, `source-map-js`).

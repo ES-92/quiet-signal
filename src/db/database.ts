@@ -77,11 +77,7 @@ async function loadAllForRewrite() {
     throw new Error('Some entries could not be decrypted; aborting to avoid data loss.')
   }
   return {
-    // Trashed quotes stay excluded, exactly as listQuotes() did before (existing behavior).
-    quotes: quotes
-      .filter((quote): quote is Quote => Boolean(quote))
-      .filter((quote) => !quote.deletedAt)
-      .map(withQuoteDefaults),
+    quotes: quotes.filter((quote): quote is Quote => Boolean(quote)).map(withQuoteDefaults),
     books: books.filter((book): book is Book => Boolean(book))
   }
 }

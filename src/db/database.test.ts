@@ -448,4 +448,41 @@ describe('Verschlüsselung', () => {
     expect(await unlockEncryption('passwort-eins')).toBe(true)
     expect((await listQuotes())[0].text).toBe('Geheim')
   })
+
+  it('behält Papierkorb-Einträge beim Aktivieren der Verschlüsselung und kann sie wiederherstellen', async () => {
+    // Arrange
+    await upsertQuotes([
+      makeQuote({ id: 'aktiv', text: 'Aktiv' }),
+      makeQuote({ id: 'papierkorb', text: 'Weg', deletedAt: '2026-02-01T10:00:00.000Z' })
+    ])
+    await enableEncryption('passwort-123')
+
+    // Act
+    await encryptAllQuotes()
+    const trashed = await listTrashed()
+    await updateQuote('papierkorb', { deletedAt: undefined })
+
+    // Assert
+    expect(trashed.map((quote) => quote.id)).toEqual(['papierkorb'])
+    expect((await listQuotes()).map((quote) => quote.id).sort()).toEqual(['aktiv', 'papierkorb'])
+  })
+
+  it('behält Papierkorb-Einträge beim Deaktivieren der Verschlüsselung und kann sie wiederherstellen', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+    await upsertQuotes([
+      makeQuote({ id: 'aktiv', text: 'Aktiv' }),
+      makeQuote({ id: 'papierkorb', text: 'Weg', deletedAt: '2026-02-01T10:00:00.000Z' })
+    ])
+
+    // Act
+    await decryptAllQuotesAndDisable()
+    const trashed = await listTrashed()
+    await updateQuote('papierkorb', { deletedAt: undefined })
+
+    // Assert
+    expect(isEncryptionEnabled()).toBe(false)
+    expect(trashed.map((quote) => quote.id)).toEqual(['papierkorb'])
+    expect((await listQuotes()).map((quote) => quote.id).sort()).toEqual(['aktiv', 'papierkorb'])
+  })
 })
