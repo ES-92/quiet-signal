@@ -20,7 +20,7 @@ Useful scripts:
 | `npm run format` | Prettier (write) |
 | `npm run typecheck` | `tsc --noEmit` |
 
-There is no automated test suite yet; **`npm run build` and `npm run lint` must pass** for any change, and please verify your change in the running app.
+**`npm test`, `npm run build` and `npm run lint` must pass** for any change, and please verify your change in the running app.
 
 ## Conventions
 

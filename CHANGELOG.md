@@ -3,6 +3,11 @@
 All notable changes to Quiet Signal are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); the project uses [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Testinfrastruktur (Vitest, jsdom, Testing Library, fake-indexeddb) mit `npm test`, `npm run test:watch` und `npm run coverage`; erste Tests für den CSV-Parser.
+
 ## [0.2.0] - 2026-05-28
 
 ### Added
