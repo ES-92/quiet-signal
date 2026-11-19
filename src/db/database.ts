@@ -40,6 +40,52 @@ export const db = new QuietSignalDatabase()
 
 const now = () => new Date().toISOString()
 
+/**
+ * Decrypts one stored row. A row that cannot be decrypted (corrupt payload, wrong key)
+ * is reported with a single warning and treated like an unreadable row (null), so one
+ * bad row cannot make the whole library unreadable.
+ */
+async function safeDecryptQuote(row: Quote) {
+  try {
+    return await decryptQuoteFromStorage(row)
+  } catch {
+    console.warn(`Quiet Signal: could not decrypt quote ${row.id}; skipping it.`)
+    return null
+  }
+}
+
+async function safeDecryptBook(row: Book) {
+  try {
+    return await decryptBookFromStorage(row)
+  } catch {
+    console.warn(`Quiet Signal: could not decrypt book ${row.id}; skipping it.`)
+    return null
+  }
+}
+
+/**
+ * Loads every row decrypted for a bulk rewrite (encrypt-all / decrypt-all). These clear
+ * the tables before rewriting, so any row that cannot be read must abort the operation
+ * instead of being silently dropped.
+ */
+async function loadAllForRewrite() {
+  const quoteRows = await db.quotes.toArray()
+  const bookRows = await db.books.toArray()
+  const quotes = await Promise.all(quoteRows.map((row) => decryptQuoteFromStorage(row)))
+  const books = await Promise.all(bookRows.map((row) => decryptBookFromStorage(row)))
+  if (quotes.some((quote) => !quote) || books.some((book) => !book)) {
+    throw new Error('Some entries could not be decrypted; aborting to avoid data loss.')
+  }
+  return {
+    // Trashed quotes stay excluded, exactly as listQuotes() did before (existing behavior).
+    quotes: quotes
+      .filter((quote): quote is Quote => Boolean(quote))
+      .filter((quote) => !quote.deletedAt)
+      .map(withQuoteDefaults),
+    books: books.filter((book): book is Book => Boolean(book))
+  }
+}
+
 function withQuoteDefaults(quote: Quote): Quote {
   return {
     ...quote,
@@ -53,7 +99,7 @@ function withQuoteDefaults(quote: Quote): Quote {
 
 export async function listQuotes() {
   const rows = await db.quotes.orderBy('createdAt').reverse().toArray()
-  const quotes = await Promise.all(rows.map((quote) => decryptQuoteFromStorage(quote)))
+  const quotes = await Promise.all(rows.map((quote) => safeDecryptQuote(quote)))
   return quotes
     .filter((quote): quote is Quote => Boolean(quote))
     .filter((quote) => !quote.deletedAt)
@@ -62,7 +108,7 @@ export async function listQuotes() {
 
 export async function listTrashed() {
   const rows = await db.quotes.toArray()
-  const quotes = await Promise.all(rows.map((quote) => decryptQuoteFromStorage(quote)))
+  const quotes = await Promise.all(rows.map((quote) => safeDecryptQuote(quote)))
   return quotes
     .filter((quote): quote is Quote => Boolean(quote))
     .filter((quote) => Boolean(quote.deletedAt))
@@ -78,7 +124,7 @@ export async function emptyTrash() {
 export async function getQuote(id: string) {
   const quote = await db.quotes.get(id)
   if (!quote) return undefined
-  const decrypted = await decryptQuoteFromStorage(quote)
+  const decrypted = await safeDecryptQuote(quote)
   return decrypted ? withQuoteDefaults(decrypted) : undefined
 }
 
@@ -156,8 +202,7 @@ export async function clearBooks() {
 }
 
 export async function encryptAllQuotes() {
-  const quotes = await listQuotes()
-  const books = await listBooks()
+  const { quotes, books } = await loadAllForRewrite()
   await db.quotes.clear()
   await db.books.clear()
   await db.quotes.bulkPut(await Promise.all(quotes.map((quote) => encryptQuoteForStorage(quote))))
@@ -165,8 +210,7 @@ export async function encryptAllQuotes() {
 }
 
 export async function decryptAllQuotesAndDisable() {
-  const quotes = await listQuotes()
-  const books = await listBooks()
+  const { quotes, books } = await loadAllForRewrite()
   await db.quotes.clear()
   await db.books.clear()
   disableEncryptionRecord()
@@ -176,7 +220,7 @@ export async function decryptAllQuotesAndDisable() {
 
 export async function listBooks() {
   const rows = await db.books.toArray()
-  const books = await Promise.all(rows.map((book) => decryptBookFromStorage(book)))
+  const books = await Promise.all(rows.map((book) => safeDecryptBook(book)))
   return books
     .filter((book): book is Book => Boolean(book))
     .sort((a, b) => a.title.localeCompare(b.title))
@@ -184,7 +228,7 @@ export async function listBooks() {
 
 export async function getBook(id: string) {
   const book = await db.books.get(id)
-  return book ? decryptBookFromStorage(book) : undefined
+  return book ? (await safeDecryptBook(book)) ?? undefined : undefined
 }
 
 export async function createBook(input: BookInput) {

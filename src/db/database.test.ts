@@ -19,6 +19,7 @@ import {
   deleteQuote,
   emptyTrash,
   encryptAllQuotes,
+  getBook,
   getQuote,
   listBooks,
   listQuotes,
@@ -319,42 +320,108 @@ describe('Verschlüsselung', () => {
     expect(trashed).toEqual([])
   })
 
-  it('CHARACTERIZATION: beschädigte verschlüsselte Zeile lässt listQuotes ablehnen', async () => {
+  const corruptQuoteRow = (id: string) => ({
+    ...makeQuote({ id }),
+    text: '',
+    encrypted: true,
+    encryptedPayload: 'AAAA',
+    encryptionIv: 'AAAAAAAAAAAAAAAA'
+  })
+  const corruptBookRow = (id: string) => ({
+    ...makeBook({ id }),
+    title: '',
+    encrypted: true,
+    encryptedPayload: 'AAAA',
+    encryptionIv: 'AAAAAAAAAAAAAAAA'
+  })
+
+  it('überspringt eine beschädigte verschlüsselte Zeile in listQuotes und lädt die übrigen', async () => {
     // Arrange
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await upsertQuotes([makeQuote({ id: 'gut-1', text: 'Gut 1' }), makeQuote({ id: 'gut-2', text: 'Gut 2' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    await db.quotes.put(corruptQuoteRow('kaputt'))
+
+    // Act
+    const quotes = await listQuotes()
+
+    // Assert
+    expect(quotes.map((quote) => quote.id).sort()).toEqual(['gut-1', 'gut-2'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0].join(' ')).toContain('kaputt')
+    warn.mockRestore()
+  })
+
+  it('überspringt eine beschädigte Zeile auch in listTrashed und getQuote', async () => {
+    // Arrange
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await enableEncryption('passwort-123')
+    await upsertQuotes([makeQuote({ id: 'gut', deletedAt: '2026-02-01T10:00:00.000Z' })])
+    await db.quotes.put(corruptQuoteRow('kaputt'))
+
+    // Act
+    const trashed = await listTrashed()
+    const broken = await getQuote('kaputt')
+
+    // Assert
+    expect(trashed.map((quote) => quote.id)).toEqual(['gut'])
+    expect(broken).toBeUndefined()
+    expect(warn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
+  })
+
+  it('überspringt eine beschädigte verschlüsselte Zeile in listBooks und getBook', async () => {
+    // Arrange
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await upsertBooks([makeBook({ id: 'b1', title: 'Alpha' }), makeBook({ id: 'b2', title: 'Beta' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    await db.books.put(corruptBookRow('kaputt'))
+
+    // Act
+    const books = await listBooks()
+    const broken = await getBook('kaputt')
+
+    // Assert
+    expect(books.map((book) => book.id)).toEqual(['b1', 'b2'])
+    expect(broken).toBeUndefined()
+    expect(warn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
+  })
+
+  it('encryptAllQuotes bricht bei beschädigter Zeile ab und löscht keine Daten', async () => {
+    // Arrange
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await upsertQuotes([makeQuote({ id: 'gut', text: 'Gut' })])
     await enableEncryption('passwort-123')
     await encryptAllQuotes()
-    await db.quotes.put({
-      ...makeQuote({ id: 'kaputt' }),
-      text: '',
-      encrypted: true,
-      encryptedPayload: 'AAAA',
-      encryptionIv: 'AAAAAAAAAAAAAAAA'
-    })
+    await db.quotes.put(corruptQuoteRow('kaputt'))
 
     // Act
-    const action = listQuotes()
+    const action = encryptAllQuotes()
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-    // Eine einzige defekte Zeile lässt die komplette Bibliothek unlesbar werden (Promise.all rejected).
-    await expect(action).rejects.toBeDefined()
+    await expect(action).rejects.toThrow()
+    expect(await db.quotes.count()).toBe(2)
+    warn.mockRestore()
   })
 
-  it('CHARACTERIZATION: zweites enableEncryption macht bestehende verschlüsselte Zeilen unlesbar', async () => {
+  it('decryptAllQuotesAndDisable bricht bei beschädigter Zeile ab, löscht nichts und lässt die Verschlüsselung aktiv', async () => {
     // Arrange
-    await upsertQuotes([makeQuote({ id: 'q1', text: 'Geheim' })])
-    await enableEncryption('passwort-eins')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await upsertQuotes([makeQuote({ id: 'gut', text: 'Gut' })])
+    await enableEncryption('passwort-123')
     await encryptAllQuotes()
-    expect((await listQuotes())[0].text).toBe('Geheim')
+    await db.quotes.put(corruptQuoteRow('kaputt'))
 
-    // Act: erneut aktivieren überschreibt Salt und Schlüssel, ohne umzuschlüsseln
-    await enableEncryption('passwort-zwei')
-    const action = listQuotes()
+    // Act
+    const action = decryptAllQuotesAndDisable()
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-    // Die alten Zeilen sind mit dem alten Schlüssel verschlüsselt; Entschlüsselung schlägt fehl (Datenverlust-Risiko).
-    await expect(action).rejects.toBeDefined()
+    await expect(action).rejects.toThrow()
+    expect(isEncryptionEnabled()).toBe(true)
+    expect(await db.quotes.count()).toBe(2)
+    warn.mockRestore()
   })
 })
