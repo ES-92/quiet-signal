@@ -19,7 +19,13 @@ export function TrashPage() {
   }
 
   useEffect(() => {
-    void reload()
+    let cancelled = false
+    void listTrashed().then((items) => {
+      if (!cancelled) setTrashed(items)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function handleRestore(id: string) {
