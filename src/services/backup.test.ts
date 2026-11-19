@@ -130,7 +130,7 @@ describe('backupFilename', () => {
     expect(name).toBe('quiet-signal-backup-2026-03-20.json')
   })
 
-  it('verwendet das UTC-Datum statt des lokalen', () => {
+  it('verwendet das lokale Datum statt des UTC-Datums', () => {
     // Arrange
     vi.setSystemTime(new Date('2026-03-21T00:30:00+01:00')) // 20.03. 23:30 UTC
 
@@ -138,7 +138,6 @@ describe('backupFilename', () => {
     const name = backupFilename()
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10 (lokaler 21.03. wird als 20.03. benannt)
-    expect(name).toBe('quiet-signal-backup-2026-03-20.json')
+    expect(name).toBe('quiet-signal-backup-2026-03-21.json')
   })
 })

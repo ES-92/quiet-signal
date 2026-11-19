@@ -22,6 +22,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ### Fixed
 - Daily review now uses the local calendar day instead of the UTC date (#2): an entry read the previous evening no longer counts as read today after local midnight, and the daily stack seed changes at local midnight (so the stack order shifts once for users between 00:00 and the UTC offset).
+- Backup file names now use the local date instead of the UTC date (#8).
 
 ### Security
 - Ran `npm audit fix` (no breaking changes): `npm audit --omit=dev` now reports 0 vulnerabilities (previously 17, incl. 8 high, e.g. in `vite`, `react-router`, `source-map-js`).

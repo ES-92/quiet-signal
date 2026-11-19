@@ -1,6 +1,7 @@
 import type { Book } from '../types/book'
 import type { Quote } from '../types/quote'
 import { downloadText, exportJson } from './importExport'
+import { localDateKey } from '../utils/date'
 
 const backupKey = 'quiet-signal-last-backup-at'
 const staleAfterDays = 14
@@ -35,7 +36,7 @@ export function backupState(totalEntries: number, timestamp = getLastBackupAt())
 }
 
 export function backupFilename() {
-  return `quiet-signal-backup-${new Date().toISOString().slice(0, 10)}.json`
+  return `quiet-signal-backup-${localDateKey(new Date())}.json`
 }
 
 export function downloadBackup(quotes: Quote[], books: Book[]) {
