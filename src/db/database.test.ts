@@ -115,6 +115,37 @@ describe('Quotes: Anlegen und Aktualisieren', () => {
     expect(updated?.people).toEqual(['Anna', 'Ben'])
   })
 
+  it('verliert bei gleichzeitigen Updates derselben ID keine Felder', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', likes: 0, reviewCount: 0 })])
+
+    // Act
+    await Promise.all([
+      updateQuote('q1', { likes: 1 }),
+      updateQuote('q1', { reviewCount: 1, lastReviewedAt: '2026-02-01T10:00:00.000Z' })
+    ])
+
+    // Assert
+    const stored = await getQuote('q1')
+    expect(stored?.likes).toBe(1)
+    expect(stored?.reviewCount).toBe(1)
+    expect(stored?.lastReviewedAt).toBe('2026-02-01T10:00:00.000Z')
+  })
+
+  it('verliert bei gleichzeitigen Updates auch mit aktiver Verschlüsselung keine Felder', async () => {
+    // Arrange
+    await enableEncryption('geheim-pin')
+    await upsertQuotes([makeQuote({ id: 'q1', likes: 0, reviewCount: 0 })])
+
+    // Act
+    await Promise.all([updateQuote('q1', { likes: 1 }), updateQuote('q1', { reviewCount: 1 })])
+
+    // Assert
+    const stored = await getQuote('q1')
+    expect(stored?.likes).toBe(1)
+    expect(stored?.reviewCount).toBe(1)
+  })
+
   it('liefert undefined beim Aktualisieren einer unbekannten ID', async () => {
     // Arrange / Act
     const result = await updateQuote('gibt-es-nicht', { text: 'x' })

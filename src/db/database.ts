@@ -167,7 +167,23 @@ export async function upsertQuotes(quotes: Quote[]) {
   )
 }
 
-export async function updateQuote(id: string, patch: Partial<Quote>) {
+// Updates are read-modify-write with async WebCrypto in between, so they cannot run inside one Dexie
+// transaction (it would auto-commit on the non-Dexie await). Serialize them per quote id instead, so
+// concurrent patches on the same row (e.g. like + review) never overwrite each other's fields.
+const quoteUpdateQueue = new Map<string, Promise<unknown>>()
+
+export function updateQuote(id: string, patch: Partial<Quote>): Promise<Quote | undefined> {
+  const previous = quoteUpdateQueue.get(id) ?? Promise.resolve()
+  const run = previous.catch(() => undefined).then(() => applyQuoteUpdate(id, patch))
+  quoteUpdateQueue.set(id, run)
+  const cleanup = () => {
+    if (quoteUpdateQueue.get(id) === run) quoteUpdateQueue.delete(id)
+  }
+  run.then(cleanup, cleanup)
+  return run
+}
+
+async function applyQuoteUpdate(id: string, patch: Partial<Quote>) {
   const timestamp = now()
   const current = await getQuote(id)
   if (!current) return undefined

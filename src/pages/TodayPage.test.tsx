@@ -193,6 +193,28 @@ describe('TodayPage', () => {
     await waitFor(async () => expect((await getQuote(first))?.snoozedUntil).toBeTruthy())
   })
 
+  it('behält beim Behalten einer Karte das Like und die Wiederholung dauerhaft', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentId()
+
+    // Act
+    swipe(160)
+    await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument(), SLOW)
+    await expectReadCount(1)
+    await act(async () => {
+      await useQuoteStore.getState().loadQuotes()
+    })
+
+    // Assert
+    const stored = await getQuote(first)
+    expect(stored?.likes).toBe(1)
+    expect(stored?.reviewCount).toBe(1)
+    expect(useQuoteStore.getState().quotes.find((quote) => quote.id === first)?.likes).toBe(1)
+  })
+
   it('schließt den Buch-Editor, sobald eine andere Karte oben liegt', async () => {
     // Arrange
     await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])

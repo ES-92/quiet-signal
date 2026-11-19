@@ -38,6 +38,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Kindle import now handles Windows line endings (CRLF): clippings parsed from a CRLF file are identical to those from an LF file, including the added date (#5).
 - Kindle import now reads German "Hinzugefügt am" dates (e.g. "Montag, 3. März 2025 10:15:00") as local time, so clippings from German Kindles keep their added date (#6).
 - Kindle import now keeps only the longer highlight when a later clipping extends an earlier, shorter one of the same book (previously both were imported when the shorter one came first) (#7).
+- Keeping a daily card no longer loses the like: concurrent updates to the same quote (like and review) are now serialized per quote, so neither overwrites the other's fields (#16).
 
 ### Security
 - Ran `npm audit fix` (no breaking changes): `npm audit --omit=dev` now reports 0 vulnerabilities (previously 17, incl. 8 high, e.g. in `vite`, `react-router`, `source-map-js`).
