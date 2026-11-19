@@ -1,5 +1,7 @@
 # Quiet Signal
 
+[![CI](https://github.com/ES-92/quiet-signal/actions/workflows/ci.yml/badge.svg)](https://github.com/ES-92/quiet-signal/actions/workflows/ci.yml)
+
 **A free, local-first, privacy-first commonplace app for notes, quotes, and recurring insights.**
 
 Most highlights and notes disappear into an archive you never open again. Quiet Signal helps you collect thoughts, quotes, photos, and voice notes — and quietly *resurfaces* the ones that matter, so you actually revisit them.
