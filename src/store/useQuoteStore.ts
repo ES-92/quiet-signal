@@ -17,6 +17,8 @@ interface QuoteStore {
   quotes: Quote[]
   filters: QuoteFilters
   loading: boolean
+  // Wall-clock time of the last load; lets pages derive time-dependent views (e.g. snooze expiry) without reading the clock while rendering.
+  loadedAt: number
   loadQuotes: () => Promise<void>
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
@@ -44,9 +46,10 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   quotes: [],
   filters: emptyFilters,
   loading: true,
+  loadedAt: Date.now(),
   loadQuotes: async () => {
     set({ loading: true })
-    set({ quotes: await listQuotes(), loading: false })
+    set({ quotes: await listQuotes(), loading: false, loadedAt: Date.now() })
   },
   addQuote: async (input) => {
     const quote = await createQuote(input)

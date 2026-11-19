@@ -30,7 +30,7 @@ const typeLabels = {
 
 export function InboxPage() {
   const { t } = useI18n()
-  const { quotes, loadQuotes, addQuote, saveQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { quotes, loadedAt, loadQuotes, addQuote, saveQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
   const [text, setText] = useState('')
@@ -41,7 +41,6 @@ export function InboxPage() {
   const [audioMimeType, setAudioMimeType] = useState<string | undefined>()
   const [audioDurationMs, setAudioDurationMs] = useState<number | undefined>()
   const [signalStrength, setSignalStrength] = useState<SignalStrength>('quiet')
-  const [currentIndex, setCurrentIndex] = useState(0)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [draftText, setDraftText] = useState('')
   const [draftTags, setDraftTags] = useState('')
@@ -59,7 +58,6 @@ export function InboxPage() {
   const [draftLocationLatitude, setDraftLocationLatitude] = useState<number | undefined>()
   const [draftLocationLongitude, setDraftLocationLongitude] = useState<number | undefined>()
   const [message, setMessage] = useState('')
-  const [coachVisible, setCoachVisible] = useState(false)
   const canSave = Boolean(text.trim() || imageDataUrl || audioDataUrl)
 
   useEffect(() => {
@@ -68,10 +66,9 @@ export function InboxPage() {
   }, [loadQuotes, loadBooks])
 
   const inboxQuotes = useMemo(() => {
-    const now = Date.now()
     return quotes
       .filter((quote) => quoteStatus(quote) === 'inbox')
-      .filter((quote) => !isSnoozed(quote, now))
+      .filter((quote) => !isSnoozed(quote, loadedAt))
       .sort((a, b) => {
         const aDue = a.snoozedUntil ? new Date(a.snoozedUntil).getTime() : 0
         const bDue = b.snoozedUntil ? new Date(b.snoozedUntil).getTime() : 0
@@ -79,42 +76,46 @@ export function InboxPage() {
         if (aDue !== bDue) return bDue - aDue
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       })
-  }, [quotes])
-  const currentQuote = inboxQuotes[currentIndex] ?? inboxQuotes[0]
-  const nextInboxQuote = inboxQuotes.length > 1 ? inboxQuotes[(currentIndex + 1) % inboxQuotes.length] : undefined
-  const thirdInboxQuote = inboxQuotes.length > 2 ? inboxQuotes[(currentIndex + 2) % inboxQuotes.length] : undefined
+  }, [quotes, loadedAt])
+  // The deck always works on the first entry; handled entries leave the list, so the next one moves up.
+  const currentQuote = inboxQuotes[0]
+  const nextInboxQuote = inboxQuotes[1]
+  const thirdInboxQuote = inboxQuotes[2]
 
-  useEffect(() => {
-    if (currentIndex >= inboxQuotes.length) setCurrentIndex(Math.max(0, inboxQuotes.length - 1))
-  }, [currentIndex, inboxQuotes.length])
+  // Re-seed the draft whenever a different entry comes to the top (adjusting state while rendering, not in an effect).
+  const currentQuoteId = currentQuote?.id
+  const [draftQuoteId, setDraftQuoteId] = useState<string | undefined>()
+  if (currentQuoteId !== draftQuoteId) {
+    setDraftQuoteId(currentQuoteId)
+    if (currentQuote) seedDraft(currentQuote)
+  }
 
-  useEffect(() => {
-    if (!currentQuote) return
+  function seedDraft(quote: Quote) {
     setDetailsOpen(false)
-    setDraftText(currentQuote.text ?? '')
-    setDraftTags(currentQuote.tags.join(', '))
-    setDraftNote(currentQuote.note ?? '')
-    setDraftEntryType(entryType(currentQuote))
-    setDraftStrength(currentQuote.signalStrength ?? 'normal')
-    setDraftAuthor(currentQuote.author ?? '')
-    setDraftWork(currentQuote.work ?? '')
-    setDraftSource(currentQuote.source ?? '')
-    setDraftYear(currentQuote.year ?? '')
-    setDraftBookId(currentQuote.bookId ?? '')
-    setDraftOccurredAt(toLocalDateTime(currentQuote.occurredAt))
-    setDraftPeople((currentQuote.people ?? []).join(', '))
-    setDraftLocationName(currentQuote.locationName)
-    setDraftLocationLatitude(currentQuote.locationLatitude)
-    setDraftLocationLongitude(currentQuote.locationLongitude)
-  }, [currentQuote?.id])
+    setDraftText(quote.text ?? '')
+    setDraftTags(quote.tags.join(', '))
+    setDraftNote(quote.note ?? '')
+    setDraftEntryType(entryType(quote))
+    setDraftStrength(quote.signalStrength ?? 'normal')
+    setDraftAuthor(quote.author ?? '')
+    setDraftWork(quote.work ?? '')
+    setDraftSource(quote.source ?? '')
+    setDraftYear(quote.year ?? '')
+    setDraftBookId(quote.bookId ?? '')
+    setDraftOccurredAt(toLocalDateTime(quote.occurredAt))
+    setDraftPeople((quote.people ?? []).join(', '))
+    setDraftLocationName(quote.locationName)
+    setDraftLocationLatitude(quote.locationLatitude)
+    setDraftLocationLongitude(quote.locationLongitude)
+  }
 
-  useEffect(() => {
-    if (currentQuote && shouldShowCoachmark()) setCoachVisible(true)
-  }, [currentQuote])
+  // The coach is shown once per device; whether it was seen is read once when the page mounts.
+  const [coachDismissed, setCoachDismissed] = useState(() => !shouldShowCoachmark())
+  const coachVisible = Boolean(currentQuote) && !coachDismissed
 
   function dismissCoach() {
     markCoachmarkSeen()
-    setCoachVisible(false)
+    setCoachDismissed(true)
   }
 
   async function handleCapture(event: FormEvent) {
@@ -273,7 +274,7 @@ export function InboxPage() {
               </div>
               {inboxQuotes.length > 0 && (
                 <span className="shrink-0 rounded border border-line px-2 py-1 text-xs text-graphite">
-                  {t('cardProgress', { current: Math.min(currentIndex + 1, inboxQuotes.length), total: inboxQuotes.length })}
+                  {t('cardProgress', { current: 1, total: inboxQuotes.length })}
                 </span>
               )}
             </div>
