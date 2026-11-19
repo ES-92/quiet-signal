@@ -27,7 +27,7 @@ describe('normalizedBookKey', () => {
     expect(key).toBe('pride and prejudices::')
   })
 
-  it('entfernt ß ersatzlos aus dem Schlüssel', () => {
+  it('wandelt ß im Schlüssel zu ss um', () => {
     // Arrange
     const book = { title: 'Der Prozeß', author: 'Kafka' }
 
@@ -35,8 +35,7 @@ describe('normalizedBookKey', () => {
     const key = normalizedBookKey(book)
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10 (ß verschwindet: 'Prozeß' -> 'proze', nicht 'prozess')
-    expect(key).toBe('der proze::kafka')
+    expect(key).toBe('der prozess::kafka')
   })
 })
 
@@ -55,7 +54,20 @@ describe('findBookMergeSuggestions', () => {
     expect(result[0].books.map((x) => x.id).sort()).toEqual([a.id, b.id].sort())
   })
 
-  it('erkennt Der Prozess und Der Prozeß (Kafka) nicht als Dublette', () => {
+  it('erkennt Der Prozess und Der Prozeß als Dublette', () => {
+    // Arrange
+    const a = makeBook({ title: 'Der Prozess', author: 'Kafka' })
+    const b = makeBook({ title: 'Der Prozeß', author: 'Kafka' })
+
+    // Act
+    const result = findBookMergeSuggestions([a, b], [])
+
+    // Assert
+    expect(result).toHaveLength(1)
+    expect(result[0].books.map((x) => x.id).sort()).toEqual([a.id, b.id].sort())
+  })
+
+  it('erkennt Der Prozess und Der Prozeß (Kafka) weiterhin nicht als Dublette (Titelzusatz)', () => {
     // Arrange
     const a = makeBook({ title: 'Der Prozess', author: 'Kafka' })
     const b = makeBook({ title: 'Der Prozeß (Kafka)', author: 'Kafka' })
@@ -64,7 +76,7 @@ describe('findBookMergeSuggestions', () => {
     const result = findBookMergeSuggestions([a, b], [])
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10 (ß und Titelzusatz verhindern den Treffer)
+    // CHARACTERIZATION: Titelzusätze in Klammern werden nicht entfernt (nicht Teil von #11)
     expect(result).toEqual([])
   })
 

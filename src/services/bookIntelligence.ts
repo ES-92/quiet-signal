@@ -57,6 +57,8 @@ function choosePrimaryBook(books: Book[], quotes: Quote[]) {
 
 function normalizeBookText(value: string) {
   return value
+    .replace(/ß/g, 'ss')
+    .replace(/ẞ/g, 'SS')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[''`´’‘]/g, '')
