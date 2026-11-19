@@ -70,11 +70,7 @@ export function parseKindleClippings(content: string): KindleClipping[] {
  * what already exists so re-importing the same file is idempotent. Duplicate and
  * superseded (extended) highlights within a single book are collapsed.
  */
-export function buildKindleImport(
-  content: string,
-  existingBooks: Book[],
-  existingQuotes: Quote[]
-): KindleImportPlan {
+export function buildKindleImport(content: string, existingBooks: Book[], existingQuotes: Quote[]): KindleImportPlan {
   const clippings = parseKindleClippings(content)
   const now = new Date().toISOString()
 
@@ -186,8 +182,41 @@ function tidyAuthor(author: string) {
 function parseAddedDate(metaLine: string): string | undefined {
   const match = metaLine.match(ADDED_ON)
   if (!match) return undefined
+  const german = parseGermanKindleDate(match[1])
+  if (german) return german
   const time = Date.parse(match[1].replace(/,/g, ''))
   return Number.isNaN(time) ? undefined : new Date(time).toISOString()
+}
+
+const GERMAN_MONTHS: Record<string, number> = {
+  januar: 0,
+  februar: 1,
+  märz: 2,
+  maerz: 2,
+  april: 3,
+  mai: 4,
+  juni: 5,
+  juli: 6,
+  august: 7,
+  september: 8,
+  oktober: 9,
+  november: 10,
+  dezember: 11
+}
+
+// "[Wochentag][,] <d>. <Monatsname> <yyyy> <HH:mm[:ss]>", interpreted as local time.
+const GERMAN_DATE = /^(?:[a-zäöüß]+,?\s+)?(\d{1,2})\.\s*([a-zäöüß]+)\s+(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/i
+
+function parseGermanKindleDate(value: string): string | undefined {
+  const match = value.trim().match(GERMAN_DATE)
+  if (!match) return undefined
+  const month = GERMAN_MONTHS[match[2].toLowerCase()]
+  if (month === undefined) return undefined
+  const [year, day, hours, minutes, seconds] = [match[3], match[1], match[4], match[5], match[6] ?? '0'].map(Number)
+  const date = new Date(year, month, day, hours, minutes, seconds)
+  // Reject overflowing values (e.g. 31. Februar) instead of silently rolling over.
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return undefined
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
 }
 
 function normalize(text: string) {

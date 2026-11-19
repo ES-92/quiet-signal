@@ -38,9 +38,37 @@ describe('parseKindleClippings', () => {
     expect(clippings[0].title.startsWith('﻿')).toBe(false)
     expect(clippings[0].title).toBe('Leise Zeichen')
     expect(clippings[0].text).toBe('Weniger ist mehr.')
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-    // Ist-Zustand: "3. März 2025" (deutsches Datumsformat) wird von Date.parse nicht erkannt -> kein addedAt.
-    expect(clippings[0].addedAt).toBeUndefined()
+    expect(clippings[0].addedAt).toBe('2025-03-03T09:15:00.000Z') // 10:15 Europe/Berlin (MEZ)
+  })
+
+  it.each([
+    ['Hinzugefügt am Montag, 3. März 2025 10:15:00', '2025-03-03T09:15:00.000Z'],
+    ['Hinzugefügt am Montag 3. März 2025 10:15:00', '2025-03-03T09:15:00.000Z'],
+    ['Hinzugefügt am 3. März 2025 10:15:00', '2025-03-03T09:15:00.000Z'],
+    ['Hinzugefügt am Samstag, 5. Juli 2025 18:30:45', '2025-07-05T16:30:45.000Z'], // MESZ
+    ['Hinzugefügt am Dienstag, 1. Maerz 2025 00:00:00', '2025-02-28T23:00:00.000Z']
+  ])('liest das deutsche Datum aus „%s“', (meta, expected) => {
+    // Arrange
+    const content = `Titel (Muster, Max)\n- Ihre Markierung | ${meta}\n\nText.\n==========\n`
+
+    // Act
+    const clippings = parseKindleClippings(content)
+
+    // Assert
+    expect(clippings[0].addedAt).toBe(expected)
+  })
+
+  it('liefert bei unbekanntem deutschem Datumsformat kein addedAt und wirft nicht', () => {
+    // Arrange
+    const content =
+      'Titel (Muster, Max)\n- Ihre Markierung | Hinzugefügt am Montag, 3. Foobar 2025 10:15:00\n\nText.\n==========\n'
+
+    // Act
+    const act = () => parseKindleClippings(content)
+
+    // Assert
+    expect(act).not.toThrow()
+    expect(act()[0].addedAt).toBeUndefined()
   })
 
   it('liefert bei Windows-Zeilenenden (CRLF) Titel und Texte ohne \\r', () => {
