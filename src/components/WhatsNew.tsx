@@ -1,28 +1,26 @@
 import { Sparkles, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import type { TranslationKey } from '../i18n/translations'
 import { useI18n } from '../i18n/I18nProvider'
 import { ensureVersionInitialized, lastSeenVersion, markVersionSeen, notesSince, shouldShowWhatsNew } from '../services/release'
 
 export function WhatsNew({ onSupport }: { onSupport: () => void }) {
   const { t } = useI18n()
-  const [visible, setVisible] = useState(false)
-  const [notes, setNotes] = useState<string[]>([])
+  // Release-note keys are captured once on mount; null means nothing to show.
+  const [pendingKeys, setPendingKeys] = useState<TranslationKey[] | null>(() =>
+    shouldShowWhatsNew() ? notesSince(lastSeenVersion()).flatMap((note) => note.items) : null
+  )
 
   useEffect(() => {
-    if (shouldShowWhatsNew()) {
-      const items = notesSince(lastSeenVersion()).flatMap((note) => note.items)
-      setNotes(items.map((key) => t(key)))
-      setVisible(true)
-    } else {
-      ensureVersionInitialized()
-    }
-  }, [t])
+    if (!shouldShowWhatsNew()) ensureVersionInitialized()
+  }, [])
 
-  if (!visible) return null
+  if (!pendingKeys) return null
+  const notes = pendingKeys.map((key) => t(key))
 
   function dismiss() {
     markVersionSeen()
-    setVisible(false)
+    setPendingKeys(null)
   }
 
   return (
