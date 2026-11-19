@@ -1,10 +1,12 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertBooks, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
 import { coachKey } from '../services/coach'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import { renderWithProviders } from '../test/render'
 import { TodayPage } from './TodayPage'
@@ -23,8 +25,17 @@ async function seedStack() {
 }
 
 // Waits until the page's mount-time loads are done, so no query is still running when the next test resets the database.
+function LocationProbe() {
+  return <output data-testid="location">{useLocation().pathname}</output>
+}
+
 async function renderToday() {
-  const result = renderWithProviders(<TodayPage />)
+  const result = renderWithProviders(
+    <>
+      <TodayPage />
+      <LocationProbe />
+    </>
+  )
   await waitFor(() => {
     expect(useQuoteStore.getState().loading).toBe(false)
     expect(useBookStore.getState().loading).toBe(false)
@@ -75,6 +86,7 @@ beforeEach(async () => {
   await db.open()
   useQuoteStore.setState({ quotes: [], loading: true })
   useBookStore.setState({ books: [], loading: true })
+  useToastStore.setState({ toast: null })
   localStorage.setItem(coachKey, 'true')
   // jsdom implements neither matchMedia/ResizeObserver (used by useFitText) nor pointer capture (used by the swipe deck).
   window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia
@@ -388,5 +400,157 @@ describe('TodayPage', () => {
 
     // Assert
     expect(screen.queryByRole('dialog', { name: en.gestures })).not.toBeInTheDocument()
+  })
+
+  it('öffnet per Wisch nach oben das Kontextmenü', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+
+    // Act
+    swipe(0, -160)
+
+    // Assert
+    expect(await screen.findByText(en.contextActions, undefined, SLOW)).toBeInTheDocument()
+  })
+
+  it('stellt eine verworfene Karte über die Rückgängig-Aktion wieder her', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentText()
+    const firstId = currentId()
+    swipe(0, 160)
+    await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+    const toast = useToastStore.getState().toast
+
+    // Act
+    expect(toast?.message).toBe(en.discardedToast)
+    expect(toast?.actionLabel).toBe(en.undo)
+    act(() => toast?.onAction?.())
+
+    // Assert
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(3), SLOW)
+    expect((await getQuote(firstId))?.deletedAt).toBeUndefined()
+    // CHARACTERIZATION: the restored card is not re-added to this visit's deck (the session ids dropped it when it left the store)
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+  })
+
+  it('markiert über das Kontextmenü einen Favoriten und schließt das Menü', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentId()
+    await longPress()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.favorite }))
+
+    // Assert
+    await waitFor(async () => expect((await getQuote(first))?.favorite).toBe(true), SLOW)
+    await waitFor(() => expect(screen.queryByText(en.contextActions)).not.toBeInTheDocument())
+  })
+
+  it('senkt über das Kontextmenü die Likes und schließt das Menü', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', likes: 2 })])
+    await renderToday()
+    await screen.findByRole('blockquote')
+    await longPress()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.dislike }))
+
+    // Assert
+    expect(screen.queryByText(en.contextActions)).not.toBeInTheDocument()
+    await waitFor(async () => expect((await getQuote('t-1'))?.likes).toBe(1), SLOW)
+  })
+
+  it('öffnet über das Kontextmenü die Detailseite der Karte', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentId()
+    await longPress()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.openDetails }))
+
+    // Assert
+    expect(screen.getByTestId('location')).toHaveTextContent(`/quote/${first}`)
+  })
+
+  it('speichert Titel und Autor des Buchs über den Buch-Editor', async () => {
+    // Arrange
+    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
+    await renderToday()
+    await screen.findByRole('blockquote')
+    await longPress()
+    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
+    const title = await screen.findByLabelText(en.bookTitleLabel)
+
+    // Act
+    fireEvent.change(title, { target: { value: '  Neuer Titel ' } })
+    fireEvent.change(screen.getByLabelText(en.bookAuthorLabel), { target: { value: ' Autorin ' } })
+    fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
+
+    // Assert
+    await waitFor(() => expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument(), SLOW)
+    await waitFor(() => {
+      const book = useBookStore.getState().books[0]
+      expect(book?.title).toBe('Neuer Titel')
+      expect(book?.author).toBe('Autorin')
+    }, SLOW)
+  })
+
+  it('schließt den Buch-Editor ohne Speichern über Abbrechen', async () => {
+    // Arrange
+    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
+    await renderToday()
+    await screen.findByRole('blockquote')
+    await longPress()
+    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
+    fireEvent.change(await screen.findByLabelText(en.bookTitleLabel), { target: { value: 'Anders' } })
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.cancel }))
+
+    // Assert
+    expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument()
+    expect(useBookStore.getState().books[0]?.title).toBe('Das Buch')
+  })
+
+  it('zeigt den Reflexions-Hinweis ab drei Einträgen dieser Woche und öffnet die Reflexionen', async () => {
+    // Arrange
+    const now = new Date().toISOString()
+    await upsertQuotes([
+      makeQuote({ id: 't-1', text: 'Eins', createdAt: now, updatedAt: now }),
+      makeQuote({ id: 't-2', text: 'Zwei', createdAt: now, updatedAt: now }),
+      makeQuote({ id: 't-3', text: 'Drei', createdAt: now, updatedAt: now })
+    ])
+    await renderToday()
+    await screen.findByRole('blockquote')
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.openReflections }))
+
+    // Assert
+    expect(screen.getByTestId('location')).toHaveTextContent('/reflections')
+  })
+
+  it('zeigt ohne genug Einträge den Hinweis zum Erfassen statt des Reflexions-Hinweises', async () => {
+    // Arrange / Act
+    await renderToday()
+
+    // Assert
+    expect(screen.queryByRole('button', { name: en.openReflections })).not.toBeInTheDocument()
+    expect(screen.getByText(en.swipeDownCapture)).toBeInTheDocument()
   })
 })
