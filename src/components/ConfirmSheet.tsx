@@ -48,9 +48,8 @@ export function ConfirmSheet({
     }
   }, [onClose, open])
 
-  useEffect(() => {
-    if (!open) setBusy(false)
-  }, [open])
+  // Closing the sheet clears a pending busy state (adjusted during render, not in an effect).
+  if (!open && busy) setBusy(false)
 
   if (!open) return null
 
