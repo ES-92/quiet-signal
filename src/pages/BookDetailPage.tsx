@@ -30,12 +30,14 @@ export function BookDetailPage() {
   const book = books.find((item) => item.id === id)
   const bookQuotes = quotes.filter((quote) => quote.bookId === id)
 
-  useEffect(() => {
-    if (!book) return
+  // Re-seed the form whenever the stored book changes (adjusting state while rendering, not in an effect).
+  const [syncedBook, setSyncedBook] = useState<{ id: string; title: string; author?: string } | undefined>()
+  if (book && (book.id !== syncedBook?.id || book.title !== syncedBook.title || book.author !== syncedBook.author)) {
+    setSyncedBook({ id: book.id, title: book.title, author: book.author })
     setTitle(book.title)
     setAuthor(book.author ?? '')
     setBookMessage('')
-  }, [book?.id, book?.title, book?.author])
+  }
 
   if (!book) {
     return (
