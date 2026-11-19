@@ -20,6 +20,16 @@ async function seedInbox() {
   ])
 }
 
+// Waits until the page's mount-time loads are done, so no query is still running when the next test resets the database.
+async function renderInbox() {
+  const result = renderWithProviders(<InboxPage />)
+  await waitFor(() => {
+    expect(useQuoteStore.getState().loading).toBe(false)
+    expect(useBookStore.getState().loading).toBe(false)
+  })
+  return result
+}
+
 function currentCardText() {
   return screen.getByRole('blockquote').textContent
 }
@@ -28,8 +38,8 @@ beforeEach(async () => {
   resetFactories()
   await db.delete()
   await db.open()
-  useQuoteStore.setState({ quotes: [] })
-  useBookStore.setState({ books: [] })
+  useQuoteStore.setState({ quotes: [], loading: true })
+  useBookStore.setState({ books: [], loading: true })
   useToastStore.setState({ toast: null })
   localStorage.setItem(coachKey, 'true')
 })
@@ -41,7 +51,7 @@ afterEach(() => {
 describe('InboxPage', () => {
   it('zeigt den Leerzustand, wenn nichts im Eingang liegt', async () => {
     // Arrange / Act
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
 
     // Assert
     expect(await screen.findByText(en.inboxEmptyTitle)).toBeInTheDocument()
@@ -52,7 +62,7 @@ describe('InboxPage', () => {
     await seedInbox()
 
     // Act
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
 
     // Assert
     await screen.findByRole('blockquote')
@@ -68,7 +78,7 @@ describe('InboxPage', () => {
     ])
 
     // Act
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
 
     // Assert
     await screen.findByRole('blockquote')
@@ -84,7 +94,7 @@ describe('InboxPage', () => {
       makeQuote({ id: 's-1', text: 'Schlummert', status: 'inbox', snoozedUntil: '2026-03-01T09:00:00.000Z', createdAt: '2026-01-01T09:00:00.000Z' }),
       makeQuote({ id: 's-2', text: 'Wach', status: 'inbox', createdAt: '2026-01-02T09:00:00.000Z' })
     ])
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
     expect(currentCardText()).toBe('"Wach"')
 
@@ -102,7 +112,7 @@ describe('InboxPage', () => {
   it('übernimmt den Eintrag per "Signal" in die Signale und zeigt den nächsten', async () => {
     // Arrange
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
 
     // Act
@@ -118,7 +128,7 @@ describe('InboxPage', () => {
   it('stellt einen Eintrag per "Später" zurück und zeigt einen Hinweis', async () => {
     // Arrange
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
 
     // Act
@@ -133,7 +143,7 @@ describe('InboxPage', () => {
   it('verwirft einen Eintrag mit Rückgängig-Hinweis', async () => {
     // Arrange
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
 
     // Act
@@ -148,7 +158,7 @@ describe('InboxPage', () => {
   it('füllt den Entwurf beim Öffnen der Details mit den Werten des Eintrags', async () => {
     // Arrange
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
 
     // Act
@@ -162,7 +172,7 @@ describe('InboxPage', () => {
   it('speichert Änderungen aus den Details, ohne den Eintrag zu verlassen', async () => {
     // Arrange
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
     fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
     fireEvent.change(await screen.findByLabelText(en.text), { target: { value: 'Erste Notiz, überarbeitet' } })
@@ -179,7 +189,7 @@ describe('InboxPage', () => {
   it('behält den Entwurf, wenn derselbe Eintrag neu geladen wird', async () => {
     // Arrange
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
     fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
     fireEvent.change(await screen.findByLabelText(en.note), { target: { value: 'Mein Entwurf' } })
@@ -196,7 +206,7 @@ describe('InboxPage', () => {
   it('schließt die Details und setzt den Entwurf zurück, wenn ein anderer Eintrag oben liegt', async () => {
     // Arrange
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
     fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
     fireEvent.change(await screen.findByLabelText(en.text), { target: { value: 'Ungespeichert' } })
@@ -216,7 +226,7 @@ describe('InboxPage', () => {
     // Arrange
     localStorage.removeItem(coachKey)
     await seedInbox()
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
 
     // Act
     const gotIt = await screen.findByRole('button', { name: en.coachGotIt })
@@ -232,7 +242,7 @@ describe('InboxPage', () => {
     await seedInbox()
 
     // Act
-    renderWithProviders(<InboxPage />)
+    await renderInbox()
     await screen.findByRole('blockquote')
 
     // Assert

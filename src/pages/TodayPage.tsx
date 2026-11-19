@@ -18,7 +18,7 @@ import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { useToastStore } from '../store/useToastStore'
-import { quoteStatus } from '../types/quote'
+import { quoteStatus, type Quote } from '../types/quote'
 import { lerp } from '../utils/math'
 
 export function TodayPage() {
@@ -34,7 +34,6 @@ export function TodayPage() {
   const [bookTitle, setBookTitle] = useState('')
   const [bookAuthor, setBookAuthor] = useState('')
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
-  const [coachVisible, setCoachVisible] = useState(false)
 
   useEffect(() => {
     void loadQuotes()
@@ -50,6 +49,15 @@ export function TodayPage() {
     () => selectDailyStack(quotes, { limit: dailyCount, mode: dailyMode, bookWeights }),
     [bookWeights, dailyCount, dailyMode, quotes]
   )
+
+  // Keep the cards of this visit stable while the underlying selection changes (adjusting state while rendering, not in an effect).
+  const [sessionSource, setSessionSource] = useState<{ quotes: Quote[]; selected: Quote[] }>()
+  if (sessionSource?.quotes !== quotes || sessionSource?.selected !== selectedDailyQuotes) {
+    setSessionSource({ quotes, selected: selectedDailyQuotes })
+    const nextIds = nextSessionIds(sessionQuoteIds, quotes, selectedDailyQuotes)
+    if (nextIds !== sessionQuoteIds) setSessionQuoteIds(nextIds)
+  }
+
   const dailyQuotes = useMemo(() => {
     if (sessionQuoteIds.length === 0) return selectedDailyQuotes
     const quoteById = new Map(quotes.map((quote) => [quote.id, quote]))
@@ -58,6 +66,8 @@ export function TodayPage() {
   const weeklyReflection = useMemo(() => buildReflection(quotes, books, 'week'), [books, quotes])
   const showReflectionNudge = weeklyReflection.entries.length >= 3
   const inboxCount = useMemo(() => quotes.filter((quote) => quoteStatus(quote) === 'inbox' && !quote.deletedAt).length, [quotes])
+
+  if (index > dailyQuotes.length) setIndex(dailyQuotes.length)
 
   const currentIndex = Math.min(index, dailyQuotes.length)
   const currentQuote = dailyQuotes[currentIndex]
@@ -68,39 +78,22 @@ export function TodayPage() {
   // Shrink long quotes to fit the card instead of clipping them.
   const { containerRef, textRef } = useFitText(currentQuote?.id ?? '')
 
-  useEffect(() => {
+  // Close the card-level popups whenever a different card comes to the top (adjusting state while rendering, not in an effect).
+  const currentQuoteId = currentQuote?.id
+  const [popupQuoteId, setPopupQuoteId] = useState(currentQuoteId)
+  if (currentQuoteId !== popupQuoteId) {
+    setPopupQuoteId(currentQuoteId)
     setContextOpen(false)
     setBookEditorOpen(false)
-  }, [currentQuote?.id])
+  }
 
-  useEffect(() => {
-    const selectedIds = selectedDailyQuotes.map((quote) => quote.id)
-    setSessionQuoteIds((currentIds) => {
-      const existingIds = new Set(quotes.map((quote) => quote.id))
-      if (selectedIds.length === 0) {
-        const retainedIds = currentIds.filter((id) => existingIds.has(id))
-        return sameIds(retainedIds, currentIds) ? currentIds : retainedIds
-      }
-      if (currentIds.length === 0) return selectedIds
-      const retainedIds = currentIds.filter((id) => existingIds.has(id))
-      if (retainedIds.length === 0) return selectedIds
-      return sameIds(retainedIds, currentIds) ? currentIds : retainedIds
-    })
-  }, [quotes, selectedDailyQuotes])
-
-  useEffect(() => {
-    if (index > dailyQuotes.length) {
-      setIndex(dailyQuotes.length)
-    }
-  }, [dailyQuotes.length, index])
-
-  useEffect(() => {
-    if (currentQuote && shouldShowCoachmark()) setCoachVisible(true)
-  }, [currentQuote])
+  // The coach is shown once per device; whether it was seen is read once when the page mounts.
+  const [coachDismissed, setCoachDismissed] = useState(() => !shouldShowCoachmark())
+  const coachVisible = Boolean(currentQuote) && !coachDismissed
 
   function dismissCoach() {
     markCoachmarkSeen()
-    setCoachVisible(false)
+    setCoachDismissed(true)
   }
 
   function advanceIndex() {
@@ -442,6 +435,19 @@ export function TodayPage() {
       </footer>
     </div>
   )
+}
+
+function nextSessionIds(currentIds: string[], quotes: Quote[], selectedQuotes: Quote[]) {
+  const selectedIds = selectedQuotes.map((quote) => quote.id)
+  const existingIds = new Set(quotes.map((quote) => quote.id))
+  if (selectedIds.length === 0) {
+    const retainedIds = currentIds.filter((id) => existingIds.has(id))
+    return sameIds(retainedIds, currentIds) ? currentIds : retainedIds
+  }
+  if (currentIds.length === 0) return selectedIds
+  const retainedIds = currentIds.filter((id) => existingIds.has(id))
+  if (retainedIds.length === 0) return selectedIds
+  return sameIds(retainedIds, currentIds) ? currentIds : retainedIds
 }
 
 function sameIds(left: string[], right: string[]) {
