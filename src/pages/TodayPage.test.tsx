@@ -215,6 +215,39 @@ describe('TodayPage', () => {
     expect(useQuoteStore.getState().quotes.find((quote) => quote.id === first)?.likes).toBe(1)
   })
 
+  it('zeigt nach dem Verwerfen per Wisch nach unten die nächste Karte statt die übernächste', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentText()
+
+    // Act
+    swipe(0, 160)
+    await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+
+    // Assert
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+  })
+
+  it('zeigt nach dem Verwerfen über das Kontextmenü die nächste Karte statt die übernächste', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentText()
+    await longPress()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.deleteNoise }))
+    await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+
+    // Assert
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+  })
+
   it('schließt den Buch-Editor, sobald eine andere Karte oben liegt', async () => {
     // Arrange
     await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])

@@ -119,7 +119,7 @@ export function TodayPage() {
     const id = currentQuote.id
     void discardQuote(id)
     showToast({ message: t('discardedToast'), actionLabel: t('undo'), onAction: () => void restoreQuote(id) })
-    advanceIndex()
+    // No advance: the discarded quote leaves the store (and so the session list), which moves the next card into this slot.
   }
 
   const deck = useSwipeDeck(
@@ -154,7 +154,7 @@ export function TodayPage() {
     setContextOpen(false)
     void discardQuote(id)
     showToast({ message: t('discardedToast'), actionLabel: t('undo'), onAction: () => void restoreQuote(id) })
-    advanceIndex()
+    // No advance: the discarded quote leaves the store (and so the session list), which moves the next card into this slot.
   }
 
   function handleDislike() {
