@@ -9,6 +9,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Testinfrastruktur (Vitest, jsdom, Testing Library, fake-indexeddb) mit `npm test`, `npm run test:watch` und `npm run coverage`; erste Tests für den CSV-Parser.
 - Test fixture library (`makeQuote`, `makeBook`, `readFixture`, synthetic Kindle fixtures) and characterization tests for the Kindle clippings import.
 - Synthetic Readwise CSV fixtures and characterization tests for the Readwise CSV import (header aliases, tag splitting, book merging, duplicate skipping, invalid dates).
+- Synthetic backup fixtures (current, legacy, malicious) and characterization tests for the JSON/CSV/Markdown import and export, including media-URL and ID sanitizing.
 
 ## [0.2.0] - 2026-05-28
 

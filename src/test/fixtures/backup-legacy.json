@@ -1,0 +1,36 @@
+{
+  "_comment": "SYNTHETISCH – nach Format im Code gebaut",
+  "app": "Quiet Signal",
+  "version": 1,
+  "exportedAt": "2025-06-01T08:00:00.000Z",
+  "books": [
+    {
+      "id": "b-legacy-1",
+      "title": "Alte Notizen",
+      "createdAt": "2025-01-01T09:00:00.000Z",
+      "updatedAt": "2025-01-01T09:00:00.000Z"
+    }
+  ],
+  "quotes": [
+    {
+      "id": "q-legacy-1",
+      "text": "Ein altes Zitat ohne neue Felder.",
+      "author": "Unbekannt",
+      "bookId": "b-legacy-1",
+      "tags": ["alt"],
+      "favorite": false,
+      "createdAt": "2025-01-02T09:00:00.000Z",
+      "updatedAt": "2025-01-02T09:00:00.000Z",
+      "reviewCount": 0
+    },
+    {
+      "id": "q-legacy-2",
+      "text": "Noch ein altes Zitat.",
+      "tags": [],
+      "favorite": true,
+      "createdAt": "2025-01-03T09:00:00.000Z",
+      "updatedAt": "2025-01-03T09:00:00.000Z",
+      "reviewCount": 3
+    }
+  ]
+}

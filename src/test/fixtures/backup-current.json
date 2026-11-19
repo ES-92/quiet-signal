@@ -1,0 +1,73 @@
+{
+  "_comment": "SYNTHETISCH – nach Format im Code gebaut",
+  "app": "Quiet Signal",
+  "version": 1,
+  "exportedAt": "2026-02-02T12:00:00.000Z",
+  "books": [
+    {
+      "id": "b-1",
+      "title": "The Art of Quiet",
+      "author": "Jane Doe",
+      "weight": "often",
+      "source": "readwise",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    }
+  ],
+  "quotes": [
+    {
+      "id": "q-1",
+      "text": "Silence is not the absence of sound.",
+      "author": "Jane Doe",
+      "work": "The Art of Quiet",
+      "source": "The Art of Quiet",
+      "year": "2019",
+      "bookId": "b-1",
+      "tags": ["stille", "fokus"],
+      "note": "Kapitel 3",
+      "entryType": "book_quote",
+      "favorite": true,
+      "likes": 2,
+      "status": "signal",
+      "signalStrength": "strong",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "reviewCount": 1,
+      "lastReviewedAt": "2026-01-15T09:00:00.000Z",
+      "nextReviewAt": "2026-02-15T09:00:00.000Z"
+    },
+    {
+      "id": "q-2",
+      "text": "Gespräch beim Spaziergang",
+      "tags": ["alltag"],
+      "entryType": "conversation",
+      "occurredAt": "2026-01-20",
+      "people": ["Anna", "Ben"],
+      "locationName": "Eilenriede",
+      "locationLatitude": 52.38,
+      "locationLongitude": 9.76,
+      "favorite": false,
+      "likes": 0,
+      "status": "inbox",
+      "signalStrength": "quiet",
+      "createdAt": "2026-01-20T10:00:00.000Z",
+      "updatedAt": "2026-01-20T10:00:00.000Z",
+      "reviewCount": 0
+    },
+    {
+      "id": "q-3",
+      "text": "",
+      "tags": ["foto"],
+      "entryType": "observation",
+      "imageDataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "imageMimeType": "image/png",
+      "favorite": false,
+      "likes": 0,
+      "status": "signal",
+      "signalStrength": "normal",
+      "createdAt": "2026-01-25T10:00:00.000Z",
+      "updatedAt": "2026-01-25T10:00:00.000Z",
+      "reviewCount": 0
+    }
+  ]
+}

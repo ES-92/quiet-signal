@@ -1,0 +1,44 @@
+{
+  "_comment": "SYNTHETISCH – nach Format im Code gebaut",
+  "app": "Quiet Signal",
+  "version": 1,
+  "exportedAt": "2026-02-02T12:00:00.000Z",
+  "books": [
+    { "id": "../../b", "title": "Böses Buch", "weight": "normal", "createdAt": "2026-01-01T09:00:00.000Z", "updatedAt": "2026-01-01T09:00:00.000Z" }
+  ],
+  "quotes": [
+    {
+      "id": "../../x",
+      "text": "Präpariertes Bild",
+      "bookId": "../../b",
+      "tags": [],
+      "imageDataUrl": "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+      "imageMimeType": "text/html",
+      "favorite": false,
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "reviewCount": 0
+    },
+    {
+      "id": "q-ok",
+      "text": "Präpariertes Audio",
+      "tags": [],
+      "audioDataUrl": "javascript:alert(1)",
+      "audioMimeType": "audio/webm",
+      "favorite": false,
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "reviewCount": 0
+    },
+    {
+      "id": "q-svg",
+      "text": "SVG als Bild",
+      "tags": [],
+      "imageDataUrl": "data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9ImFsZXJ0KDEpIi8+",
+      "favorite": false,
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "reviewCount": 0
+    }
+  ]
+}
