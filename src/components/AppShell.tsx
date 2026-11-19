@@ -1,7 +1,7 @@
 import { Heart, Loader2, Menu } from 'lucide-react'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { captureEventName, isCaptureMode, type CaptureMode } from '../services/captureEvents'
 import { tapHaptic } from '../services/haptics'
 import { CommandDrawer } from './CommandDrawer'
@@ -44,8 +44,8 @@ export function AppShell() {
     const params = new URLSearchParams(location.search)
     const mode = params.get('capture')
     if (!isCaptureMode(mode)) return
-    setCaptureMode(mode)
-    setCaptureOpen(true)
+    // Route through the capture listener so state is only set from the event callback.
+    window.dispatchEvent(new CustomEvent(captureEventName, { detail: { mode } }))
     navigate('/today', { replace: true })
   }, [isToday, location.search, navigate])
 
