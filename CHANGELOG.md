@@ -21,6 +21,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Moved build-only packages `vite-plugin-pwa` and `@vitejs/plugin-react` from `dependencies` to `devDependencies`.
 - Split the translations file into one file per language under `src/i18n/locales/`; public exports are unchanged, and a missing key in any language now fails type checking. Added tests for key parity across languages.
 - Resolved the React-hooks lint warnings in the shell components (AppShell, CommandDrawer, ConfirmSheet, InstallPrompt, Onboarding, WhatsNew, ZeroCaptureSheet) and the pages (BookDetailPage, InboxPage, TodayPage, TrashPage), each covered by new component tests and without visible behavior change apart from the quick-capture draft fix listed under Fixed; `useI18n` now lives in `src/i18n/useI18n.ts` (the `I18nProvider` module only exports the provider). `npm run lint` now fails on warnings (`--max-warnings 0`). The quote store exposes a `loadedAt` timestamp so the inbox can hide snoozed entries without reading the clock while rendering.
+- Split `SettingsPage` (683 lines) into one component per settings section under `src/components/settings/` and focused hooks (`useEncryptionSettings`, `usePinLock`, `useReminderSettings`, `useShortcutCopy`, `useBackupStatus`, `useSecurityStatus`, `useClearAllData`); the page is now about 100 lines. No visible behavior change; covered by new page and hook tests.
 
 ### Fixed
 - Quick-capture sheet no longer discards the draft when the app re-renders while it is open.
