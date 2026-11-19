@@ -13,6 +13,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Characterization tests for the PIN lock and vault encryption (PIN verify/clear, AES-GCM roundtrip for quotes and books, unique IVs, locked/unlock behavior).
 - Characterization tests for the database layer against fake-indexeddb (defaults, normalization, trash, legacy v1 schema upgrade, encryption roundtrip and locked behavior, corrupt-row and double-enable data-safety cases).
 - Characterization tests for the spaced-repetition review algorithm (interval table, `applyReview`, daily stack selection and determinism), including a pinned UTC-vs-local-day behavior around midnight.
+- Characterization tests for reflections, book merge suggestions, backup state, release notes and quote search/filtering, including pinned UTC-vs-local date quirks.
 
 ## [0.2.0] - 2026-05-28
 
