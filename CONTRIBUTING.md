@@ -19,24 +19,50 @@ Useful scripts:
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier (write) |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Run the test suite once (Vitest) |
+| `npm run test:watch` | Run Vitest in watch mode |
+| `npm run coverage` | Run the tests with a V8 coverage report |
 
-**`npm test`, `npm run build` and `npm run lint` must pass** for any change, and please verify your change in the running app.
+**`npm run lint`, `npm run typecheck`, `npm test` and `npm run build` must pass** for any change (lint fails on warnings), and please verify your change in the running app. CI runs exactly these four on every pull request and on `main`; CI must be green before merging.
+
+## Tests
+
+We work test-first: **no production code without a failing test first.** Write the test, watch it fail for the right reason, then make it pass. For a bug fix, start with a test that reproduces the bug.
+
+- Stack: Vitest, jsdom, Testing Library, `fake-indexeddb`. Test files sit next to the code (`*.test.ts` / `*.test.tsx`).
+- Structure each test as Arrange, Act, Assert (with `// Arrange`, `// Act`, `// Assert` comments).
+- Tests must be deterministic and offline. The time zone is pinned to `Europe/Berlin` (`vitest.global-setup.ts`); control the clock with `vi.useFakeTimers()` / `vi.setSystemTime()`.
+- Helpers live in `src/test/`: `makeQuote` / `makeBook` / `readFixture` (`factories.ts`) and `renderWithProviders` (`render.tsx`, wraps i18n and router).
+- **Fixtures are synthetic.** Never commit real notes, highlights or backups. Put sample files in `src/test/fixtures/`, build them from the format the code expects, mark them as synthetic, and list them in `src/test/fixtures/README.md`.
+- Characterization tests that pin behaviour you suspect is wrong should say so in a comment; fix the behaviour in a separate change.
+
+## Reporting bugs
+
+Open an issue and give it the label `bug`, with steps to reproduce. A fixing PR should reference it (`Fixes #123`).
+
+## Pull requests
+
+- Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:`).
+- Add a line to [`CHANGELOG.md`](CHANGELOG.md) under `## [Unreleased]` (Added / Changed / Fixed / Removed) for every PR.
+- Keep PRs focused and make sure CI is green.
 
 ## Conventions
 
 - Style: **no semicolons, single quotes, 2-space indent**, functional components with **named exports** (Prettier + ESLint enforce this).
 - **All persistence goes through `src/db/database.ts`** (the encryption layer lives there) — don't touch the Dexie tables directly.
-- **UI text goes through i18n** (`src/i18n/translations.ts`) and must exist in **all four** language blocks (`de`, `en`, `es`, `fr`), or the build fails. English + German are first-class; Spanish/French fall back to English.
+- **UI text goes through i18n** (`src/i18n/translations.ts`, with one file per language in `src/i18n/locales/`) and must exist in **all four** languages (`de`, `en`, `es`, `fr`), or type checking (and so the build) fails. English + German are first-class; Spanish/French fall back to English.
 - Keep components focused; comments explain *why*, not *what*.
-- Commits: short, imperative, ideally prefixed (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).
+- Commits: short, imperative, Conventional Commits prefix (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:`).
 
 ## Architecture at a glance
 
 - **Local-first, no backend.** All data lives in the browser via IndexedDB (Dexie); settings in `localStorage`.
 - **All persistence goes through `src/db/database.ts`** — the optional encryption layer lives there. Don't touch the Dexie tables directly.
-- **State:** Zustand stores in `src/store/`. **UI:** pages in `src/pages/`, shared components in `src/components/`.
+- **State:** Zustand stores in `src/store/`. **UI:** thin pages in `src/pages/`, sections and components in `src/components/`, UI logic in `src/hooks/`.
 - **Daily resurfacing / spaced repetition:** `src/services/review.ts`.
 - **PWA:** custom service worker in `src/sw.ts`; manifest in `vite.config.ts`.
-- **i18n:** `src/i18n/translations.ts` (de/en/es/fr — keys must exist in all four).
+- **i18n:** `src/i18n/translations.ts` and `src/i18n/locales/` (de/en/es/fr — keys must exist in all four).
+
+The details (layers, data model, review algorithm, security model) are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 By contributing, you agree that your contributions are licensed under the project's [MIT License](LICENSE).

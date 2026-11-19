@@ -37,7 +37,7 @@ Quiet Signal is built around a simple metaphor: capture the **noise**, keep the 
 - **Books & sources** — group quotes by book, tune how often a book resurfaces.
 - **Reflections** — a quiet weekly/monthly letter built from your own signals.
 - **Import & export** — import **Kindle** clippings and **Readwise CSV**; export everything as **JSON, CSV, or Markdown**. Your data is always yours.
-- **Private by design** — no account, no cloud, no tracking. Optional **PIN lock** and **AES-GCM vault encryption** for your entries.
+- **Private by design** — no account, no cloud, no tracking. Optional **PIN lock** (a view lock) and **AES-GCM vault encryption** for your entries; see the [security model](docs/ARCHITECTURE.md#security-model).
 - **Installable PWA** — works offline, "Add to Home Screen", share-target support.
 - **Multilingual** — German, English, Spanish, French.
 
@@ -70,6 +70,17 @@ npm run dev      # http://127.0.0.1:5173
 npm run build    # tsc + vite build
 npm run preview
 ```
+
+## Development & tests
+
+```bash
+npm install
+npm run dev        # dev server
+npm test           # unit + component tests (Vitest)
+npm run lint && npm run typecheck && npm run build
+```
+
+CI runs lint, type check, tests and build on every pull request. Tests are written test-first and use synthetic fixtures only. How the app is put together (layers, data model, review algorithm, security model) is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); contribution rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Tech stack
 

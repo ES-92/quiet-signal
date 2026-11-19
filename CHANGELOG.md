@@ -15,6 +15,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Characterization tests for the spaced-repetition review algorithm (interval table, `applyReview`, daily stack selection and determinism), including a pinned UTC-vs-local-day behavior around midnight.
 - Characterization tests for reflections, book merge suggestions, backup state, release notes and quote search/filtering, including pinned UTC-vs-local date quirks.
 - GitHub Actions CI workflow (lint, typecheck, tests, build on push to `main` and on pull requests) and a CI status badge in the README.
+- `docs/ARCHITECTURE.md` (layers, data flow, Dexie versions 1–5, review algorithm, security model, known limitations), updated `CONTRIBUTING.md` (test-first rule, test commands, fixtures convention, changelog and bug-label rules) and a "Development & tests" section in the README.
 - Dependabot configuration for npm and GitHub Actions with weekly, grouped minor/patch updates.
 
 ### Changed
