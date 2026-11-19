@@ -50,7 +50,18 @@ describe('periodRange', () => {
     expect(end.getTime()).toBe(new Date('2026-03-31T23:59:59.999+02:00').getTime())
   })
 
-  it('rechnet das Wochenende der Zeitumstellung mit festen 7*24h', () => {
+  it('endet die Woche der Winterzeit-Umstellung am Sonntag 23:59:59.999 Ortszeit', () => {
+    // Arrange
+    const now = new Date('2026-10-22T10:00:00+02:00') // Woche mit Umstellung am 25.10.
+
+    // Act
+    const { end } = periodRange('week', now)
+
+    // Assert
+    expect(end.getTime()).toBe(new Date('2026-10-25T23:59:59.999+01:00').getTime())
+  })
+
+  it('endet die Woche der Sommerzeit-Umstellung am Sonntag 23:59:59.999 Ortszeit', () => {
     // Arrange
     const now = new Date('2026-03-25T10:00:00+01:00') // Woche mit Umstellung am 29.03.
 
@@ -58,8 +69,7 @@ describe('periodRange', () => {
     const { end } = periodRange('week', now)
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10 (Wochenende endet 00:59 statt 23:59 Ortszeit)
-    expect(end.getTime()).toBe(new Date('2026-03-30T00:59:59.999+02:00').getTime())
+    expect(end.getTime()).toBe(new Date('2026-03-29T23:59:59.999+02:00').getTime())
   })
 })
 

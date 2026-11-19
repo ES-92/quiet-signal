@@ -25,8 +25,6 @@ export interface ReflectionSummary {
   topTime?: ReflectionMetric
 }
 
-const dayMs = 24 * 60 * 60 * 1000
-
 export function buildReflection(quotes: Quote[], books: Book[], period: ReflectionPeriod, now = new Date()): ReflectionSummary {
   const { start, end } = periodRange(period, now)
   const bookById = new Map(books.map((book) => [book.id, book]))
@@ -105,7 +103,14 @@ export function periodRange(period: ReflectionPeriod, now = new Date()) {
     start.setDate(1)
   }
 
-  const end = period === 'week' ? new Date(start.getTime() + 7 * dayMs - 1) : new Date(start.getFullYear(), start.getMonth() + 1, 1, 0, 0, 0, -1)
+  let end: Date
+  if (period === 'week') {
+    const nextWeekStart = new Date(start)
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7)
+    end = new Date(nextWeekStart.getTime() - 1)
+  } else {
+    end = new Date(start.getFullYear(), start.getMonth() + 1, 1, 0, 0, 0, -1)
+  }
   return { start, end }
 }
 
