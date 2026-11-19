@@ -19,6 +19,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ### Changed
 - Moved build-only packages `vite-plugin-pwa` and `@vitejs/plugin-react` from `dependencies` to `devDependencies`.
+- Split the translations file into one file per language under `src/i18n/locales/`; public exports are unchanged, and a missing key in any language now fails type checking. Added tests for key parity across languages.
 
 ### Fixed
 - CSV export now quotes fields containing a carriage return (`\r`), so they survive a CSV export/import roundtrip instead of splitting into extra rows (#13).
