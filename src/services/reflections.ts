@@ -1,4 +1,5 @@
 import type { Book } from '../types/book'
+import { localDateKey } from '../utils/date'
 import { entryType, quoteStatus, signalStrength, type Quote } from '../types/quote'
 
 export type ReflectionPeriod = 'week' | 'month'
@@ -68,7 +69,7 @@ export function reflectionMarkdown(summary: ReflectionSummary, letter: string) {
   const lines = [
     `# ${summary.period === 'week' ? 'Weekly' : 'Monthly'} Reflection`,
     '',
-    `${formatDate(summary.start)} - ${formatDate(summary.end)}`,
+    `${localDateKey(summary.start)} - ${localDateKey(summary.end)}`,
     '',
     letter,
     '',
@@ -157,8 +158,4 @@ function timeBucket(timestamp: number): 'morning' | 'afternoon' | 'evening' | 'n
 function quoteLine(quote: Quote) {
   const attribution = [quote.author, quote.work].filter(Boolean).join(', ')
   return `> ${quote.text || quote.note || 'Untitled signal'}${attribution ? `\n\n- ${attribution}` : ''}`
-}
-
-function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10)
 }

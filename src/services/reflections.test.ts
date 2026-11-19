@@ -237,7 +237,7 @@ describe('reflectionMarkdown', () => {
     expect(md).toContain('- Autor')
   })
 
-  it('formatiert den Wochenbeginn als UTC-Datum', () => {
+  it('formatiert den Wochenbeginn als lokales Datum', () => {
     // Arrange
     const summary = buildReflection([], [], 'week', new Date(NOW))
 
@@ -245,7 +245,6 @@ describe('reflectionMarkdown', () => {
     const md = reflectionMarkdown(summary, '')
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10 (toISOString: Montag 00:00 Berlin wird zum Sonntag)
-    expect(md).toContain('2026-03-08 - 2026-03-15')
+    expect(md).toContain('2026-03-09 - 2026-03-15')
   })
 })
