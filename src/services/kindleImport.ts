@@ -91,6 +91,8 @@ export function buildKindleImport(content: string, existingBooks: Book[], existi
   const newQuotes: Quote[] = []
   let skipped = 0
   const touchedBooks = new Set<string>()
+  // Quotes created in this run, per book, so a later longer highlight can replace them.
+  const runQuotesByKey = new Map<string, Map<string, Quote>>()
 
   for (const clip of clippings) {
     const key = bookKey(clip.title, clip.author)
@@ -115,13 +117,25 @@ export function buildKindleImport(content: string, existingBooks: Book[], existi
     seenTextsByKey.set(key, seen)
 
     const normalized = normalize(clip.text)
-    if (isDuplicateOrSuperseded(normalized, seen)) {
+    const superseded: string[] = []
+    if (isDuplicateOrSuperseded(normalized, seen, superseded)) {
       skipped += 1
       continue
     }
     seen.add(normalized)
 
-    newQuotes.push({
+    // Drop shorter highlights of this run that the incoming one extends (counted as skipped).
+    const runQuotes = runQuotesByKey.get(key) ?? new Map<string, Quote>()
+    runQuotesByKey.set(key, runQuotes)
+    for (const shorter of superseded) {
+      const stale = runQuotes.get(shorter)
+      if (!stale) continue // came from existing storage, not from this run
+      newQuotes.splice(newQuotes.indexOf(stale), 1)
+      runQuotes.delete(shorter)
+      skipped += 1
+    }
+
+    const quote: Quote = {
       id: crypto.randomUUID(),
       text: clip.text,
       author: clip.author,
@@ -137,7 +151,9 @@ export function buildKindleImport(content: string, existingBooks: Book[], existi
       createdAt: clip.addedAt ?? now,
       updatedAt: clip.addedAt ?? now,
       reviewCount: 0
-    })
+    }
+    newQuotes.push(quote)
+    runQuotes.set(normalized, quote)
   }
 
   return {
@@ -149,14 +165,17 @@ export function buildKindleImport(content: string, existingBooks: Book[], existi
   }
 }
 
-function isDuplicateOrSuperseded(normalized: string, seen: Set<string>) {
+function isDuplicateOrSuperseded(normalized: string, seen: Set<string>, superseded: string[]) {
   for (const existing of seen) {
     if (existing === normalized) return true
     // Extended highlights: keep only the longer one. If the incoming text is a
     // substring of something seen, it's superseded; if it contains a seen text,
-    // drop the shorter seen one and accept the longer incoming one.
+    // drop the shorter seen one (reported via `superseded`) and accept the longer incoming one.
     if (existing.includes(normalized)) return true
-    if (normalized.includes(existing)) seen.delete(existing)
+    if (normalized.includes(existing)) {
+      seen.delete(existing)
+      superseded.push(existing)
+    }
   }
   return false
 }

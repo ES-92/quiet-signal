@@ -124,15 +124,13 @@ describe('buildKindleImport', () => {
     // Assert
     expect(plan.bookCount).toBe(2)
     expect(plan.newBooks).toHaveLength(2)
-    // 5 Clippings: 1 exaktes Duplikat wird übersprungen.
-    expect(plan.skippedCount).toBe(1)
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-    // Die kürzere Markierung steht zuerst und wird schon importiert; die überholte (längere)
-    // Fassung wird zusätzlich importiert, die kürzere nicht entfernt -> beide landen in newQuotes.
-    expect(plan.importedCount).toBe(4)
+    // 5 Clippings, 2 übersprungen: (1) das exakte Duplikat von „Silence is not …“ und
+    // (2) die kürzere, überholte Fassung von „Attention is …“, die durch die längere ersetzt wird.
+    // Importiert werden damit 3 (5 - 2): Silence, die lange Attention-Fassung und Keep.
+    expect(plan.skippedCount).toBe(2)
+    expect(plan.importedCount).toBe(3)
     expect(plan.newQuotes.map((q) => q.text)).toEqual([
       'Silence is not the absence of sound.',
-      'Attention is the rarest form of generosity',
       'Attention is the rarest form of generosity, and the most underrated.',
       'Keep what resonates.'
     ])
@@ -159,6 +157,53 @@ describe('buildKindleImport', () => {
     // Assert
     expect(plan.importedCount).toBe(1)
     expect(plan.skippedCount).toBe(1)
+  })
+
+  it('ersetzt eine bereits vorgemerkte kürzere Markierung durch die spätere längere', () => {
+    // Arrange
+    const content = [
+      'Buch (Autor, Eva)',
+      '- Your Highlight | Added on Monday, March 3, 2025 10:15:00 AM',
+      '',
+      'Lang genug',
+      '==========',
+      'Buch (Autor, Eva)',
+      '- Your Highlight | Added on Monday, March 3, 2025 10:16:00 AM',
+      '',
+      'Lang genug, um den Kurztext zu enthalten.',
+      '=========='
+    ].join('\n')
+
+    // Act
+    const plan = buildKindleImport(content, [], [])
+
+    // Assert
+    expect(plan.importedCount).toBe(1)
+    expect(plan.skippedCount).toBe(1)
+    expect(plan.newQuotes.map((q) => q.text)).toEqual(['Lang genug, um den Kurztext zu enthalten.'])
+  })
+
+  it('wertet überholte Markierungen nur innerhalb desselben Buchs aus', () => {
+    // Arrange
+    const content = [
+      'Buch A (Autor, Eva)',
+      '- Your Highlight | Added on Monday, March 3, 2025 10:15:00 AM',
+      '',
+      'Lang genug',
+      '==========',
+      'Buch B (Autor, Eva)',
+      '- Your Highlight | Added on Monday, March 3, 2025 10:16:00 AM',
+      '',
+      'Lang genug, um den Kurztext zu enthalten.',
+      '=========='
+    ].join('\n')
+
+    // Act
+    const plan = buildKindleImport(content, [], [])
+
+    // Assert
+    expect(plan.importedCount).toBe(2)
+    expect(plan.skippedCount).toBe(0)
   })
 
   it('importiert beim erneuten Import mit den Ergebnissen als Bestand nichts', () => {
