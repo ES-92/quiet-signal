@@ -10,6 +10,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Test fixture library (`makeQuote`, `makeBook`, `readFixture`, synthetic Kindle fixtures) and characterization tests for the Kindle clippings import.
 - Synthetic Readwise CSV fixtures and characterization tests for the Readwise CSV import (header aliases, tag splitting, book merging, duplicate skipping, invalid dates).
 - Synthetic backup fixtures (current, legacy, malicious) and characterization tests for the JSON/CSV/Markdown import and export, including media-URL and ID sanitizing.
+- Characterization tests for the PIN lock and vault encryption (PIN verify/clear, AES-GCM roundtrip for quotes and books, unique IVs, locked/unlock behavior).
 
 ## [0.2.0] - 2026-05-28
 
