@@ -10,7 +10,10 @@ const wrapper = ({ children }: { children: ReactNode }) => <I18nProvider>{childr
 describe('useShortcutCopy', () => {
   it('bestätigt das Kopieren des Links', async () => {
     // Arrange
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true })
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true
+    })
     const { result } = renderHook(() => useShortcutCopy(), { wrapper })
 
     // Act
@@ -22,7 +25,10 @@ describe('useShortcutCopy', () => {
 
   it('zeigt den Link selbst, wenn die Zwischenablage fehlschlägt', async () => {
     // Arrange
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockRejectedValue(new Error('x')) }, configurable: true })
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('x')) },
+      configurable: true
+    })
     const { result } = renderHook(() => useShortcutCopy(), { wrapper })
 
     // Act
