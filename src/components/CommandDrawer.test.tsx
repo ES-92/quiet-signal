@@ -1,0 +1,108 @@
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { db } from '../db/database'
+import { translations } from '../i18n/translations'
+import { useBookStore } from '../store/useBookStore'
+import { useQuoteStore } from '../store/useQuoteStore'
+import { makeBook, makeQuote, resetFactories } from '../test/factories'
+import { renderWithProviders } from '../test/render'
+import { CommandDrawer } from './CommandDrawer'
+
+const en = translations.en
+
+beforeEach(async () => {
+  resetFactories()
+  await db.delete()
+  await db.open()
+  useQuoteStore.setState({ quotes: [] })
+  useBookStore.setState({ books: [] })
+})
+
+describe('CommandDrawer', () => {
+  it('rendert nichts, solange es geschlossen ist', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open={false} onClose={vi.fn()} />)
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('zeigt beim Öffnen alle Navigationsziele', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+
+    // Assert
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: en.trash })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: en.today })).toBeInTheDocument()
+  })
+
+  it('filtert die Navigationsziele nach der Suche', () => {
+    // Arrange
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+
+    // Act
+    fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'trash' } })
+
+    // Assert
+    expect(screen.getByRole('link', { name: en.trash })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: en.today })).not.toBeInTheDocument()
+  })
+
+  it('zeigt einen Hinweis, wenn nichts gefunden wird', () => {
+    // Arrange
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+
+    // Act
+    fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'zzzxqy' } })
+
+    // Assert
+    expect(screen.getByText(en.commandNoMatches)).toBeInTheDocument()
+  })
+
+  it('lädt beim Öffnen Zitate und Bücher aus der Datenbank und findet sie über die Suche', async () => {
+    // Arrange
+    await db.quotes.put(makeQuote({ text: 'Schweigen ist Gold' }))
+    await db.books.put(makeBook({ title: 'Schweigen lernen' }))
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+
+    // Act
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(1))
+    await waitFor(() => expect(useBookStore.getState().books).toHaveLength(1))
+    fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'schweigen' } })
+
+    // Assert
+    expect(screen.getByText('Schweigen ist Gold')).toBeInTheDocument()
+    expect(screen.getByText('Schweigen lernen')).toBeInTheDocument()
+  })
+
+  it('leert die Suche beim erneuten Öffnen', () => {
+    // Arrange
+    const { rerender } = renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'trash' } })
+
+    // Act
+    act(() => {
+      rerender(<CommandDrawer open={false} onClose={vi.fn()} />)
+    })
+    act(() => {
+      rerender(<CommandDrawer open onClose={vi.fn()} />)
+    })
+
+    // Assert
+    expect(screen.getByRole('textbox', { name: en.commandSearchPlaceholder })).toHaveValue('')
+    expect(screen.getByRole('link', { name: en.today })).toBeInTheDocument()
+  })
+
+  it('ruft onClose bei Escape auf', () => {
+    // Arrange
+    const onClose = vi.fn()
+    renderWithProviders(<CommandDrawer open onClose={onClose} />)
+
+    // Act
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    // Assert
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})

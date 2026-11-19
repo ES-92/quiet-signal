@@ -1,7 +1,7 @@
 import { BookMarked, Coffee, Download, Feather, Hand, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import { openCapture as dispatchCapture } from '../services/captureEvents'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -37,9 +37,12 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
     void loadBooks()
   }, [loadBooks, loadQuotes, open])
 
-  useEffect(() => {
+  // Reset the search each time the drawer opens (adjusted during render, not in an effect).
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (open) setQuery('')
-  }, [open])
+  }
 
   useEffect(() => {
     if (!open) return
