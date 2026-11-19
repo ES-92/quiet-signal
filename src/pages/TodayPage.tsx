@@ -34,6 +34,8 @@ export function TodayPage() {
   const [bookTitle, setBookTitle] = useState('')
   const [bookAuthor, setBookAuthor] = useState('')
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
+  // Discarded cards vanish from the deck at once, before the store has finished persisting and reloading.
+  const [discardedIds, setDiscardedIds] = useState<string[]>([])
 
   useEffect(() => {
     void loadQuotes()
@@ -59,10 +61,11 @@ export function TodayPage() {
   }
 
   const dailyQuotes = useMemo(() => {
-    if (sessionQuoteIds.length === 0) return selectedDailyQuotes
     const quoteById = new Map(quotes.map((quote) => [quote.id, quote]))
-    return sessionQuoteIds.map((id) => quoteById.get(id)).filter(Boolean)
-  }, [quotes, selectedDailyQuotes, sessionQuoteIds])
+    const stack =
+      sessionQuoteIds.length === 0 ? selectedDailyQuotes : sessionQuoteIds.map((id) => quoteById.get(id)).filter((quote) => quote !== undefined)
+    return stack.filter((quote) => !discardedIds.includes(quote.id))
+  }, [discardedIds, quotes, selectedDailyQuotes, sessionQuoteIds])
   const weeklyReflection = useMemo(() => buildReflection(quotes, books, 'week'), [books, quotes])
   const showReflectionNudge = weeklyReflection.entries.length >= 3
   const inboxCount = useMemo(() => quotes.filter((quote) => quoteStatus(quote) === 'inbox' && !quote.deletedAt).length, [quotes])
@@ -108,6 +111,18 @@ export function TodayPage() {
     advanceIndex()
   }
 
+  function markDiscarded(id: string) {
+    setDiscardedIds((ids) => [...ids, id])
+    showToast({
+      message: t('discardedToast'),
+      actionLabel: t('undo'),
+      onAction: () => {
+        setDiscardedIds((ids) => ids.filter((item) => item !== id))
+        void restoreQuote(id)
+      }
+    })
+  }
+
   function handleSnooze() {
     if (!currentQuote) return
     void snoozeQuote(currentQuote.id)
@@ -118,8 +133,8 @@ export function TodayPage() {
     if (!currentQuote) return
     const id = currentQuote.id
     void discardQuote(id)
-    showToast({ message: t('discardedToast'), actionLabel: t('undo'), onAction: () => void restoreQuote(id) })
-    // No advance: the discarded quote leaves the store (and so the session list), which moves the next card into this slot.
+    markDiscarded(id)
+    // No advance: hiding the discarded quote moves the next card into this slot.
   }
 
   const deck = useSwipeDeck(
@@ -153,8 +168,8 @@ export function TodayPage() {
     const id = currentQuote.id
     setContextOpen(false)
     void discardQuote(id)
-    showToast({ message: t('discardedToast'), actionLabel: t('undo'), onAction: () => void restoreQuote(id) })
-    // No advance: the discarded quote leaves the store (and so the session list), which moves the next card into this slot.
+    markDiscarded(id)
+    // No advance: hiding the discarded quote moves the next card into this slot.
   }
 
   function handleDislike() {

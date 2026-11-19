@@ -248,6 +248,80 @@ describe('TodayPage', () => {
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
   })
 
+  it('blendet die verworfene Karte sofort aus, bevor das Speichern fertig ist', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentText()
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const realDiscard = useQuoteStore.getState().discardQuote
+    act(() => {
+      useQuoteStore.setState({ discardQuote: async (id) => { await gate; await realDiscard(id) } })
+    })
+
+    // Act
+    swipe(0, 160)
+    await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+
+    // Assert
+    expect(useQuoteStore.getState().quotes).toHaveLength(3)
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    release()
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+    expect(currentText()).not.toBe(first)
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+  })
+
+  it('blendet die über das Kontextmenü verworfene Karte sofort aus', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentText()
+    await longPress()
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const realDiscard = useQuoteStore.getState().discardQuote
+    act(() => {
+      useQuoteStore.setState({ discardQuote: async (id) => { await gate; await realDiscard(id) } })
+    })
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.deleteNoise }))
+
+    // Assert
+    expect(currentText()).not.toBe(first)
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    expect(useQuoteStore.getState().quotes).toHaveLength(3)
+    release()
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+  })
+
+  it('zeigt nach dem Verwerfen der letzten Karte den Abschlusszustand', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    swipe(160)
+    await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument(), SLOW)
+    swipe(160)
+    await waitFor(() => expect(screen.getByText('3 of 3')).toBeInTheDocument(), SLOW)
+    await expectReadCount(2)
+
+    // Act
+    swipe(0, 160)
+
+    // Assert
+    await screen.findByText(en.doneForToday, undefined, SLOW)
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+  })
+
   it('schließt den Buch-Editor, sobald eine andere Karte oben liegt', async () => {
     // Arrange
     await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
