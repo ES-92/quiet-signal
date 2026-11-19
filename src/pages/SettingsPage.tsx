@@ -31,6 +31,7 @@ import {
 } from '../services/security'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { useSettingsStore, type AppTheme, type DailyMode } from '../store/useSettingsStore'
 import { quoteStatus } from '../types/quote'
 
@@ -38,6 +39,7 @@ export function SettingsPage() {
   const { language, setLanguage, t } = useI18n()
   const { quotes, loadQuotes, importQuotes, clearAll: clearQuotes } = useQuoteStore()
   const { books, loadBooks, importBooks, clearAll: clearBooks } = useBookStore()
+  const { showToast } = useToastStore()
   const { dailyCount, dailyMode, theme, reminderEnabled, reminderTime, setDailyCount, setDailyMode, setTheme, setReminderEnabled, setReminderTime } =
     useSettingsStore()
   const [pin, setPin] = useState('')
@@ -174,6 +176,9 @@ export function SettingsPage() {
       setPassword('')
       setSecurityMessage(t('encryptionEnabled'))
       setSecurityVersion((value) => value + 1)
+    } catch {
+      showToast({ message: t('encryptionEnableFailed') })
+      setSecurityVersion((value) => value + 1)
     } finally {
       setSecurityBusy(false)
     }
@@ -193,6 +198,9 @@ export function SettingsPage() {
       await loadBooks()
       setPassword('')
       setSecurityMessage(t('encryptionDisabled'))
+      setSecurityVersion((value) => value + 1)
+    } catch {
+      showToast({ message: t('encryptionDisableFailed') })
       setSecurityVersion((value) => value + 1)
     } finally {
       setSecurityBusy(false)

@@ -4,7 +4,8 @@ import {
   decryptQuoteFromStorage,
   disableEncryptionRecord,
   encryptBookForStorage,
-  encryptQuoteForStorage
+  encryptQuoteForStorage,
+  isEncryptionUnlocked
 } from '../services/security'
 import type { Book, BookInput } from '../types/book'
 import type { Quote, QuoteInput } from '../types/quote'
@@ -45,6 +46,8 @@ const now = () => new Date().toISOString()
  * is reported with a single warning and treated like an unreadable row (null), so one
  * bad row cannot make the whole library unreadable.
  */
+const rewriteAbortMessage = 'Some entries could not be decrypted; aborting to avoid data loss.'
+
 async function safeDecryptQuote(row: Quote) {
   try {
     return await decryptQuoteFromStorage(row)
@@ -69,13 +72,18 @@ async function safeDecryptBook(row: Book) {
  * instead of being silently dropped.
  */
 async function loadAllForRewrite() {
+  if (!isEncryptionUnlocked()) throw new Error('Encryption is locked.')
   const quoteRows = await db.quotes.toArray()
   const bookRows = await db.books.toArray()
-  const quotes = await Promise.all(quoteRows.map((row) => decryptQuoteFromStorage(row)))
-  const books = await Promise.all(bookRows.map((row) => decryptBookFromStorage(row)))
-  if (quotes.some((quote) => !quote) || books.some((book) => !book)) {
-    throw new Error('Some entries could not be decrypted; aborting to avoid data loss.')
+  let quotes: (Quote | null)[]
+  let books: (Book | null)[]
+  try {
+    quotes = await Promise.all(quoteRows.map((row) => decryptQuoteFromStorage(row)))
+    books = await Promise.all(bookRows.map((row) => decryptBookFromStorage(row)))
+  } catch {
+    throw new Error(rewriteAbortMessage)
   }
+  if (quotes.some((quote) => !quote) || books.some((book) => !book)) throw new Error(rewriteAbortMessage)
   return {
     quotes: quotes.filter((quote): quote is Quote => Boolean(quote)).map(withQuoteDefaults),
     books: books.filter((book): book is Book => Boolean(book))
@@ -199,19 +207,29 @@ export async function clearBooks() {
 
 export async function encryptAllQuotes() {
   const { quotes, books } = await loadAllForRewrite()
-  await db.quotes.clear()
-  await db.books.clear()
-  await db.quotes.bulkPut(await Promise.all(quotes.map((quote) => encryptQuoteForStorage(quote))))
-  await db.books.bulkPut(await Promise.all(books.map((book) => encryptBookForStorage(book))))
+  // All WebCrypto work happens before the transaction (no non-Dexie awaits inside it);
+  // the tables are only cleared and rewritten atomically, so a failure keeps the old rows.
+  const encryptedQuotes = await Promise.all(quotes.map((quote) => encryptQuoteForStorage(quote)))
+  const encryptedBooks = await Promise.all(books.map((book) => encryptBookForStorage(book)))
+  await db.transaction('rw', db.quotes, db.books, async () => {
+    await db.quotes.clear()
+    await db.books.clear()
+    await db.quotes.bulkPut(encryptedQuotes)
+    await db.books.bulkPut(encryptedBooks)
+  })
 }
 
 export async function decryptAllQuotesAndDisable() {
   const { quotes, books } = await loadAllForRewrite()
-  await db.quotes.clear()
-  await db.books.clear()
+  const plainQuotes = quotes.map((quote) => ({ ...quote, tags: normalizeTags(quote.tags) }))
+  await db.transaction('rw', db.quotes, db.books, async () => {
+    await db.quotes.clear()
+    await db.books.clear()
+    await db.quotes.bulkPut(plainQuotes)
+    await db.books.bulkPut(books)
+  })
+  // Only after the plaintext rows are committed may the encryption record be removed.
   disableEncryptionRecord()
-  await db.quotes.bulkPut(quotes.map((quote) => ({ ...quote, tags: normalizeTags(quote.tags) })))
-  await db.books.bulkPut(books)
 }
 
 export async function listBooks() {

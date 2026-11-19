@@ -47,6 +47,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.useRealTimers()
   lockEncryption()
   disableEncryptionRecord()
@@ -352,7 +353,6 @@ describe('Verschlüsselung', () => {
     expect(quotes.map((quote) => quote.id).sort()).toEqual(['gut-1', 'gut-2'])
     expect(warn).toHaveBeenCalledTimes(1)
     expect(warn.mock.calls[0].join(' ')).toContain('kaputt')
-    warn.mockRestore()
   })
 
   it('überspringt eine beschädigte Zeile auch in listTrashed und getQuote', async () => {
@@ -370,7 +370,6 @@ describe('Verschlüsselung', () => {
     expect(trashed.map((quote) => quote.id)).toEqual(['gut'])
     expect(broken).toBeUndefined()
     expect(warn).toHaveBeenCalledTimes(2)
-    warn.mockRestore()
   })
 
   it('überspringt eine beschädigte verschlüsselte Zeile in listBooks und getBook', async () => {
@@ -389,7 +388,6 @@ describe('Verschlüsselung', () => {
     expect(books.map((book) => book.id)).toEqual(['b1', 'b2'])
     expect(broken).toBeUndefined()
     expect(warn).toHaveBeenCalledTimes(2)
-    warn.mockRestore()
   })
 
   it('encryptAllQuotes bricht bei beschädigter Zeile ab und löscht keine Daten', async () => {
@@ -404,9 +402,9 @@ describe('Verschlüsselung', () => {
     const action = encryptAllQuotes()
 
     // Assert
-    await expect(action).rejects.toThrow()
+    await expect(action).rejects.toThrow('Some entries could not be decrypted; aborting to avoid data loss.')
+    expect(warn).not.toHaveBeenCalled()
     expect(await db.quotes.count()).toBe(2)
-    warn.mockRestore()
   })
 
   it('decryptAllQuotesAndDisable bricht bei beschädigter Zeile ab, löscht nichts und lässt die Verschlüsselung aktiv', async () => {
@@ -421,10 +419,10 @@ describe('Verschlüsselung', () => {
     const action = decryptAllQuotesAndDisable()
 
     // Assert
-    await expect(action).rejects.toThrow()
+    await expect(action).rejects.toThrow('Some entries could not be decrypted; aborting to avoid data loss.')
+    expect(warn).not.toHaveBeenCalled()
     expect(isEncryptionEnabled()).toBe(true)
     expect(await db.quotes.count()).toBe(2)
-    warn.mockRestore()
   })
 
   it('lehnt ein zweites enableEncryption ab und lässt Schlüssel, Salt und Zeilen unverändert', async () => {
@@ -484,5 +482,61 @@ describe('Verschlüsselung', () => {
     expect(isEncryptionEnabled()).toBe(false)
     expect(trashed.map((quote) => quote.id)).toEqual(['papierkorb'])
     expect((await listQuotes()).map((quote) => quote.id).sort()).toEqual(['aktiv', 'papierkorb'])
+  })
+
+  it('encryptAllQuotes lässt bei fehlschlagendem Schreiben alle Originalzeilen unverändert', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Eins' })])
+    await upsertBooks([makeBook({ id: 'b1', title: 'Buch' })])
+    await enableEncryption('passwort-123')
+    vi.spyOn(db.books, 'bulkPut').mockRejectedValueOnce(new Error('Quota'))
+
+    // Act
+    const action = encryptAllQuotes()
+
+    // Assert
+    await expect(action).rejects.toThrow('Quota')
+    expect((await db.quotes.get('q1'))?.text).toBe('Eins')
+    expect((await db.books.get('b1'))?.title).toBe('Buch')
+    expect((await listQuotes()).map((quote) => quote.id)).toEqual(['q1'])
+  })
+
+  it('decryptAllQuotesAndDisable lässt bei fehlschlagendem Schreiben Zeilen verschlüsselt und Verschlüsselung aktiv', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Eins' })])
+    await upsertBooks([makeBook({ id: 'b1', title: 'Buch' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    vi.spyOn(db.books, 'bulkPut').mockRejectedValueOnce(new Error('Quota'))
+
+    // Act
+    const action = decryptAllQuotesAndDisable()
+
+    // Assert
+    await expect(action).rejects.toThrow('Quota')
+    expect(isEncryptionEnabled()).toBe(true)
+    expect((await db.quotes.get('q1'))?.encrypted).toBe(true)
+    expect((await db.books.get('b1'))?.encrypted).toBe(true)
+    expect((await listQuotes())[0].text).toBe('Eins')
+    expect((await listBooks())[0].title).toBe('Buch')
+  })
+
+  it('wirft bei gesperrtem Tresor in encryptAllQuotes und decryptAllQuotesAndDisable und lässt die Tabellen unberührt', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Eins' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    const rowBefore = await db.quotes.get('q1')
+    lockEncryption()
+
+    // Act
+    const encryptAction = encryptAllQuotes()
+    const decryptAction = decryptAllQuotesAndDisable()
+
+    // Assert
+    await expect(encryptAction).rejects.toThrow('Encryption is locked.')
+    await expect(decryptAction).rejects.toThrow('Encryption is locked.')
+    expect(isEncryptionEnabled()).toBe(true)
+    expect(await db.quotes.get('q1')).toEqual(rowBefore)
   })
 })
