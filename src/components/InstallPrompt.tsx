@@ -12,11 +12,14 @@ interface BeforeInstallPromptEvent extends Event {
 export function InstallPrompt() {
   const { t } = useI18n()
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
-  const [iosHint, setIosHint] = useState(false)
-  const [visible, setVisible] = useState(false)
+  // Prompting is skipped when the user dismissed it before or the app already runs standalone.
+  const [eligible] = useState(() => !localStorage.getItem(DISMISS_KEY) && !isStandalone())
+  // iOS Safari has no beforeinstallprompt — show the manual hint instead.
+  const [iosHint] = useState(() => eligible && isIosSafari())
+  const [visible, setVisible] = useState(iosHint)
 
   useEffect(() => {
-    if (localStorage.getItem(DISMISS_KEY) || isStandalone()) return
+    if (!eligible) return
 
     function onBeforeInstall(event: Event) {
       event.preventDefault()
@@ -32,17 +35,11 @@ export function InstallPrompt() {
     window.addEventListener('beforeinstallprompt', onBeforeInstall)
     window.addEventListener('appinstalled', onInstalled)
 
-    // iOS Safari has no beforeinstallprompt — show the manual hint instead.
-    if (isIosSafari()) {
-      setIosHint(true)
-      setVisible(true)
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall)
       window.removeEventListener('appinstalled', onInstalled)
     }
-  }, [])
+  }, [eligible])
 
   if (!visible) return null
 
