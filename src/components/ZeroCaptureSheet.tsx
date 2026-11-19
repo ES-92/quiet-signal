@@ -1,6 +1,6 @@
 import { Camera, ChevronDown, Mic, PenLine, SlidersHorizontal, X } from 'lucide-react'
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
-import { useI18n } from '../i18n/I18nProvider'
+import { useI18n } from '../i18n/useI18n'
 import type { CaptureMode } from '../services/captureEvents'
 import { tapHaptic } from '../services/haptics'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -16,10 +16,16 @@ interface ZeroCaptureSheetProps {
 }
 
 export function ZeroCaptureSheet({ open, onClose, initialMode }: ZeroCaptureSheetProps) {
+  if (!open) return null
+  // Mounting the form fresh (per open and per requested mode) resets all of its draft state.
+  return <ZeroCaptureForm key={initialMode} onClose={onClose} initialMode={initialMode} />
+}
+
+function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, 'open'>) {
   const { t } = useI18n()
   const titleId = useId()
   const { addQuote } = useQuoteStore()
-  const [mode, setMode] = useState<CaptureMode>('text')
+  const [mode, setMode] = useState<CaptureMode>(initialMode)
   const [text, setText] = useState('')
   const [tags, setTags] = useState('')
   const [signalStrength, setSignalStrength] = useState<SignalStrength>('quiet')
@@ -35,23 +41,12 @@ export function ZeroCaptureSheet({ open, onClose, initialMode }: ZeroCaptureShee
     (mode === 'audio' && Boolean(audioDataUrl))
 
   useEffect(() => {
-    if (!open) return
-    setMode(initialMode)
-    setText('')
-    setTags('')
-    setSignalStrength('quiet')
-    setDetailsOpen(false)
-    setImageDataUrl(undefined)
-    setImageMimeType(undefined)
-    setAudioDataUrl(undefined)
-    setAudioMimeType(undefined)
-    setAudioDurationMs(undefined)
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [initialMode, onClose, open])
+  }, [onClose])
 
   function chooseMode(nextMode: CaptureMode) {
     tapHaptic(6)
@@ -88,8 +83,6 @@ export function ZeroCaptureSheet({ open, onClose, initialMode }: ZeroCaptureShee
     tapHaptic([10, 35, 10])
     onClose()
   }
-
-  if (!open) return null
 
   return (
     <div className="quiet-fade fixed inset-0 z-50 flex items-end bg-ink/10 backdrop-blur-[2px]" onClick={onClose}>
