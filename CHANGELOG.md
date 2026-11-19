@@ -21,6 +21,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Moved build-only packages `vite-plugin-pwa` and `@vitejs/plugin-react` from `dependencies` to `devDependencies`.
 
 ### Fixed
+- Import no longer produces `NaN` for non-numeric `reviewCount`/`audioDurationMs` (now 0/unset), and empty or `null` location coordinates are no longer turned into `0`; an explicit `0` is kept (#12).
 - Book duplicate detection now treats `ß` as `ss`, so "Der Prozess" and "Der Prozeß" are suggested as duplicates (#11).
 - Daily review now uses the local calendar day instead of the UTC date (#2): an entry read the previous evening no longer counts as read today after local midnight, and the daily stack seed changes at local midnight (so the stack order shifts once for users between 00:00 and the UTC offset).
 - Backup file names now use the local date instead of the UTC date (#8).

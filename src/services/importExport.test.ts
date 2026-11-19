@@ -281,7 +281,7 @@ describe('unvalidierte Felder (Ist-Verhalten)', () => {
     expect(quotes[0].imageDataUrl).toBe(url)
   })
 
-  it('erzeugt NaN bei nicht numerischem reviewCount und audioDurationMs', () => {
+  it('fällt bei nicht numerischem reviewCount auf 0 und bei audioDurationMs auf undefined zurück', () => {
     // Arrange
     const content = JSON.stringify({ quotes: [{ id: 'q-a', text: 't', reviewCount: 'x', audioDurationMs: 'abc' }] })
 
@@ -289,22 +289,71 @@ describe('unvalidierte Felder (Ist-Verhalten)', () => {
     const { quotes } = parseJsonImportBundle(content)
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-    expect(quotes[0].reviewCount).toBeNaN()
-    expect(quotes[0].audioDurationMs).toBeNaN()
+    expect(quotes[0].reviewCount).toBe(0)
+    expect(quotes[0].audioDurationMs).toBeUndefined()
   })
 
-  it('macht aus einem null-Breitengrad den Wert 0 statt undefined', () => {
+  it('macht aus null, leerem String und nicht numerischen Koordinaten undefined statt 0', () => {
     // Arrange
-    const content = JSON.stringify({ quotes: [{ id: 'q-a', text: 't', locationLatitude: null, locationLongitude: '' }] })
+    const content = JSON.stringify({
+      quotes: [
+        { id: 'q-a', text: 't', locationLatitude: null, locationLongitude: '' },
+        { id: 'q-b', text: 't', locationLatitude: 'abc', locationLongitude: '  ' }
+      ]
+    })
 
     // Act
     const { quotes } = parseJsonImportBundle(content)
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10
+    expect(quotes[0].locationLatitude).toBeUndefined()
+    expect(quotes[0].locationLongitude).toBeUndefined()
+    expect(quotes[1].locationLatitude).toBeUndefined()
+    expect(quotes[1].locationLongitude).toBeUndefined()
+  })
+
+  it('behält ausdrücklich angegebene Nullwerte (Zahl 0 und "0") bei Koordinaten und Audiodauer', () => {
+    // Arrange
+    const content = JSON.stringify({
+      quotes: [
+        { id: 'q-a', text: 't', locationLatitude: 0, locationLongitude: 0, audioDurationMs: 0 },
+        { id: 'q-b', text: 't', locationLatitude: '0', locationLongitude: '0', audioDurationMs: '0' }
+      ]
+    })
+
+    // Act
+    const { quotes } = parseJsonImportBundle(content)
+
+    // Assert
+    for (const quote of quotes) {
+      expect(quote.locationLatitude).toBe(0)
+      expect(quote.locationLongitude).toBe(0)
+      expect(quote.audioDurationMs).toBe(0)
+    }
+  })
+
+  it('übersteht den JSON-Roundtrip eines Zitats mit Breiten- und Längengrad 0', () => {
+    // Arrange
+    const quote = makeQuote({ locationLatitude: 0, locationLongitude: 0 })
+
+    // Act
+    const { quotes } = parseJsonImportBundle(exportJson([quote]))
+
+    // Assert
     expect(quotes[0].locationLatitude).toBe(0)
     expect(quotes[0].locationLongitude).toBe(0)
+  })
+
+  it('übersteht den CSV-Roundtrip eines Zitats mit Breiten- und Längengrad 0', () => {
+    // Arrange
+    const quote = makeQuote({ locationLatitude: 0, locationLongitude: 0 })
+
+    // Act
+    const [imported] = parseCsvImport(exportCsv([quote]))
+
+    // Assert
+    expect(imported.locationLatitude).toBe(0)
+    expect(imported.locationLongitude).toBe(0)
   })
 
   it('übernimmt createdAt ungeprüft als beliebigen String', () => {

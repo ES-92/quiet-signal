@@ -139,7 +139,7 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     note: optional(row.note),
     audioDataUrl: safeMediaDataUrl(row.audioDataUrl, allowedAudioMimeTypes),
     audioMimeType: safeMediaMimeType(row.audioDataUrl, row.audioMimeType, allowedAudioMimeTypes),
-    audioDurationMs: row.audioDurationMs ? Number(row.audioDurationMs) : undefined,
+    audioDurationMs: optionalNumber(row.audioDurationMs),
     imageDataUrl: safeMediaDataUrl(row.imageDataUrl, allowedImageMimeTypes),
     imageMimeType: safeMediaMimeType(row.imageDataUrl, row.imageMimeType, allowedImageMimeTypes),
     favorite: row.favorite === true || String(row.favorite).toLowerCase() === 'true',
@@ -154,7 +154,7 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     locationLongitude: optionalNumber(row.locationLongitude),
     createdAt: row.createdAt || timestamp,
     updatedAt: row.updatedAt || timestamp,
-    reviewCount: Number(row.reviewCount ?? 0),
+    reviewCount: optionalNumber(row.reviewCount) ?? 0,
     lastReviewedAt: optional(row.lastReviewedAt),
     nextReviewAt: optional(row.nextReviewAt)
   }
@@ -206,6 +206,8 @@ function mediaDataUrlMimeType(value: string) {
 }
 
 function optionalNumber(value: unknown) {
+  if (value === null || value === undefined) return undefined
+  if (typeof value === 'string' && value.trim() === '') return undefined
   const number = Number(value)
   return Number.isFinite(number) ? number : undefined
 }
