@@ -26,6 +26,8 @@ export function parseKindleClippings(content: string): KindleClipping[] {
   const blocks = content
     // eslint-disable-next-line no-irregular-whitespace -- strips the U+FEFF BOM Kindle prepends to My Clippings.txt
     .replace(/^﻿/, '')
+    // Windows (CRLF) and old-Mac (CR) line endings -> LF
+    .replace(/\r\n?/g, '\n')
     .split('\n')
     .reduce<string[][]>(
       (acc, line) => {

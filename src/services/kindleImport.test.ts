@@ -60,10 +60,7 @@ describe('parseKindleClippings', () => {
     }
   })
 
-  // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-  // Bei CRLF bleibt ein \r am Ende der Metazeile; `.` im ADDED_ON-Regex matcht kein \r,
-  // daher fehlt addedAt. Soll-Verhalten: gleiches addedAt wie bei LF.
-  it.fails('liefert bei CRLF dasselbe addedAt wie bei LF', () => {
+  it('liefert bei CRLF exakt dieselben Clippings (inkl. addedAt) wie bei LF', () => {
     // Arrange
     const lf = parseKindleClippings(readFixture('kindle-en.txt'))
 
@@ -71,7 +68,8 @@ describe('parseKindleClippings', () => {
     const crlf = parseKindleClippings(readFixture('kindle-crlf.txt'))
 
     // Assert
-    expect(crlf.map((c) => c.addedAt)).toEqual(lf.map((c) => c.addedAt))
+    expect(crlf).toEqual(lf)
+    expect(crlf.every((c) => c.addedAt !== undefined)).toBe(true)
   })
 
   it('liefert für einen leeren String keine Clippings und wirft nicht', () => {
