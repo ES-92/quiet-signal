@@ -32,6 +32,8 @@ import {
   upsertBooks
 } from './database'
 
+const encryptionStorageKey = 'quiet-signal-encryption'
+
 // PBKDF2 ist langsam; Timeout nur für diese Datei erhöhen.
 vi.setConfig({ testTimeout: 30000 })
 
@@ -423,5 +425,27 @@ describe('Verschlüsselung', () => {
     expect(isEncryptionEnabled()).toBe(true)
     expect(await db.quotes.count()).toBe(2)
     warn.mockRestore()
+  })
+
+  it('lehnt ein zweites enableEncryption ab und lässt Schlüssel, Salt und Zeilen unverändert', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Geheim' })])
+    await enableEncryption('passwort-eins')
+    await encryptAllQuotes()
+    const recordBefore = localStorage.getItem(encryptionStorageKey)
+    const rowBefore = await db.quotes.get('q1')
+
+    // Act
+    const action = enableEncryption('passwort-zwei')
+
+    // Assert
+    await expect(action).rejects.toThrow('Encryption is already enabled.')
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(recordBefore)
+    expect(await db.quotes.get('q1')).toEqual(rowBefore)
+    expect((await listQuotes())[0].text).toBe('Geheim')
+    lockEncryption()
+    expect(await unlockEncryption('passwort-zwei')).toBe(false)
+    expect(await unlockEncryption('passwort-eins')).toBe(true)
+    expect((await listQuotes())[0].text).toBe('Geheim')
   })
 })

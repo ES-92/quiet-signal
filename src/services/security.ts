@@ -52,6 +52,7 @@ export function isEncryptionUnlocked() {
 }
 
 export async function enableEncryption(password: string) {
+  if (isEncryptionEnabled()) throw new Error('Encryption is already enabled.')
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const key = await deriveAesKey(password, salt)
   const hash = await hashWithSalt(password, salt)
