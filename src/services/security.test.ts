@@ -418,4 +418,45 @@ describe('Prüfdatensatz des Tresors', () => {
     expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
     expect(notify).not.toHaveBeenCalled()
   })
+
+  it('entsperrt einen Datensatz mit unbekannter Version nicht und lässt ihn unverändert', async () => {
+    // Arrange
+    const password = 'passwort-123'
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const hash = bytesToBase64(await derivePasswordBits(password, salt))
+    const raw = JSON.stringify({ enabled: true, salt: bytesToBase64(salt), hash, version: 3 })
+    localStorage.setItem(encryptionStorageKey, raw)
+
+    // Act
+    const result = await unlockEncryption(password)
+
+    // Assert
+    expect(result).toBe(false)
+    expect(isEncryptionUnlocked()).toBe(false)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(raw)
+  })
+
+  it('entsperrt einen Tresor im früheren Format auch dann, wenn das Aktualisieren des Datensatzes fehlschlägt', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const quote = makeQuote({ text: 'Trotzdem lesbar' })
+    const legacy = await writeLegacyEncryptionRecord(password)
+    const storedRow = await encryptQuoteLegacy(quote, password, legacy.salt)
+    const originalSetItem = Storage.prototype.setItem
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === encryptionStorageKey) throw new Error('QuotaExceededError')
+      originalSetItem.call(this, key, value)
+    })
+
+    // Act
+    const unlocked = await unlockEncryption(password)
+    const restored = await decryptQuoteFromStorage(storedRow)
+
+    // Assert
+    setItem.mockRestore()
+    expect(unlocked).toBe(true)
+    expect(isEncryptionUnlocked()).toBe(true)
+    expect(restored).toEqual(quote)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+  })
 })

@@ -15,8 +15,8 @@ interface SecretRecord {
 
 export interface EncryptionRecord extends SecretRecord {
   enabled: boolean
-  /** 2: `hash` is a SHA-256 verifier of the derived bits. Missing: earlier record format. */
-  version?: 2
+  /** 2: `hash` is a SHA-256 verifier of the derived bits. Missing: earlier record format. Other values are rejected. */
+  version?: number
 }
 
 export function notifySecurityChanged() {
@@ -74,10 +74,17 @@ export async function unlockEncryption(password: string) {
 
   if (record.version === verifierVersion) {
     if (!constantTimeEqual(verifier, record.hash)) return false
-  } else {
+  } else if (record.version === undefined) {
     // Earlier record format: compare against its stored value, then upgrade to version 2 (same salt).
     if (!constantTimeEqual(bytesToBase64(bits), record.hash)) return false
-    writeEncryptionRecord(salt, verifier)
+    try {
+      writeEncryptionRecord(salt, verifier)
+    } catch {
+      // Keep the earlier record; the upgrade is retried on the next unlock.
+    }
+  } else {
+    // Unknown record version: refuse to unlock and leave the record untouched.
+    return false
   }
 
   activeEncryptionKey = await importAesKey(bits)
@@ -240,7 +247,7 @@ async function vaultVerifier(bits: Uint8Array) {
 }
 
 function deriveBitsKey(secret: string) {
-  return crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveBits', 'deriveKey'])
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveBits'])
 }
 
 function bytesToBase64(bytes: Uint8Array) {

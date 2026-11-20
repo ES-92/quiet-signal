@@ -2,6 +2,7 @@
 // (Datensatz ohne `version`, Zeilen mit einem per PBKDF2-deriveKey abgeleiteten AES-GCM-Schlüssel).
 import type { Quote } from '../types/quote'
 
+// Constants and derivation below are intentionally frozen to the earlier format; do not sync them with security.ts.
 export const encryptionStorageKey = 'quiet-signal-encryption'
 const iterations = 180000
 
