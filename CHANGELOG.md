@@ -46,6 +46,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Discarding a daily card (swipe down or "delete noise") no longer skips the next card; the following card now takes its place and the discarded card disappears at once instead of snapping back until saving finishes (#17).
 
 ### Security
+- Hardened how the vault password check is stored; existing vaults are upgraded automatically on the next unlock.
 - Ran `npm audit fix` (no breaking changes): `npm audit --omit=dev` now reports 0 vulnerabilities (previously 17, incl. 8 high, e.g. in `vite`, `react-router`, `source-map-js`).
 
 ## [0.2.0] - 2026-05-28

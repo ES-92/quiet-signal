@@ -4,6 +4,8 @@ import type { Quote } from '../types/quote'
 const pinStorageKey = 'quiet-signal-pin'
 const encryptionStorageKey = 'quiet-signal-encryption'
 const iterations = 180000
+const verifierVersion = 2
+const verifierContext = 'quiet-signal/vault-verifier/v2'
 let activeEncryptionKey: CryptoKey | null = null
 
 interface SecretRecord {
@@ -13,6 +15,8 @@ interface SecretRecord {
 
 export interface EncryptionRecord extends SecretRecord {
   enabled: boolean
+  /** 2: `hash` is a SHA-256 verifier of the derived bits. Missing: earlier record format. */
+  version?: 2
 }
 
 export function notifySecurityChanged() {
@@ -54,10 +58,10 @@ export function isEncryptionUnlocked() {
 export async function enableEncryption(password: string) {
   if (isEncryptionEnabled()) throw new Error('Encryption is already enabled.')
   const salt = crypto.getRandomValues(new Uint8Array(16))
-  const key = await deriveAesKey(password, salt)
-  const hash = await hashWithSalt(password, salt)
+  const bits = await derivePasswordBits(password, salt)
+  const key = await importAesKey(bits)
+  writeEncryptionRecord(salt, await vaultVerifier(bits))
   activeEncryptionKey = key
-  localStorage.setItem(encryptionStorageKey, JSON.stringify({ enabled: true, salt: bytesToBase64(salt), hash }))
   notifySecurityChanged()
 }
 
@@ -65,9 +69,18 @@ export async function unlockEncryption(password: string) {
   const record = readEncryptionRecord()
   if (!record?.enabled) return true
   const salt = base64ToBytes(record.salt)
-  const hash = await hashWithSalt(password, salt)
-  if (!constantTimeEqual(hash, record.hash)) return false
-  activeEncryptionKey = await deriveAesKey(password, salt)
+  const bits = await derivePasswordBits(password, salt)
+  const verifier = await vaultVerifier(bits)
+
+  if (record.version === verifierVersion) {
+    if (!constantTimeEqual(verifier, record.hash)) return false
+  } else {
+    // Earlier record format: compare against its stored value, then upgrade to version 2 (same salt).
+    if (!constantTimeEqual(bytesToBase64(bits), record.hash)) return false
+    writeEncryptionRecord(salt, verifier)
+  }
+
+  activeEncryptionKey = await importAesKey(bits)
   notifySecurityChanged()
   return true
 }
@@ -188,20 +201,42 @@ async function hashSecret(secret: string) {
 }
 
 async function hashWithSalt(secret: string, salt: Uint8Array) {
-  const key = await deriveBitsKey(secret)
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: toArrayBuffer(salt), iterations, hash: 'SHA-256' }, key, 256)
-  return bytesToBase64(new Uint8Array(bits))
+  return bytesToBase64(await derivePasswordBits(secret, salt))
 }
 
-async function deriveAesKey(password: string, salt: Uint8Array) {
-  const key = await deriveBitsKey(password)
-  return crypto.subtle.deriveKey(
+function writeEncryptionRecord(salt: Uint8Array, verifier: string) {
+  const record: EncryptionRecord = {
+    enabled: true,
+    salt: bytesToBase64(salt),
+    hash: verifier,
+    version: verifierVersion
+  }
+  localStorage.setItem(encryptionStorageKey, JSON.stringify(record))
+}
+
+/** PBKDF2-SHA-256 (256 bits); the vault key and the verifier are both derived from these bits. */
+async function derivePasswordBits(secret: string, salt: Uint8Array) {
+  const key = await deriveBitsKey(secret)
+  const bits = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt: toArrayBuffer(salt), iterations, hash: 'SHA-256' },
     key,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
+    256
   )
+  return new Uint8Array(bits)
+}
+
+/** Imports the derived bits as a non-extractable AES-GCM-256 key. */
+function importAesKey(bits: Uint8Array) {
+  return crypto.subtle.importKey('raw', toArrayBuffer(bits), 'AES-GCM', false, ['encrypt', 'decrypt'])
+}
+
+/** Verifier is a one-way hash of the derived bits with a fixed context prefix: SHA-256(context || bits). */
+async function vaultVerifier(bits: Uint8Array) {
+  const context = new TextEncoder().encode(verifierContext)
+  const input = new Uint8Array(context.length + bits.length)
+  input.set(context)
+  input.set(bits, context.length)
+  return bytesToBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', input)))
 }
 
 function deriveBitsKey(secret: string) {

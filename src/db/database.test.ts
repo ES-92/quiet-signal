@@ -9,6 +9,7 @@ import {
   unlockEncryption
 } from '../services/security'
 import { makeBook, makeQuote, readFixture, resetFactories } from '../test/factories'
+import { encryptQuoteLegacy, writeLegacyEncryptionRecord } from '../test/legacyVault'
 import {
   clearQuotes,
   createBook,
@@ -454,6 +455,30 @@ describe('Verschlüsselung', () => {
     expect(warn).not.toHaveBeenCalled()
     expect(isEncryptionEnabled()).toBe(true)
     expect(await db.quotes.count()).toBe(2)
+  })
+
+  it('liest Zeilen eines Tresors im früheren Format nach dem Entsperren und entschlüsselt sie vollständig', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await writeLegacyEncryptionRecord(password)
+    await db.quotes.put(
+      await encryptQuoteLegacy(makeQuote({ id: 'alt', text: 'Alter Eintrag' }), password, legacy.salt)
+    )
+    const lockedList = await listQuotes()
+
+    // Act
+    const unlocked = await unlockEncryption(password)
+    const list = await listQuotes()
+    await decryptAllQuotesAndDisable()
+
+    // Assert
+    expect(lockedList).toEqual([])
+    expect(unlocked).toBe(true)
+    expect(list.map((quote) => quote.text)).toEqual(['Alter Eintrag'])
+    expect(isEncryptionEnabled()).toBe(false)
+    const row = await db.quotes.get('alt')
+    expect(row?.encrypted).toBeUndefined()
+    expect(row?.text).toBe('Alter Eintrag')
   })
 
   it('lehnt ein zweites enableEncryption ab und lässt Schlüssel, Salt und Zeilen unverändert', async () => {
