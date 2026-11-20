@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { unlockVault } from '../db/database'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import {
   base64ToBytes,
   bytesToBase64,
   derivePasswordBits,
-  encryptQuoteLegacy,
   encryptionStorageKey,
   writeLegacyEncryptionRecord
 } from '../test/legacyVault'
@@ -21,7 +21,6 @@ import {
   isEncryptionUnlocked,
   lockEncryption,
   setPinLock,
-  unlockEncryption,
   verifyPin
 } from './security'
 
@@ -235,9 +234,9 @@ describe('Verschlüsselung', () => {
     lockEncryption()
 
     // Act
-    const falsch = await unlockEncryption('falsch')
+    const falsch = await unlockVault('falsch')
     const stillLocked = isEncryptionUnlocked()
-    const richtig = await unlockEncryption('pw')
+    const richtig = await unlockVault('pw')
     const restored = await decryptQuoteFromStorage(stored)
 
     // Assert
@@ -252,7 +251,7 @@ describe('Verschlüsselung', () => {
     // Arrange: keine Verschlüsselung
 
     // Act
-    const result = await unlockEncryption('egal')
+    const result = await unlockVault('egal')
 
     // Assert
     expect(result).toBe(true)
@@ -347,59 +346,14 @@ describe('Prüfdatensatz des Tresors', () => {
     const recordBefore = localStorage.getItem(encryptionStorageKey)
 
     // Act
-    const falsch = await unlockEncryption('falsch')
-    const richtig = await unlockEncryption('pw')
+    const falsch = await unlockVault('falsch')
+    const richtig = await unlockVault('pw')
 
     // Assert
     expect(falsch).toBe(false)
     expect(richtig).toBe(true)
     expect(localStorage.getItem(encryptionStorageKey)).toBe(recordBefore)
     expect(await decryptQuoteFromStorage(stored)).toEqual(quote)
-  })
-
-  it('entsperrt einen Tresor im früheren Format, liest alte Einträge und aktualisiert den Prüfdatensatz', async () => {
-    // Arrange
-    const password = 'altes-passwort'
-    const quote = makeQuote({ text: 'Vor dem Update verschlüsselt' })
-    const legacy = await writeLegacyEncryptionRecord(password)
-    const storedRow = await encryptQuoteLegacy(quote, password, legacy.salt)
-
-    // Act
-    const unlocked = await unlockEncryption(password)
-    const restored = await decryptQuoteFromStorage(storedRow)
-
-    // Assert
-    expect(unlocked).toBe(true)
-    expect(isEncryptionEnabled()).toBe(true)
-    expect(isEncryptionUnlocked()).toBe(true)
-    expect(restored).toEqual(quote)
-    const record = readStoredRecord()
-    expect(record!.version).toBe(2)
-    expect(record!.salt).toBe(bytesToBase64(legacy.salt))
-    expect(record!.hash).not.toBe(legacy.hash)
-    expect(localStorage.getItem(encryptionStorageKey)).not.toContain(legacy.hash)
-    expect(record!.hash).toBe(await expectedVerifier(await derivePasswordBits(password, legacy.salt)))
-  })
-
-  it('verschlüsselt nach der Aktualisierung weiter lesbar, auch nach erneutem Entsperren', async () => {
-    // Arrange
-    const password = 'altes-passwort'
-    const legacy = await writeLegacyEncryptionRecord(password)
-    const oldRow = await encryptQuoteLegacy(makeQuote({ text: 'Alt' }), password, legacy.salt)
-    await unlockEncryption(password)
-    const newQuote = makeQuote({ text: 'Neu' })
-    const newRow = await encryptQuoteForStorage(newQuote)
-    lockEncryption()
-
-    // Act
-    const falsch = await unlockEncryption('falsch')
-    const richtig = await unlockEncryption(password)
-
-    // Assert
-    expect(falsch).toBe(false)
-    expect(richtig).toBe(true)
-    expect((await decryptQuoteFromStorage(oldRow))?.text).toBe('Alt')
-    expect(await decryptQuoteFromStorage(newRow)).toEqual(newQuote)
   })
 
   it('lässt einen Tresor im früheren Format bei falschem Passwort gesperrt und unverändert', async () => {
@@ -409,7 +363,7 @@ describe('Prüfdatensatz des Tresors', () => {
     window.addEventListener('quiet-signal-security-changed', notify)
 
     // Act
-    const result = await unlockEncryption('falsch')
+    const result = await unlockVault('falsch')
 
     // Assert
     window.removeEventListener('quiet-signal-security-changed', notify)
@@ -428,35 +382,11 @@ describe('Prüfdatensatz des Tresors', () => {
     localStorage.setItem(encryptionStorageKey, raw)
 
     // Act
-    const result = await unlockEncryption(password)
+    const result = await unlockVault(password)
 
     // Assert
     expect(result).toBe(false)
     expect(isEncryptionUnlocked()).toBe(false)
     expect(localStorage.getItem(encryptionStorageKey)).toBe(raw)
-  })
-
-  it('entsperrt einen Tresor im früheren Format auch dann, wenn das Aktualisieren des Datensatzes fehlschlägt', async () => {
-    // Arrange
-    const password = 'altes-passwort'
-    const quote = makeQuote({ text: 'Trotzdem lesbar' })
-    const legacy = await writeLegacyEncryptionRecord(password)
-    const storedRow = await encryptQuoteLegacy(quote, password, legacy.salt)
-    const originalSetItem = Storage.prototype.setItem
-    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
-      if (key === encryptionStorageKey) throw new Error('QuotaExceededError')
-      originalSetItem.call(this, key, value)
-    })
-
-    // Act
-    const unlocked = await unlockEncryption(password)
-    const restored = await decryptQuoteFromStorage(storedRow)
-
-    // Assert
-    setItem.mockRestore()
-    expect(unlocked).toBe(true)
-    expect(isEncryptionUnlocked()).toBe(true)
-    expect(restored).toEqual(quote)
-    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
   })
 })

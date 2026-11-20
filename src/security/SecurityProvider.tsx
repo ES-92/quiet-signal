@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState, type ReactNode } from 'react'
 import { useI18n } from '../i18n/useI18n'
-import { hasPinLock, isEncryptionEnabled, isEncryptionUnlocked, unlockEncryption, verifyPin } from '../services/security'
+import { unlockVault } from '../db/database'
+import { hasPinLock, isEncryptionEnabled, isEncryptionUnlocked, verifyPin } from '../services/security'
 
 export function SecurityProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n()
@@ -44,7 +45,7 @@ export function SecurityProvider({ children }: { children: ReactNode }) {
 
   async function handleEncryptionSubmit(event: FormEvent) {
     event.preventDefault()
-    if (await unlockEncryption(password)) {
+    if (await unlockVault(password)) {
       setEncryptionUnlocked(true)
       setError('')
       setPassword('')

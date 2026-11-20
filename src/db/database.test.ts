@@ -6,11 +6,24 @@ import {
   enableEncryption,
   encryptQuoteForStorage,
   isEncryptionEnabled,
-  lockEncryption,
-  unlockEncryption
+  lockEncryption
 } from '../services/security'
 import { makeBook, makeQuote, readFixture, resetFactories } from '../test/factories'
-import { encryptQuoteLegacy, writeLegacyEncryptionRecord } from '../test/legacyVault'
+import {
+  bytesToBase64,
+  derivePasswordBits,
+  encryptBookLegacy,
+  encryptQuoteLegacy,
+  writeLegacyEncryptionRecord
+} from '../test/legacyVault'
+import {
+  encryptQuoteWithBits,
+  expectedVerifier,
+  pendingEncryptionStorageKey,
+  readPendingRecord,
+  readStoredRecord,
+  writePendingRecord
+} from '../test/vaultHelpers'
 import {
   clearQuotes,
   createBook,
@@ -30,6 +43,7 @@ import {
   normalizeTags,
   updateBook,
   updateQuote,
+  unlockVault,
   upsertQuotes,
   upsertBooks
 } from './database'
@@ -326,7 +340,7 @@ describe('Verschlüsselung', () => {
     expect(gesperrt).toEqual([])
 
     // Act: wieder entsperren und Verschlüsselung abschalten
-    expect(await unlockEncryption('passwort-123')).toBe(true)
+    expect(await unlockVault('passwort-123')).toBe(true)
     await decryptAllQuotesAndDisable()
     const klar = await db.quotes.toArray()
 
@@ -477,7 +491,7 @@ describe('Verschlüsselung', () => {
     const lockedList = await listQuotes()
 
     // Act
-    const unlocked = await unlockEncryption(password)
+    const unlocked = await unlockVault(password)
     const list = await listQuotes()
     await decryptAllQuotesAndDisable()
 
@@ -508,8 +522,8 @@ describe('Verschlüsselung', () => {
     expect(await db.quotes.get('q1')).toEqual(rowBefore)
     expect((await listQuotes())[0].text).toBe('Geheim')
     lockEncryption()
-    expect(await unlockEncryption('passwort-zwei')).toBe(false)
-    expect(await unlockEncryption('passwort-eins')).toBe(true)
+    expect(await unlockVault('passwort-zwei')).toBe(false)
+    expect(await unlockVault('passwort-eins')).toBe(true)
     expect((await listQuotes())[0].text).toBe('Geheim')
   })
 
@@ -738,3 +752,364 @@ describe('Schreibsperre während des Umschreibens aller Zeilen', () => {
     expect(row?.text).toBe('Unterwegs')
   })
 })
+
+const rotationWarning = /re-encrypt/
+
+// Earlier-format vault with an active quote, a trashed quote and a book, all encrypted the earlier way.
+async function seedLegacyVault(password: string) {
+  const legacy = await writeLegacyEncryptionRecord(password)
+  await db.quotes.bulkPut([
+    await encryptQuoteLegacy(makeQuote({ id: 'aktiv', text: 'Aktiv' }), password, legacy.salt),
+    await encryptQuoteLegacy(
+      makeQuote({ id: 'papierkorb', text: 'Papierkorb', deletedAt: '2026-02-01T10:00:00.000Z' }),
+      password,
+      legacy.salt
+    )
+  ])
+  await db.books.put(await encryptBookLegacy(makeBook({ id: 'b1', title: 'Buch' }), password, legacy.salt))
+  return legacy
+}
+
+async function snapshotRows() {
+  return { quotes: await db.quotes.toArray(), books: await db.books.toArray() }
+}
+
+function failSetItemFor(storageKey: string) {
+  const originalSetItem = Storage.prototype.setItem
+  return vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+    if (key === storageKey) throw new Error('QuotaExceededError')
+    originalSetItem.call(this, key, value)
+  })
+}
+
+describe('Schlüsselrotation beim Entsperren eines Tresors im früheren Format', () => {
+  it('erzeugt ein neues Salt, verschlüsselt alle Zeilen samt Papierkorb und Büchern neu und bleibt lesbar', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const before = await snapshotRows()
+    const notify = vi.fn()
+    window.addEventListener('quiet-signal-security-changed', notify)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    window.removeEventListener('quiet-signal-security-changed', notify)
+    expect(unlocked).toBe(true)
+    const record = readStoredRecord()!
+    expect(record.version).toBe(2)
+    expect(record.salt).not.toBe(bytesToBase64(legacy.salt))
+    expect(record.hash).toBe(await expectedVerifier(await derivePasswordBits(password, base64ToSalt(record.salt))))
+    expect(Object.keys(record).sort()).toEqual(['enabled', 'hash', 'salt', 'version'])
+    expect(readPendingRecord()).toBeNull()
+    const after = await snapshotRows()
+    expect([...after.quotes, ...after.books].every((row) => row.encrypted === true)).toBe(true)
+    for (const row of [...after.quotes, ...after.books]) {
+      const old = [...before.quotes, ...before.books].find((candidate) => candidate.id === row.id)
+      expect(row.encryptedPayload).not.toBe(old?.encryptedPayload)
+    }
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect((await listTrashed()).map((quote) => quote.id)).toEqual(['papierkorb'])
+    expect((await listBooks()).map((book) => book.title)).toEqual(['Buch'])
+    expect(notify).toHaveBeenCalled()
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('entsperrt nach der Rotation nur mit dem richtigen Passwort und rotiert Version 2 nicht erneut', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    await seedLegacyVault(password)
+    await unlockVault(password)
+    lockEncryption()
+    const recordBefore = localStorage.getItem(encryptionStorageKey)
+    const rowsBefore = await snapshotRows()
+    const transaction = vi.spyOn(db, 'transaction')
+
+    // Act
+    const falsch = await unlockVault('falsch')
+    const richtig = await unlockVault(password)
+
+    // Assert
+    expect(falsch).toBe(false)
+    expect(richtig).toBe(true)
+    expect(transaction).not.toHaveBeenCalled()
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(recordBefore)
+    expect(await snapshotRows()).toEqual(rowsBefore)
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect((await listBooks()).map((book) => book.title)).toEqual(['Buch'])
+  })
+
+  it('schreibt beim Entsperren eines Tresors mit Version 2 keine Zeilen und keinen Datensatz neu', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Eins' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    lockEncryption()
+    const recordBefore = localStorage.getItem(encryptionStorageKey)
+    const rowsBefore = await snapshotRows()
+    const transaction = vi.spyOn(db, 'transaction')
+
+    // Act
+    const unlocked = await unlockVault('passwort-123')
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(transaction).not.toHaveBeenCalled()
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(recordBefore)
+    expect(await snapshotRows()).toEqual(rowsBefore)
+    expect((await listQuotes())[0].text).toBe('Eins')
+  })
+
+  it('behält bei einem nicht entschlüsselbaren Eintrag Datensatz, Zeilen und alten Schlüssel und rotiert beim nächsten Entsperren', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    await db.quotes.put(await encryptQuoteLegacy(makeQuote({ id: 'kaputt', text: 'Kaputt' }), 'anderes', legacy.salt))
+    const rowsBefore = await snapshotRows()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+    expect(await snapshotRows()).toEqual(rowsBefore)
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    const rotationWarnings = warn.mock.calls.filter((call) => rotationWarning.test(call.join(' ')))
+    expect(rotationWarnings).toHaveLength(1)
+    expect(warn.mock.calls.flat().join(' ')).not.toContain(password)
+
+    // Act: nach Entfernen des kaputten Eintrags erneut entsperren
+    await db.quotes.delete('kaputt')
+    lockEncryption()
+    const retried = await unlockVault(password)
+
+    // Assert
+    expect(retried).toBe(true)
+    expect(readStoredRecord()!.version).toBe(2)
+    expect(readStoredRecord()!.salt).not.toBe(bytesToBase64(legacy.salt))
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+  })
+
+  it('behält bei einem Fehler der Schreibtransaktion Datensatz, Zeilen und alten Schlüssel und rotiert beim nächsten Entsperren', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const rowsBefore = await snapshotRows()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(db, 'transaction').mockRejectedValueOnce(new Error('AbortError'))
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+    expect(await snapshotRows()).toEqual(rowsBefore)
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0].join(' ')).toMatch(rotationWarning)
+
+    // Act: erneut entsperren
+    lockEncryption()
+    const retried = await unlockVault(password)
+
+    // Assert
+    expect(retried).toBe(true)
+    expect(readStoredRecord()!.salt).not.toBe(bytesToBase64(legacy.salt))
+    expect((await listBooks()).map((book) => book.title)).toEqual(['Buch'])
+    expect(readPendingRecord()).toBeNull()
+  })
+
+  it('behält bei einem Fehler beim Verschlüsseln Datensatz, Zeilen und alten Schlüssel', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const rowsBefore = await snapshotRows()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(crypto.subtle, 'encrypt').mockRejectedValueOnce(new Error('OperationError'))
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+    expect(await snapshotRows()).toEqual(rowsBefore)
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0].join(' ')).toMatch(rotationWarning)
+  })
+
+  it('rotiert nicht, wenn der vorgemerkte Datensatz nicht gespeichert werden kann, und entsperrt mit dem alten Schlüssel', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const rowsBefore = await snapshotRows()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const setItem = failSetItemFor(pendingEncryptionStorageKey)
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    setItem.mockRestore()
+    expect(unlocked).toBe(true)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+    expect(readPendingRecord()).toBeNull()
+    expect(await snapshotRows()).toEqual(rowsBefore)
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0].join(' ')).toMatch(rotationWarning)
+  })
+
+  it('bleibt lesbar, wenn der neue Datensatz nach dem Umschreiben nicht gespeichert werden kann, und schließt die Rotation beim nächsten Entsperren ab', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const setItem = failSetItemFor(encryptionStorageKey)
+
+    // Act
+    const unlocked = await unlockVault(password)
+    const listInSession = await listQuotes()
+
+    // Assert
+    setItem.mockRestore()
+    expect(unlocked).toBe(true)
+    expect(listInSession.map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+    const pending = readPendingRecord()!
+    expect(pending.version).toBe(2)
+    expect(pending.salt).not.toBe(bytesToBase64(legacy.salt))
+    expect(warn).toHaveBeenCalledTimes(1)
+
+    // Act: Sitzung endet, danach erneut entsperren
+    lockEncryption()
+    const pendingRaw = localStorage.getItem(pendingEncryptionStorageKey)
+    const falsch = await unlockVault('falsch')
+    const pendingAfterWrongPassword = localStorage.getItem(pendingEncryptionStorageKey)
+    const richtig = await unlockVault(password)
+
+    // Assert
+    expect(falsch).toBe(false)
+    expect(pendingAfterWrongPassword).toBe(pendingRaw)
+    expect(richtig).toBe(true)
+    expect(readStoredRecord()).toEqual(pending)
+    expect(readPendingRecord()).toBeNull()
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect((await listTrashed()).map((quote) => quote.id)).toEqual(['papierkorb'])
+    expect((await listBooks()).map((book) => book.title)).toEqual(['Buch'])
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('schließt eine unterbrochene Rotation ab, auch wenn Zeilen mit altem und vorgemerktem Schlüssel gemischt sind', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await writeLegacyEncryptionRecord(password)
+    const pending = await writePendingRecord(password)
+    await db.quotes.bulkPut([
+      await encryptQuoteLegacy(makeQuote({ id: 'alt', text: 'Alter Schlüssel' }), password, legacy.salt),
+      await encryptQuoteWithBits(makeQuote({ id: 'neu', text: 'Vorgemerkter Schlüssel' }), pending.bits)
+    ])
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(readStoredRecord()!.salt).toBe(bytesToBase64(pending.salt))
+    expect(readStoredRecord()!.version).toBe(2)
+    expect(readPendingRecord()).toBeNull()
+    expect((await listQuotes()).map((quote) => quote.text).sort()).toEqual([
+      'Alter Schlüssel',
+      'Vorgemerkter Schlüssel'
+    ])
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('ignoriert einen vorgemerkten Datensatz, der nicht zum Passwort passt', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const stale = await writePendingRecord(password, { verifier: 'AAAA' })
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    expect(unlocked).toBe(true)
+    const record = readStoredRecord()!
+    expect(record.salt).not.toBe(bytesToBase64(stale.salt))
+    expect(record.salt).not.toBe(bytesToBase64(legacy.salt))
+    expect(readPendingRecord()).toBeNull()
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+  })
+
+  it('lässt bei falschem Passwort Datensatz und Zeilen unverändert und merkt nichts vor', async () => {
+    // Arrange
+    const legacy = await seedLegacyVault('altes-passwort')
+    const rowsBefore = await snapshotRows()
+
+    // Act
+    const unlocked = await unlockVault('falsch')
+
+    // Assert
+    expect(unlocked).toBe(false)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+    expect(readPendingRecord()).toBeNull()
+    expect(await snapshotRows()).toEqual(rowsBefore)
+  })
+
+  it('legt einen während der Rotation begonnenen Eintrag lesbar mit dem neuen Schlüssel an', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    await seedLegacyVault(password)
+    const started = startBeforeRewriteTransaction(() => createQuote({ text: 'Währenddessen', tags: [] } as never))
+
+    // Act
+    await unlockVault(password)
+    const created = await started.promise!
+    lockEncryption()
+    await unlockVault(password)
+
+    // Assert
+    expect((await db.quotes.get(created.id))?.encrypted).toBe(true)
+    expect((await listQuotes()).map((quote) => quote.text).sort()).toEqual(['Aktiv', 'Währenddessen'])
+  })
+
+  it('entfernt beim Entsperren mit Version 2 einen übrig gebliebenen vorgemerkten Datensatz mit gleichem Salt', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+    localStorage.setItem(pendingEncryptionStorageKey, localStorage.getItem(encryptionStorageKey)!)
+    lockEncryption()
+
+    // Act
+    const unlocked = await unlockVault('passwort-123')
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(readPendingRecord()).toBeNull()
+  })
+
+  it('entfernt beim Abschalten der Verschlüsselung auch einen vorgemerkten Datensatz', async () => {
+    // Arrange
+    await writeLegacyEncryptionRecord('altes-passwort')
+    await writePendingRecord('altes-passwort')
+
+    // Act
+    disableEncryptionRecord()
+
+    // Assert
+    expect(localStorage.getItem(encryptionStorageKey)).toBeNull()
+    expect(readPendingRecord()).toBeNull()
+  })
+})
+
+function base64ToSalt(value: string) {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0))
+}

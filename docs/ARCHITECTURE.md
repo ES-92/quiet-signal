@@ -109,7 +109,9 @@ Be clear about what each mechanism does and does not protect.
 - Every write uses a fresh random 12-byte IV, stored next to the ciphertext (`encryptionIv`). The serialised entry (all fields) is the encrypted payload (`encryptedPayload`).
 - The salt, the verifier (`hash`) and the record version are stored in `localStorage` (key `quiet-signal-encryption`) so the password can be checked at unlock time.
 
-**Verifier and record versions.** The password is run through PBKDF2-SHA-256 once. The resulting bits are imported as the non-extractable AES-GCM key, and the stored verifier is `SHA-256(context || bits)` with a fixed domain label. The record carries `version: 2`. A record without a version (earlier format) is accepted on a correct password and rewritten to version 2 on that successful unlock; a record with any other version fails closed (unlock is refused and the record is left untouched).
+**Verifier and record versions.** The password is run through PBKDF2-SHA-256 once. The resulting bits are imported as the non-extractable AES-GCM key, and the stored verifier is `SHA-256(context || bits)` with a fixed domain label. The record carries `version: 2`. A record without a version (earlier format) is accepted on a correct password; a record with any other version fails closed (unlock is refused and the record is left untouched).
+
+**Key rotation for earlier-format vaults.** On a successful unlock of an earlier-format vault, `unlockVault` (`database.ts`) moves the vault to a fresh salt and key: every row (including trashed quotes and books) is re-encrypted in memory, the new version 2 record is first staged under `quiet-signal-encryption-pending`, the rows are written in one transaction, and only then the staged record becomes the active one and the in-memory key is switched. If anything fails before the rows are committed, the vault unlocks with its current key and the rotation is retried on the next unlock. If the active record cannot be saved after the commit, the staged record still describes the rows; the next unlock reads rows with either key and finishes the rotation. Version 2 vaults are not rotated again.
 
 ### What stays unencrypted
 
@@ -123,6 +125,7 @@ Also unencrypted: app settings in `localStorage`, the language, the PIN and vaul
 
 - Exports (JSON/CSV/Markdown) are plaintext files; the vault does not apply to them.
 - If the vault is enabled but locked, reads return an empty list and writes throw `Encryption is locked.`
+- Bulk rewrites (enable, disable, key rotation) hold a write lock in `database.ts`: single writes wait until the rewrite has finished, and the rewrite waits for writes already in progress (within one tab).
 - There is no password recovery. A forgotten vault password means the encrypted entries are unreadable.
 
 Please report security issues as described in [SECURITY.md](../SECURITY.md).

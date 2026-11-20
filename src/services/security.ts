@@ -3,6 +3,8 @@ import type { Quote } from '../types/quote'
 
 const pinStorageKey = 'quiet-signal-pin'
 const encryptionStorageKey = 'quiet-signal-encryption'
+// Staged version 2 record for a key rotation in progress; see unlockVault in database.ts.
+const pendingEncryptionStorageKey = 'quiet-signal-encryption-pending'
 const iterations = 180000
 const verifierVersion = 2
 const verifierContext = 'quiet-signal/vault-verifier/v2'
@@ -18,6 +20,25 @@ export interface EncryptionRecord extends SecretRecord {
   /** 2: `hash` is a SHA-256 verifier of the derived bits. Missing: earlier record format. Other values are rejected. */
   version?: number
 }
+
+/** Salt, AES-GCM key and version 2 verifier derived from one password. */
+export interface VaultKeyMaterial {
+  salt: Uint8Array
+  key: CryptoKey
+  verifier: string
+}
+
+/**
+ * Outcome of checking a password against the stored record:
+ * - rejected: wrong password or unknown record version (nothing changed).
+ * - unlocked: no vault, or a version 2 vault that is now unlocked.
+ * - rotate: earlier-format vault with a correct password; the caller must re-encrypt every row from
+ *   `currentKey` (or `stagedKey`, if a staged rotation exists) to `next.key`. Still locked.
+ */
+export type VaultUnlockPlan =
+  | { kind: 'rejected' }
+  | { kind: 'unlocked' }
+  | { kind: 'rotate'; currentKey: CryptoKey; stagedKey: CryptoKey | null; next: VaultKeyMaterial }
 
 export function notifySecurityChanged() {
   window.dispatchEvent(new Event('quiet-signal-security-changed'))
@@ -65,31 +86,83 @@ export async function enableEncryption(password: string) {
   notifySecurityChanged()
 }
 
-export async function unlockEncryption(password: string) {
+/** Checks the password. Unlocks a version 2 vault directly; never writes rows. Use unlockVault (database.ts). */
+export async function planVaultUnlock(password: string): Promise<VaultUnlockPlan> {
   const record = readEncryptionRecord()
-  if (!record?.enabled) return true
+  if (!record?.enabled) return { kind: 'unlocked' }
   const salt = base64ToBytes(record.salt)
   const bits = await derivePasswordBits(password, salt)
-  const verifier = await vaultVerifier(bits)
 
   if (record.version === verifierVersion) {
-    if (!constantTimeEqual(verifier, record.hash)) return false
-  } else if (record.version === undefined) {
-    // Earlier record format: compare against its stored value, then upgrade to version 2 (same salt).
-    if (!constantTimeEqual(bytesToBase64(bits), record.hash)) return false
-    try {
-      writeEncryptionRecord(salt, verifier)
-    } catch {
-      // Keep the earlier record; the upgrade is retried on the next unlock.
-    }
-  } else {
-    // Unknown record version: refuse to unlock and leave the record untouched.
-    return false
+    if (!constantTimeEqual(await vaultVerifier(bits), record.hash)) return { kind: 'rejected' }
+    dropStagedRecordFor(record.salt)
+    activateEncryptionKey(await importAesKey(bits))
+    return { kind: 'unlocked' }
   }
 
-  activeEncryptionKey = await importAesKey(bits)
+  // Unknown record version: refuse to unlock and leave the record untouched.
+  if (record.version !== undefined) return { kind: 'rejected' }
+
+  // Earlier record format: compare against its stored value; the caller rotates to a version 2 record.
+  if (!constantTimeEqual(bytesToBase64(bits), record.hash)) return { kind: 'rejected' }
+  const currentKey = await importAesKey(bits)
+  const staged = await readStagedMaterial(password)
+  if (staged) return { kind: 'rotate', currentKey, stagedKey: staged.key, next: staged }
+  return { kind: 'rotate', currentKey, stagedKey: null, next: await deriveVaultKeyMaterial(password) }
+}
+
+/** Derives fresh material (new random salt) for the password. */
+async function deriveVaultKeyMaterial(password: string): Promise<VaultKeyMaterial> {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const bits = await derivePasswordBits(password, salt)
+  return { salt, key: await importAesKey(bits), verifier: await vaultVerifier(bits) }
+}
+
+/** Saves the target record of a rotation under the staging key. Throws if storage fails. */
+export function stageEncryptionRecord(material: VaultKeyMaterial) {
+  localStorage.setItem(
+    pendingEncryptionStorageKey,
+    JSON.stringify(buildEncryptionRecord(material.salt, material.verifier))
+  )
+}
+
+/** Makes the staged target the active record, then removes the staging key. Throws if storage fails. */
+export function commitStagedEncryptionRecord(material: VaultKeyMaterial) {
+  writeEncryptionRecord(material.salt, material.verifier)
+  try {
+    localStorage.removeItem(pendingEncryptionStorageKey)
+  } catch {
+    // A leftover staged record with the active salt is removed on the next unlock.
+  }
+}
+
+export function activateEncryptionKey(key: CryptoKey) {
+  activeEncryptionKey = key
   notifySecurityChanged()
-  return true
+}
+
+/** Staged record that matches the password, or null (missing, malformed or for another password). */
+async function readStagedMaterial(password: string): Promise<VaultKeyMaterial | null> {
+  const staged = readRecord(pendingEncryptionStorageKey)
+  if (!staged?.enabled || staged.version !== verifierVersion || typeof staged.salt !== 'string') return null
+  try {
+    const salt = base64ToBytes(staged.salt)
+    const bits = await derivePasswordBits(password, salt)
+    const verifier = await vaultVerifier(bits)
+    if (!constantTimeEqual(verifier, staged.hash ?? '')) return null
+    return { salt, key: await importAesKey(bits), verifier }
+  } catch {
+    return null
+  }
+}
+
+function dropStagedRecordFor(activeSalt: string) {
+  try {
+    if (readRecord(pendingEncryptionStorageKey)?.salt === activeSalt)
+      localStorage.removeItem(pendingEncryptionStorageKey)
+  } catch {
+    // Harmless: a staged record is only used together with an earlier-format record.
+  }
 }
 
 export function lockEncryption() {
@@ -99,6 +172,7 @@ export function lockEncryption() {
 
 export function disableEncryptionRecord() {
   localStorage.removeItem(encryptionStorageKey)
+  localStorage.removeItem(pendingEncryptionStorageKey)
   activeEncryptionKey = null
   notifySecurityChanged()
 }
@@ -106,11 +180,14 @@ export function disableEncryptionRecord() {
 export async function encryptQuoteForStorage(quote: Quote) {
   if (!isEncryptionEnabled()) return stripCryptoFields(quote)
   if (!activeEncryptionKey) throw new Error('Encryption is locked.')
+  return encryptQuoteWithKey(quote, activeEncryptionKey)
+}
 
+export async function encryptQuoteWithKey(quote: Quote, key: CryptoKey) {
   const plaintextQuote = stripCryptoFields(quote)
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const encoded = new TextEncoder().encode(JSON.stringify(plaintextQuote))
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, activeEncryptionKey, encoded)
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, encoded)
 
   return {
     id: quote.id,
@@ -129,11 +206,18 @@ export async function encryptQuoteForStorage(quote: Quote) {
 
 export async function decryptQuoteFromStorage(quote: Quote) {
   if (!quote.encrypted) return stripCryptoFields(quote)
-  if (!activeEncryptionKey || !quote.encryptedPayload || !quote.encryptionIv) return null
+  if (!activeEncryptionKey) return null
+  return decryptQuoteWithKey(quote, activeEncryptionKey)
+}
+
+/** Plaintext rows are returned as they are; rejects if the key does not match. */
+export async function decryptQuoteWithKey(quote: Quote, key: CryptoKey) {
+  if (!quote.encrypted) return stripCryptoFields(quote)
+  if (!quote.encryptedPayload || !quote.encryptionIv) return null
 
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: toArrayBuffer(base64ToBytes(quote.encryptionIv)) },
-    activeEncryptionKey,
+    key,
     base64ToBytes(quote.encryptedPayload)
   )
 
@@ -143,11 +227,14 @@ export async function decryptQuoteFromStorage(quote: Quote) {
 export async function encryptBookForStorage(book: Book) {
   if (!isEncryptionEnabled()) return stripBookCryptoFields(book)
   if (!activeEncryptionKey) throw new Error('Encryption is locked.')
+  return encryptBookWithKey(book, activeEncryptionKey)
+}
 
+export async function encryptBookWithKey(book: Book, key: CryptoKey) {
   const plaintextBook = stripBookCryptoFields(book)
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const encoded = new TextEncoder().encode(JSON.stringify(plaintextBook))
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, activeEncryptionKey, encoded)
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, encoded)
 
   return {
     id: book.id,
@@ -163,11 +250,18 @@ export async function encryptBookForStorage(book: Book) {
 
 export async function decryptBookFromStorage(book: Book) {
   if (!book.encrypted) return stripBookCryptoFields(book)
-  if (!activeEncryptionKey || !book.encryptedPayload || !book.encryptionIv) return null
+  if (!activeEncryptionKey) return null
+  return decryptBookWithKey(book, activeEncryptionKey)
+}
+
+/** Plaintext rows are returned as they are; rejects if the key does not match. */
+export async function decryptBookWithKey(book: Book, key: CryptoKey) {
+  if (!book.encrypted) return stripBookCryptoFields(book)
+  if (!book.encryptedPayload || !book.encryptionIv) return null
 
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: toArrayBuffer(base64ToBytes(book.encryptionIv)) },
-    activeEncryptionKey,
+    key,
     base64ToBytes(book.encryptedPayload)
   )
 
@@ -194,8 +288,12 @@ function readSecretRecord(key: string) {
 }
 
 function readEncryptionRecord() {
+  return readRecord(encryptionStorageKey)
+}
+
+function readRecord(storageKey: string) {
   try {
-    const value = localStorage.getItem(encryptionStorageKey)
+    const value = localStorage.getItem(storageKey)
     return value ? (JSON.parse(value) as EncryptionRecord) : null
   } catch {
     return null
@@ -212,13 +310,11 @@ async function hashWithSalt(secret: string, salt: Uint8Array) {
 }
 
 function writeEncryptionRecord(salt: Uint8Array, verifier: string) {
-  const record: EncryptionRecord = {
-    enabled: true,
-    salt: bytesToBase64(salt),
-    hash: verifier,
-    version: verifierVersion
-  }
-  localStorage.setItem(encryptionStorageKey, JSON.stringify(record))
+  localStorage.setItem(encryptionStorageKey, JSON.stringify(buildEncryptionRecord(salt, verifier)))
+}
+
+function buildEncryptionRecord(salt: Uint8Array, verifier: string): EncryptionRecord {
+  return { enabled: true, salt: bytesToBase64(salt), hash: verifier, version: verifierVersion }
 }
 
 /** PBKDF2-SHA-256 (256 bits); the vault key and the verifier are both derived from these bits. */

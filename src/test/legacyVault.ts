@@ -1,5 +1,6 @@
 // SYNTHETIC – built from the format in the code: creates vault data in the format before record version 2
 // (record without `version`, rows encrypted with an AES-GCM key derived via PBKDF2 deriveKey).
+import type { Book } from '../types/book'
 import type { Quote } from '../types/quote'
 
 // Constants and derivation below are intentionally frozen to the earlier format; do not sync them with security.ts.
@@ -68,6 +69,27 @@ export async function encryptQuoteLegacy(quote: Quote, password: string, salt: U
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
     reviewCount: quote.reviewCount,
+    encrypted: true,
+    encryptedPayload: bytesToBase64(new Uint8Array(payload)),
+    encryptionIv: bytesToBase64(iv)
+  }
+}
+
+/** Encrypts a book in the app's storage format, with the key derived the earlier deriveKey way. */
+export async function encryptBookLegacy(book: Book, password: string, salt: Uint8Array): Promise<Book> {
+  const { encrypted, encryptedPayload, encryptionIv, ...plain } = book
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const payload = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    await legacyAesKey(password, salt),
+    new TextEncoder().encode(JSON.stringify(plain))
+  )
+  return {
+    id: book.id,
+    title: '',
+    weight: book.weight,
+    createdAt: book.createdAt,
+    updatedAt: book.updatedAt,
     encrypted: true,
     encryptedPayload: bytesToBase64(new Uint8Array(payload)),
     encryptionIv: bytesToBase64(iv)

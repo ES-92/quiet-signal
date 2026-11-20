@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { decryptAllQuotesAndDisable, encryptAllQuotes } from '../db/database'
+import { decryptAllQuotesAndDisable, encryptAllQuotes, unlockVault } from '../db/database'
 import { useI18n } from '../i18n/useI18n'
-import { disableEncryptionRecord, enableEncryption, isEncryptionUnlocked, unlockEncryption } from '../services/security'
+import { disableEncryptionRecord, enableEncryption, isEncryptionUnlocked } from '../services/security'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
@@ -48,7 +48,7 @@ export function useEncryptionSettings(onMessage: (message: string) => void) {
     setBusy(true)
     try {
       if (!isEncryptionUnlocked()) {
-        if (!(await unlockEncryption(password))) {
+        if (!(await unlockVault(password))) {
           onMessage(t('wrongPassword'))
           return
         }

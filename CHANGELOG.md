@@ -54,6 +54,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ### Security
 - Security improvements for the encrypted vault.
+- Key rotation for vaults created with earlier versions.
 - Ran `npm audit fix` (no breaking changes): `npm audit --omit=dev` now reports 0 vulnerabilities (previously 17, incl. 8 high, e.g. in `vite`, `react-router`, `source-map-js`).
 
 ## [0.2.0] - 2026-05-28
