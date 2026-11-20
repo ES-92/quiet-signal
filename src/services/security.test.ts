@@ -378,7 +378,7 @@ describe('Prüfdatensatz des Tresors', () => {
     expect(record!.salt).toBe(bytesToBase64(legacy.salt))
     expect(record!.hash).not.toBe(legacy.hash)
     expect(localStorage.getItem(encryptionStorageKey)).not.toContain(legacy.hash)
-    expect(record!.hash).toBe(await expectedVerifier(base64ToBytes(legacy.hash)))
+    expect(record!.hash).toBe(await expectedVerifier(await derivePasswordBits(password, legacy.salt)))
   })
 
   it('verschlüsselt nach der Aktualisierung weiter lesbar, auch nach erneutem Entsperren', async () => {
