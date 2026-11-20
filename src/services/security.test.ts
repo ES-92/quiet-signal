@@ -320,7 +320,7 @@ async function expectedVerifier(bits: Uint8Array) {
 }
 
 describe('Prüfdatensatz des Tresors', () => {
-  it('speichert keinen Schlüsselwert im Prüfdatensatz', async () => {
+  it('speichert im Prüfdatensatz nur den Prüfwert in Version 2', async () => {
     // Arrange
     const password = 'passwort-123'
 
