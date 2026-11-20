@@ -31,6 +31,7 @@ We work test-first: **no production code without a failing test first.** Write t
 
 - Stack: Vitest, jsdom, Testing Library, `fake-indexeddb`. Test files sit next to the code (`*.test.ts` / `*.test.tsx`).
 - Structure each test as Arrange, Act, Assert (with `// Arrange`, `// Act`, `// Assert` comments).
+- Test names (`describe` / `it` strings) are written in German; code, comments and all non-test files are in English.
 - Tests must be deterministic and offline. The time zone is pinned to `Europe/Berlin` (`vitest.global-setup.ts`); control the clock with `vi.useFakeTimers()` / `vi.setSystemTime()`.
 - Helpers live in `src/test/`: `makeQuote` / `makeBook` / `readFixture` (`factories.ts`) and `renderWithProviders` (`render.tsx`, wraps i18n and router).
 - **Fixtures are synthetic.** Never commit real notes, highlights or backups. Put sample files in `src/test/fixtures/`, build them from the format the code expects, mark them as synthetic, and list them in `src/test/fixtures/README.md`.

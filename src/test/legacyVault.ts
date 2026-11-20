@@ -1,5 +1,5 @@
-// SYNTHETISCH – nach Format im Code gebaut: erzeugt Tresor-Daten im Format vor Prüfdatensatz-Version 2
-// (Datensatz ohne `version`, Zeilen mit einem per PBKDF2-deriveKey abgeleiteten AES-GCM-Schlüssel).
+// SYNTHETIC – built from the format in the code: creates vault data in the format before record version 2
+// (record without `version`, rows encrypted with an AES-GCM key derived via PBKDF2 deriveKey).
 import type { Quote } from '../types/quote'
 
 // Constants and derivation below are intentionally frozen to the earlier format; do not sync them with security.ts.
@@ -21,7 +21,7 @@ function passwordKey(password: string) {
   ])
 }
 
-/** PBKDF2-SHA-256, 256 Bit, mit denselben Parametern wie die App. */
+/** PBKDF2-SHA-256, 256 bits, with the same parameters as the app. */
 export async function derivePasswordBits(password: string, salt: Uint8Array) {
   const bits = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt: salt.slice().buffer, iterations, hash: 'SHA-256' },
@@ -41,7 +41,7 @@ async function legacyAesKey(password: string, salt: Uint8Array) {
   )
 }
 
-/** Schreibt einen Datensatz wie frühere Versionen: { enabled, salt, hash } ohne `version`. */
+/** Writes a record in the earlier format: { enabled, salt, hash } without `version`. */
 export async function writeLegacyEncryptionRecord(password: string) {
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const hash = bytesToBase64(await derivePasswordBits(password, salt))
@@ -50,7 +50,7 @@ export async function writeLegacyEncryptionRecord(password: string) {
   return { salt, hash, raw }
 }
 
-/** Verschlüsselt ein Quote im Speicherformat der App, Schlüssel über den früheren deriveKey-Weg. */
+/** Encrypts a quote in the app's storage format, with the key derived the earlier deriveKey way. */
 export async function encryptQuoteLegacy(quote: Quote, password: string, salt: Uint8Array): Promise<Quote> {
   const { encrypted, encryptedPayload, encryptionIv, ...plain } = quote
   const iv = crypto.getRandomValues(new Uint8Array(12))
