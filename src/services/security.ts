@@ -86,7 +86,10 @@ export async function enableEncryption(password: string) {
   notifySecurityChanged()
 }
 
-/** Checks the password. Unlocks a version 2 vault directly; never writes rows. Use unlockVault (database.ts). */
+/**
+ * Internal: only for unlockVault (database.ts), which performs the rotation this may ask for.
+ * Checks the password. Unlocks a version 2 vault directly; never writes rows.
+ */
 export async function planVaultUnlock(password: string): Promise<VaultUnlockPlan> {
   const record = readEncryptionRecord()
   if (!record?.enabled) return { kind: 'unlocked' }
@@ -95,7 +98,7 @@ export async function planVaultUnlock(password: string): Promise<VaultUnlockPlan
 
   if (record.version === verifierVersion) {
     if (!constantTimeEqual(await vaultVerifier(bits), record.hash)) return { kind: 'rejected' }
-    dropStagedRecordFor(record.salt)
+    await dropObsoleteStagedRecord(password, record.salt)
     activateEncryptionKey(await importAesKey(bits))
     return { kind: 'unlocked' }
   }
@@ -106,7 +109,7 @@ export async function planVaultUnlock(password: string): Promise<VaultUnlockPlan
   // Earlier record format: compare against its stored value; the caller rotates to a version 2 record.
   if (!constantTimeEqual(bytesToBase64(bits), record.hash)) return { kind: 'rejected' }
   const currentKey = await importAesKey(bits)
-  const staged = await readStagedMaterial(password)
+  const staged = await readStagedMaterial(password, record.salt)
   if (staged) return { kind: 'rotate', currentKey, stagedKey: staged.key, next: staged }
   return { kind: 'rotate', currentKey, stagedKey: null, next: await deriveVaultKeyMaterial(password) }
 }
@@ -141,10 +144,14 @@ export function activateEncryptionKey(key: CryptoKey) {
   notifySecurityChanged()
 }
 
-/** Staged record that matches the password, or null (missing, malformed or for another password). */
-async function readStagedMaterial(password: string): Promise<VaultKeyMaterial | null> {
+/**
+ * Staged record that matches the password, or null (missing, malformed, for another password, or with
+ * the salt of the active record; staging always uses a fresh salt).
+ */
+async function readStagedMaterial(password: string, activeSalt: string): Promise<VaultKeyMaterial | null> {
   const staged = readRecord(pendingEncryptionStorageKey)
   if (!staged?.enabled || staged.version !== verifierVersion || typeof staged.salt !== 'string') return null
+  if (staged.salt === activeSalt) return null
   try {
     const salt = base64ToBytes(staged.salt)
     const bits = await derivePasswordBits(password, salt)
@@ -156,10 +163,16 @@ async function readStagedMaterial(password: string): Promise<VaultKeyMaterial | 
   }
 }
 
-function dropStagedRecordFor(activeSalt: string) {
+/**
+ * On a version 2 unlock a staged record is no longer needed if it carries the active salt (left over
+ * from a finished rotation) or does not match the password.
+ */
+async function dropObsoleteStagedRecord(password: string, activeSalt: string) {
   try {
-    if (readRecord(pendingEncryptionStorageKey)?.salt === activeSalt)
-      localStorage.removeItem(pendingEncryptionStorageKey)
+    const staged = readRecord(pendingEncryptionStorageKey)
+    if (!staged) return
+    const obsolete = staged.salt === activeSalt || !(await readStagedMaterial(password, activeSalt))
+    if (obsolete) localStorage.removeItem(pendingEncryptionStorageKey)
   } catch {
     // Harmless: a staged record is only used together with an earlier-format record.
   }

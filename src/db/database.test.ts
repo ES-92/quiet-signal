@@ -1050,6 +1050,66 @@ describe('Schlüsselrotation beim Entsperren eines Tresors im früheren Format',
     expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
   })
 
+  it('ignoriert einen vorgemerkten Datensatz mit dem Salt des aktiven Datensatzes', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const planted = JSON.stringify({
+      enabled: true,
+      salt: bytesToBase64(legacy.salt),
+      hash: await expectedVerifier(base64ToSalt(legacy.hash)),
+      version: 2
+    })
+    localStorage.setItem(pendingEncryptionStorageKey, planted)
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    expect(unlocked).toBe(true)
+    const record = readStoredRecord()!
+    expect(record.version).toBe(2)
+    expect(record.salt).not.toBe(bytesToBase64(legacy.salt))
+    expect(readPendingRecord()).toBeNull()
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect((await listBooks()).map((book) => book.title)).toEqual(['Buch'])
+  })
+
+  it('entsperrt trotzdem und lässt alles unverändert, wenn das Laden der Zeilen für die Rotation fehlschlägt', async () => {
+    // Arrange
+    const password = 'altes-passwort'
+    const legacy = await seedLegacyVault(password)
+    const rowsBefore = await snapshotRows()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(db.quotes, 'toArray').mockRejectedValueOnce(new Error('UnknownError'))
+
+    // Act
+    const unlocked = await unlockVault(password)
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(localStorage.getItem(encryptionStorageKey)).toBe(legacy.raw)
+    expect(readPendingRecord()).toBeNull()
+    expect(await snapshotRows()).toEqual(rowsBefore)
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Aktiv'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0].join(' ')).toMatch(rotationWarning)
+  })
+
+  it('entfernt beim Entsperren mit Version 2 einen vorgemerkten Datensatz, der nicht zum Passwort passt', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+    await writePendingRecord('passwort-123', { verifier: 'AAAA' })
+    lockEncryption()
+
+    // Act
+    const unlocked = await unlockVault('passwort-123')
+
+    // Assert
+    expect(unlocked).toBe(true)
+    expect(readPendingRecord()).toBeNull()
+  })
+
   it('lässt bei falschem Passwort Datensatz und Zeilen unverändert und merkt nichts vor', async () => {
     // Arrange
     const legacy = await seedLegacyVault('altes-passwort')

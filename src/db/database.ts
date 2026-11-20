@@ -110,9 +110,9 @@ async function safeDecryptBook(row: Book) {
 }
 
 /**
- * Loads every row decrypted for a bulk rewrite (encrypt-all / decrypt-all). These clear
- * the tables before rewriting, so any row that cannot be read must abort the operation
- * instead of being silently dropped.
+ * Loads every row decrypted for a bulk rewrite (encrypt-all / decrypt-all). The rewrite
+ * replaces every row in a format the old state cannot read (or removes the key), so any row
+ * that cannot be read must abort the operation instead of being silently left behind.
  */
 async function loadAllForRewrite() {
   if (!isEncryptionUnlocked()) throw new Error('Encryption is locked.')
@@ -402,8 +402,10 @@ const rotationRecordMessage =
 // harmless and is reused as the target next time. Fails in 4: rows use the staged key and the staged
 // record describes it; the next unlock reads rows with either key and finishes the rotation.
 async function rotateVaultKey(currentKey: CryptoKey, stagedKey: CryptoKey | null, next: VaultKeyMaterial) {
-  const reencrypted = await reencryptAllRows(currentKey, stagedKey, next.key)
+  let readKey = currentKey
   try {
+    const reencrypted = await reencryptAllRows(currentKey, stagedKey, next.key)
+    readKey = reencrypted.readKey
     if (!reencrypted.ok) throw new Error(rewriteAbortMessage)
     if (!stagedKey) stageEncryptionRecord(next)
     await db.transaction('rw', db.quotes, db.books, async () => {
@@ -412,7 +414,7 @@ async function rotateVaultKey(currentKey: CryptoKey, stagedKey: CryptoKey | null
     })
   } catch {
     console.warn(rotationFailedMessage)
-    activateEncryptionKey(reencrypted.readKey)
+    activateEncryptionKey(readKey)
     return
   }
   try {
