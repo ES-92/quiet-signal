@@ -410,6 +410,7 @@ export const es: Record<keyof typeof en, string> = {
   installDismiss: 'Cerrar',
   undo: 'Deshacer',
   discardedToast: 'Descartado.',
+  discardFailed: 'No se pudo descartar la entrada. Ha vuelto al mazo.',
   snoozedToast: 'Oculto hasta mañana.',
   trash: 'Papelera',
   trashIntro: 'Lo descartado permanece aquí hasta que lo restaures o vacíes la papelera.',

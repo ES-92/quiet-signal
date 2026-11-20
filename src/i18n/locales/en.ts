@@ -408,6 +408,7 @@ export const en = {
   installDismiss: 'Dismiss',
   undo: 'Undo',
   discardedToast: 'Discarded.',
+  discardFailed: 'Could not discard the entry. It is back in the deck.',
   snoozedToast: 'Hidden until tomorrow morning.',
   trash: 'Trash',
   trashIntro: 'Discarded entries stay here until you restore them or empty the trash.',

@@ -45,7 +45,12 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
     advanceIndex()
   }
 
-  function markDiscarded(id: string) {
+  // Hides the card at once and saves in the background; if saving fails, the card comes back with an error toast.
+  function discardWithUndo(id: string) {
+    discardQuote(id).catch(() => {
+      showQuote(id)
+      showToast({ message: t('discardFailed') })
+    })
     hideQuote(id)
     showToast({
       message: t('discardedToast'),
@@ -66,8 +71,7 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
   function handleDiscard() {
     if (!currentQuote) return
     const id = currentQuote.id
-    void discardQuote(id)
-    markDiscarded(id)
+    discardWithUndo(id)
     // No advance: hiding the discarded quote moves the next card into this slot.
   }
 
@@ -90,8 +94,7 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
     if (!currentQuote) return
     const id = currentQuote.id
     setContextOpen(false)
-    void discardQuote(id)
-    markDiscarded(id)
+    discardWithUndo(id)
     // No advance: hiding the discarded quote moves the next card into this slot.
   }
 

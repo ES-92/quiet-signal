@@ -410,6 +410,7 @@ export const de: Record<keyof typeof en, string> = {
   installDismiss: 'Schließen',
   undo: 'Rückgängig',
   discardedToast: 'Verworfen.',
+  discardFailed: 'Der Eintrag konnte nicht verworfen werden. Er ist wieder im Stapel.',
   snoozedToast: 'Bis morgen früh ausgeblendet.',
   trash: 'Papierkorb',
   trashIntro: 'Verworfenes bleibt hier, bis du es wiederherstellst oder den Papierkorb leerst.',

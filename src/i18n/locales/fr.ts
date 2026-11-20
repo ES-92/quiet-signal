@@ -410,6 +410,7 @@ export const fr: Record<keyof typeof en, string> = {
   installDismiss: 'Fermer',
   undo: 'Annuler',
   discardedToast: 'Rejeté.',
+  discardFailed: "L’entrée n’a pas pu être rejetée. Elle est de retour dans la pile.",
   snoozedToast: 'Masqué jusqu’à demain matin.',
   trash: 'Corbeille',
   trashIntro: 'Les éléments rejetés restent ici jusqu’à ce que tu les restaures ou vides la corbeille.',

@@ -49,6 +49,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Kindle import now keeps only the longer highlight when a later clipping extends an earlier, shorter one of the same book (previously both were imported when the shorter one came first) (#7).
 - Keeping a daily card no longer loses the like: concurrent updates to the same quote (like and review) are now serialized per quote, so neither overwrites the other's fields (#16).
 - Discarding a daily card (swipe down or "delete noise") no longer skips the next card; the following card now takes its place and the discarded card disappears at once instead of snapping back until saving finishes (#17).
+- If discarding a daily card fails to save, the card now reappears with an error toast instead of staying hidden without feedback.
 
 ### Security
 - Security improvements for the encrypted vault.

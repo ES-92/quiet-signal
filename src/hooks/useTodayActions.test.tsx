@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertBooks, upsertQuotes } from '../db/database'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { translations } from '../i18n/translations'
@@ -44,6 +44,10 @@ beforeEach(async () => {
   useQuoteStore.setState({ quotes: [], loading: true })
   useBookStore.setState({ books: [], loading: true })
   useToastStore.setState({ toast: null })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('useTodayActions', () => {
@@ -150,6 +154,28 @@ describe('useTodayActions', () => {
     expect(callbacks.advanceIndex).not.toHaveBeenCalled()
     expect(useToastStore.getState().toast?.message).toBe(en.discardedToast)
     await waitFor(async () => expect((await getQuote('q'))?.deletedAt).toBeTruthy())
+  })
+
+  it.each([
+    ['Wischen', 'handleDiscard'],
+    ['Kontextmenü', 'handleContextDiscard']
+  ] as const)('blendet die Karte wieder ein und zeigt einen Fehler, wenn das Verwerfen per %s scheitert', async (_weg, action) => {
+    // Arrange
+    const quote = makeQuote({ id: 'q' })
+    await upsertQuotes([quote])
+    vi.spyOn(useQuoteStore.getState(), 'discardQuote').mockRejectedValue(new Error('Schreibfehler'))
+    const { result, callbacks } = setup({ quote })
+
+    // Act
+    await act(async () => {
+      result.current.actions[action]()
+    })
+
+    // Assert
+    expect(callbacks.hideQuote).toHaveBeenCalledWith('q')
+    await waitFor(() => expect(callbacks.showQuote).toHaveBeenCalledWith('q'))
+    expect(useToastStore.getState().toast?.message).toBe(en.discardFailed)
+    expect((await getQuote('q'))?.deletedAt).toBeUndefined()
   })
 
   it('stellt über das Kontextmenü zurück, schließt das Menü und rückt vor', async () => {
