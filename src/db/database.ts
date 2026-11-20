@@ -41,13 +41,13 @@ export const db = new QuietSignalDatabase()
 
 const now = () => new Date().toISOString()
 
+const rewriteAbortMessage = 'Some entries could not be decrypted; aborting to avoid data loss.'
+
 /**
  * Decrypts one stored row. A row that cannot be decrypted (corrupt payload, wrong key)
  * is reported with a single warning and treated like an unreadable row (null), so one
  * bad row cannot make the whole library unreadable.
  */
-const rewriteAbortMessage = 'Some entries could not be decrypted; aborting to avoid data loss.'
-
 async function safeDecryptQuote(row: Quote) {
   try {
     return await decryptQuoteFromStorage(row)
@@ -226,12 +226,11 @@ export async function clearBooks() {
 export async function encryptAllQuotes() {
   const { quotes, books } = await loadAllForRewrite()
   // All WebCrypto work happens before the transaction (no non-Dexie awaits inside it);
-  // the tables are only cleared and rewritten atomically, so a failure keeps the old rows.
+  // the loaded rows are rewritten atomically, so a failure keeps the old rows. bulkPut
+  // replaces rows by id without clearing the tables, so rows created after loading survive.
   const encryptedQuotes = await Promise.all(quotes.map((quote) => encryptQuoteForStorage(quote)))
   const encryptedBooks = await Promise.all(books.map((book) => encryptBookForStorage(book)))
   await db.transaction('rw', db.quotes, db.books, async () => {
-    await db.quotes.clear()
-    await db.books.clear()
     await db.quotes.bulkPut(encryptedQuotes)
     await db.books.bulkPut(encryptedBooks)
   })
@@ -241,8 +240,6 @@ export async function decryptAllQuotesAndDisable() {
   const { quotes, books } = await loadAllForRewrite()
   const plainQuotes = quotes.map((quote) => ({ ...quote, tags: normalizeTags(quote.tags) }))
   await db.transaction('rw', db.quotes, db.books, async () => {
-    await db.quotes.clear()
-    await db.books.clear()
     await db.quotes.bulkPut(plainQuotes)
     await db.books.bulkPut(books)
   })

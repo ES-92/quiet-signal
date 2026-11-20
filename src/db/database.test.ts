@@ -4,6 +4,7 @@ import { parseJsonImportBundle } from '../services/importExport'
 import {
   disableEncryptionRecord,
   enableEncryption,
+  encryptQuoteForStorage,
   isEncryptionEnabled,
   lockEncryption,
   unlockEncryption
@@ -293,6 +294,15 @@ describe('Legacy-Daten', () => {
   })
 })
 
+// Inserts rows right before the rewrite transaction starts, i.e. after the rows were loaded.
+function insertBeforeRewriteTransaction(insert: () => Promise<void>) {
+  const originalTransaction = db.transaction.bind(db) as (...args: unknown[]) => Promise<unknown>
+  vi.spyOn(db, 'transaction').mockImplementationOnce((async (...args: unknown[]) => {
+    await insert()
+    return originalTransaction(...args)
+  }) as never)
+}
+
 describe('Verschlüsselung', () => {
   it('verschlüsselt alle Zeilen, liefert Klartext, sperrt und entschlüsselt wieder', async () => {
     // Arrange
@@ -575,6 +585,41 @@ describe('Verschlüsselung', () => {
     expect((await db.books.get('b1'))?.encrypted).toBe(true)
     expect((await listQuotes())[0].text).toBe('Eins')
     expect((await listBooks())[0].title).toBe('Buch')
+  })
+
+  it('encryptAllQuotes behält Zeilen, die nach dem Laden und vor dem Umschreiben entstanden sind', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'alt', text: 'Alt' })])
+    await upsertBooks([makeBook({ id: 'b-alt', title: 'Altes Buch' })])
+    await enableEncryption('passwort-123')
+    insertBeforeRewriteTransaction(async () => {
+      await db.quotes.put(await encryptQuoteForStorage(makeQuote({ id: 'neu', text: 'Neu' })))
+      await db.books.put(makeBook({ id: 'b-neu', title: 'Neues Buch' }))
+    })
+
+    // Act
+    await encryptAllQuotes()
+
+    // Assert
+    expect((await listQuotes()).map((quote) => quote.text).sort()).toEqual(['Alt', 'Neu'])
+    expect((await db.books.toArray()).map((book) => book.id).sort()).toEqual(['b-alt', 'b-neu'])
+  })
+
+  it('decryptAllQuotesAndDisable behält Zeilen, die nach dem Laden und vor dem Umschreiben entstanden sind', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'alt', text: 'Alt' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    insertBeforeRewriteTransaction(async () => {
+      await db.quotes.put(makeQuote({ id: 'neu', text: 'Neu' }))
+    })
+
+    // Act
+    await decryptAllQuotesAndDisable()
+
+    // Assert
+    expect(isEncryptionEnabled()).toBe(false)
+    expect((await listQuotes()).map((quote) => quote.text).sort()).toEqual(['Alt', 'Neu'])
   })
 
   it('wirft bei gesperrtem Tresor in encryptAllQuotes und decryptAllQuotesAndDisable und lässt die Tabellen unberührt', async () => {
