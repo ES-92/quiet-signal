@@ -43,6 +43,40 @@ const now = () => new Date().toISOString()
 
 const rewriteAbortMessage = 'Some entries could not be decrypted; aborting to avoid data loss.'
 
+// Bulk rewrites (encrypt-all, decrypt-all, key rotation) load every row, rewrite it and commit it in one
+// transaction. A single write that overlaps with one would either be overwritten by the rewrite or be
+// stored in a format the rewrite is about to leave behind. Single writes therefore wait while a bulk rewrite
+// is pending, and a bulk rewrite waits for the single writes already in flight. Only within a single tab.
+// A bulk rewrite must never call one of the guarded write functions itself (it would wait for itself).
+let bulkRewrite: Promise<void> | null = null
+const writesInFlight = new Set<Promise<unknown>>()
+
+async function guardedWrite<T>(write: () => Promise<T>): Promise<T> {
+  while (bulkRewrite) await bulkRewrite
+  const run = write()
+  writesInFlight.add(run)
+  const settle = () => writesInFlight.delete(run)
+  run.then(settle, settle)
+  return run
+}
+
+function runBulkRewrite<T>(rewrite: () => Promise<T>): Promise<T> {
+  const previous = bulkRewrite ?? Promise.resolve()
+  const run = previous.then(async () => {
+    await Promise.allSettled([...writesInFlight])
+    return rewrite()
+  })
+  const gate = run.then(
+    () => undefined,
+    () => undefined
+  )
+  bulkRewrite = gate
+  void gate.then(() => {
+    if (bulkRewrite === gate) bulkRewrite = null
+  })
+  return run
+}
+
 /**
  * Decrypts one stored row. A row that cannot be decrypted (corrupt payload, wrong key)
  * is reported with a single warning and treated like an unreadable row (null), so one
@@ -120,9 +154,11 @@ export async function listTrashed() {
     .sort((a, b) => (b.deletedAt as string).localeCompare(a.deletedAt as string))
 }
 
-export async function emptyTrash() {
-  const trashed = await listTrashed()
-  await db.quotes.bulkDelete(trashed.map((quote) => quote.id))
+export function emptyTrash() {
+  return guardedWrite(async () => {
+    const trashed = await listTrashed()
+    await db.quotes.bulkDelete(trashed.map((quote) => quote.id))
+  })
 }
 
 export async function getQuote(id: string) {
@@ -132,7 +168,11 @@ export async function getQuote(id: string) {
   return decrypted ? withQuoteDefaults(decrypted) : undefined
 }
 
-export async function createQuote(input: QuoteInput) {
+export function createQuote(input: QuoteInput) {
+  return guardedWrite(() => insertQuote(input))
+}
+
+async function insertQuote(input: QuoteInput) {
   const timestamp = now()
   const quote: Quote = {
     ...input,
@@ -153,30 +193,32 @@ export async function createQuote(input: QuoteInput) {
   return quote
 }
 
-export async function upsertQuotes(quotes: Quote[]) {
-  await db.quotes.bulkPut(
-    await Promise.all(
-      quotes.map((quote) =>
-        encryptQuoteForStorage({
-          ...withQuoteDefaults(quote),
-          tags: normalizeTags(quote.tags),
-          people: normalizePeople(quote.people)
-        })
+export function upsertQuotes(quotes: Quote[]) {
+  return guardedWrite(async () => {
+    await db.quotes.bulkPut(
+      await Promise.all(
+        quotes.map((quote) =>
+          encryptQuoteForStorage({
+            ...withQuoteDefaults(quote),
+            tags: normalizeTags(quote.tags),
+            people: normalizePeople(quote.people)
+          })
+        )
       )
     )
-  )
+  })
 }
 
 // Updates are read-modify-write with async WebCrypto in between, so they cannot run inside one Dexie
 // transaction (it would auto-commit on the non-Dexie await). Serialize them per quote id instead, so
 // concurrent patches on the same row (e.g. like + review) never overwrite each other's fields.
-// Limits: only updateQuote goes through this queue (upsertQuotes, deleteQuote, encryptAllQuotes and
-// decryptAllQuotesAndDisable bypass it), and it only serializes within a single tab.
+// Limits: only updateQuote goes through this queue (other writes and bulk rewrites bypass it; bulk rewrites
+// are kept apart by the bulk-rewrite lock above), and it only serializes within a single tab.
 const quoteUpdateQueue = new Map<string, Promise<unknown>>()
 
 export function updateQuote(id: string, patch: Partial<Quote>): Promise<Quote | undefined> {
   const previous = quoteUpdateQueue.get(id) ?? Promise.resolve()
-  const run = previous.catch(() => undefined).then(() => applyQuoteUpdate(id, patch))
+  const run = previous.catch(() => undefined).then(() => guardedWrite(() => applyQuoteUpdate(id, patch)))
   quoteUpdateQueue.set(id, run)
   const cleanup = () => {
     if (quoteUpdateQueue.get(id) === run) quoteUpdateQueue.delete(id)
@@ -211,19 +253,23 @@ export function normalizePeople(people: string[] = []) {
   )
 }
 
-export async function deleteQuote(id: string) {
-  await db.quotes.delete(id)
+export function deleteQuote(id: string) {
+  return guardedWrite(() => db.quotes.delete(id))
 }
 
-export async function clearQuotes() {
-  await db.quotes.clear()
+export function clearQuotes() {
+  return guardedWrite(() => db.quotes.clear())
 }
 
-export async function clearBooks() {
-  await db.books.clear()
+export function clearBooks() {
+  return guardedWrite(() => db.books.clear())
 }
 
-export async function encryptAllQuotes() {
+export function encryptAllQuotes() {
+  return runBulkRewrite(encryptAllRows)
+}
+
+async function encryptAllRows() {
   const { quotes, books } = await loadAllForRewrite()
   // All WebCrypto work happens before the transaction (no non-Dexie awaits inside it);
   // the loaded rows are rewritten atomically, so a failure keeps the old rows. bulkPut
@@ -236,7 +282,11 @@ export async function encryptAllQuotes() {
   })
 }
 
-export async function decryptAllQuotesAndDisable() {
+export function decryptAllQuotesAndDisable() {
+  return runBulkRewrite(decryptAllRowsAndDisable)
+}
+
+async function decryptAllRowsAndDisable() {
   const { quotes, books } = await loadAllForRewrite()
   const plainQuotes = quotes.map((quote) => ({ ...quote, tags: normalizeTags(quote.tags) }))
   await db.transaction('rw', db.quotes, db.books, async () => {
@@ -260,7 +310,11 @@ export async function getBook(id: string) {
   return book ? (await safeDecryptBook(book)) ?? undefined : undefined
 }
 
-export async function createBook(input: BookInput) {
+export function createBook(input: BookInput) {
+  return guardedWrite(() => insertBook(input))
+}
+
+async function insertBook(input: BookInput) {
   const timestamp = now()
   const book: Book = {
     ...input,
@@ -276,7 +330,11 @@ export async function createBook(input: BookInput) {
   return book
 }
 
-export async function updateBook(id: string, patch: Partial<Book>) {
+export function updateBook(id: string, patch: Partial<Book>) {
+  return guardedWrite(() => applyBookUpdate(id, patch))
+}
+
+async function applyBookUpdate(id: string, patch: Partial<Book>) {
   const current = await getBook(id)
   if (!current) return undefined
   const nextBook: Book = { ...current, ...patch, updatedAt: now() }
@@ -284,12 +342,14 @@ export async function updateBook(id: string, patch: Partial<Book>) {
   return getBook(id)
 }
 
-export async function deleteBook(id: string) {
-  await db.books.delete(id)
+export function deleteBook(id: string) {
+  return guardedWrite(() => db.books.delete(id))
 }
 
-export async function upsertBooks(books: Book[]) {
-  await db.books.bulkPut(await Promise.all(books.map((book) => encryptBookForStorage(book))))
+export function upsertBooks(books: Book[]) {
+  return guardedWrite(async () => {
+    await db.books.bulkPut(await Promise.all(books.map((book) => encryptBookForStorage(book))))
+  })
 }
 
 export function normalizeTags(tags: string[]) {

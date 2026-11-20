@@ -641,3 +641,100 @@ describe('Verschlüsselung', () => {
     expect(await db.quotes.get('q1')).toEqual(rowBefore)
   })
 })
+
+// Starts a write right before the rewrite transaction begins and gives it time to finish if nothing blocks it.
+function startBeforeRewriteTransaction<T>(start: () => Promise<T>) {
+  const started: { promise: Promise<T> | null } = { promise: null }
+  const originalTransaction = db.transaction.bind(db) as (...args: unknown[]) => Promise<unknown>
+  vi.spyOn(db, 'transaction').mockImplementationOnce((async (...args: unknown[]) => {
+    const promise = start()
+    promise.catch(() => undefined)
+    started.promise = promise
+    await Promise.race([promise, new Promise((resolve) => setTimeout(resolve, 100))])
+    return originalTransaction(...args)
+  }) as never)
+  return started
+}
+
+describe('Schreibsperre während des Umschreibens aller Zeilen', () => {
+  it('legt einen während decryptAllQuotesAndDisable begonnenen Eintrag lesbar im Klartext an', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'alt', text: 'Alt' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    const started = startBeforeRewriteTransaction(() => createQuote({ text: 'Neu', tags: [] } as never))
+
+    // Act
+    await decryptAllQuotesAndDisable()
+    const created = await started.promise!
+
+    // Assert
+    const row = await db.quotes.get(created.id)
+    expect(isEncryptionEnabled()).toBe(false)
+    expect(row?.encrypted).toBeUndefined()
+    expect(row?.text).toBe('Neu')
+    expect((await listQuotes()).map((quote) => quote.text).sort()).toEqual(['Alt', 'Neu'])
+  })
+
+  it('legt einen während encryptAllQuotes begonnenen Eintrag verschlüsselt und lesbar an', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'alt', text: 'Alt' })])
+    await enableEncryption('passwort-123')
+    const started = startBeforeRewriteTransaction(() => createQuote({ text: 'Neu', tags: [] } as never))
+
+    // Act
+    await encryptAllQuotes()
+    const created = await started.promise!
+
+    // Assert
+    expect((await db.quotes.get(created.id))?.encrypted).toBe(true)
+    expect((await listQuotes()).map((quote) => quote.text).sort()).toEqual(['Alt', 'Neu'])
+  })
+
+  it('verliert eine während encryptAllQuotes begonnene Änderung nicht', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Vorher' })])
+    await enableEncryption('passwort-123')
+    const started = startBeforeRewriteTransaction(() => updateQuote('q1', { text: 'Nachher' }))
+
+    // Act
+    await encryptAllQuotes()
+    await started.promise
+
+    // Assert
+    expect((await db.quotes.get('q1'))?.encrypted).toBe(true)
+    expect((await getQuote('q1'))?.text).toBe('Nachher')
+  })
+
+  it('stellt einen während decryptAllQuotesAndDisable gelöschten Eintrag nicht wieder her', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'weg', text: 'Weg' }), makeQuote({ id: 'bleibt', text: 'Bleibt' })])
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    const started = startBeforeRewriteTransaction(() => deleteQuote('weg'))
+
+    // Act
+    await decryptAllQuotesAndDisable()
+    await started.promise
+
+    // Assert
+    expect(await db.quotes.get('weg')).toBeUndefined()
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Bleibt'])
+  })
+
+  it('wartet mit decryptAllQuotesAndDisable auf einen bereits laufenden Schreibvorgang', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+    const created = createQuote({ text: 'Unterwegs', tags: [] } as never)
+
+    // Act
+    await decryptAllQuotesAndDisable()
+    const quote = await created
+
+    // Assert
+    const row = await db.quotes.get(quote.id)
+    expect(isEncryptionEnabled()).toBe(false)
+    expect(row?.encrypted).toBeUndefined()
+    expect(row?.text).toBe('Unterwegs')
+  })
+})
