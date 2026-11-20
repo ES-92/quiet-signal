@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { decryptAllQuotesAndDisable, encryptAllQuotes } from '../db/database'
 import { useI18n } from '../i18n/useI18n'
-import { enableEncryption, isEncryptionUnlocked, unlockEncryption } from '../services/security'
+import { disableEncryptionRecord, enableEncryption, isEncryptionUnlocked, unlockEncryption } from '../services/security'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
@@ -23,7 +23,16 @@ export function useEncryptionSettings(onMessage: (message: string) => void) {
     setBusy(true)
     try {
       await enableEncryption(password)
-      await encryptAllQuotes()
+      try {
+        await encryptAllQuotes()
+      } catch (error) {
+        // The rewrite transaction rolled back, so every row is still plaintext: drop the
+        // record again so the vault is not left switched on and a retry can start fresh.
+        // Failures after this point (reloading the stores) must not roll back, because the
+        // encrypted rows are already committed.
+        disableEncryptionRecord()
+        throw error
+      }
       await loadQuotes()
       await loadBooks()
       setPassword('')

@@ -75,6 +75,47 @@ describe('useEncryptionSettings', () => {
     expect(useToastStore.getState().toast?.message).toBe(en.encryptionEnableFailed)
     expect(result.current.busy).toBe(false)
     expect(result.current.password).toBe('passwort-123')
+    expect(isEncryptionEnabled()).toBe(false)
+  })
+
+  it('setzt die Sperre zurück, wenn das Umschreiben scheitert, und erlaubt einen zweiten Versuch', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ text: 'Klartext' })])
+    const bulkPut = vi.spyOn(db.books, 'bulkPut').mockRejectedValueOnce(new DOMException('voll', 'QuotaExceededError'))
+    const onMessage = vi.fn()
+    const { result } = renderHook(() => useEncryptionSettings(onMessage), { wrapper })
+    act(() => result.current.setPassword('passwort-123'))
+
+    // Act
+    await act(async () => result.current.enable())
+    const enabledAfterFailure = isEncryptionEnabled()
+    const rowsAfterFailure = await db.quotes.toArray()
+    bulkPut.mockRestore()
+    await act(async () => result.current.enable())
+
+    // Assert
+    expect(useToastStore.getState().toast?.message).toBe(en.encryptionEnableFailed)
+    expect(enabledAfterFailure).toBe(false)
+    expect(rowsAfterFailure.map((row) => [row.text, row.encrypted ?? false])).toEqual([['Klartext', false]])
+    expect(isEncryptionEnabled()).toBe(true)
+    expect((await db.quotes.toArray()).every((row) => row.encrypted === true)).toBe(true)
+    expect(onMessage).toHaveBeenLastCalledWith(en.encryptionEnabled)
+  })
+
+  it('lässt die Sperre aktiv, wenn erst das Neuladen nach dem Umschreiben scheitert', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ text: 'Geheim' })])
+    vi.spyOn(useQuoteStore.getState(), 'loadQuotes').mockRejectedValue(new Error('Ladefehler'))
+    const { result } = renderHook(() => useEncryptionSettings(vi.fn()), { wrapper })
+    act(() => result.current.setPassword('passwort-123'))
+
+    // Act
+    await act(async () => result.current.enable())
+
+    // Assert
+    expect(useToastStore.getState().toast?.message).toBe(en.encryptionEnableFailed)
+    expect(isEncryptionEnabled()).toBe(true)
+    expect((await db.quotes.toArray()).every((row) => row.encrypted === true)).toBe(true)
   })
 
   it('entfernt die Verschlüsselung und schreibt Klartext zurück', async () => {

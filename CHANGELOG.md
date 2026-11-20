@@ -42,6 +42,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Enabling encryption twice no longer overwrites the salt and key (which made all encrypted rows unreadable); `enableEncryption` now rejects with "Encryption is already enabled." and leaves the vault untouched (#4).
 - Enabling or disabling encryption no longer deletes quotes in the trash; they stay in the trash and can still be restored (#14).
 - Enabling/disabling encryption is now atomic (rows are only rewritten inside one transaction, and the encryption record is removed only after the rewrite committed), refuses to run on a locked vault, and Settings shows an error toast instead of failing silently (refs #3, #14).
+- A failed attempt to enable encryption (e.g. storage full) no longer leaves the vault switched on with plaintext rows; the vault stays off, the error toast is accurate and enabling can simply be retried.
 - Kindle import now handles Windows line endings (CRLF): clippings parsed from a CRLF file are identical to those from an LF file, including the added date (#5).
 - Kindle import now reads German "Hinzugefügt am" dates (e.g. "Montag, 3. März 2025 10:15:00") as local time, so clippings from German Kindles keep their added date (#6).
 - Kindle import now keeps only the longer highlight when a later clipping extends an earlier, shorter one of the same book (previously both were imported when the shorter one came first) (#7).
