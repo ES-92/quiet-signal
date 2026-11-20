@@ -109,7 +109,7 @@ Be clear about what each mechanism does and does not protect.
 - Every write uses a fresh random 12-byte IV, stored next to the ciphertext (`encryptionIv`). The serialised entry (all fields) is the encrypted payload (`encryptedPayload`).
 - The salt, the verifier (`hash`) and the record version are stored in `localStorage` (key `quiet-signal-encryption`) so the password can be checked at unlock time.
 
-**Verifier and record versions.** The password is run through PBKDF2-SHA-256 once. The resulting bits are imported as the non-extractable AES-GCM key, and the stored verifier is a separate one-way SHA-256 hash of those bits with a fixed domain label (`SHA-256(context || bits)`), so the stored verifier is a one-way hash and cannot be used to derive the key without the password. The record carries `version: 2`. A record without a version (earlier format) is accepted on a correct password and rewritten to version 2 on that successful unlock; a record with any other version fails closed (unlock is refused and the record is left untouched).
+**Verifier and record versions.** The password is run through PBKDF2-SHA-256 once. The resulting bits are imported as the non-extractable AES-GCM key, and the stored verifier is `SHA-256(context || bits)` with a fixed domain label. The record carries `version: 2`. A record without a version (earlier format) is accepted on a correct password and rewritten to version 2 on that successful unlock; a record with any other version fails closed (unlock is refused and the record is left untouched).
 
 ### What stays unencrypted
 

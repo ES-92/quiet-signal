@@ -14,8 +14,8 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Synthetic backup fixtures (current, legacy, malicious) and characterization tests for the JSON/CSV/Markdown import and export, including media-URL and ID sanitizing.
 - Characterization tests for the PIN lock and vault encryption (PIN verify/clear, AES-GCM roundtrip for quotes and books, unique IVs, locked/unlock behavior).
 - Characterization tests for the database layer against fake-indexeddb (defaults, normalization, trash, legacy v1 schema upgrade, encryption roundtrip and locked behavior, corrupt-row and double-enable data-safety cases).
-- Characterization tests for the spaced-repetition review algorithm (interval table, `applyReview`, daily stack selection and determinism), including a pinned UTC-vs-local-day behavior around midnight.
-- Characterization tests for reflections, book merge suggestions, backup state, release notes and quote search/filtering, including pinned UTC-vs-local date quirks.
+- Characterization tests for the spaced-repetition review algorithm (interval table, `applyReview`, daily stack selection and determinism), including local-day behavior around midnight.
+- Characterization tests for reflections, book merge suggestions, backup state, release notes and quote search/filtering, including local-date behavior.
 - GitHub Actions CI workflow (lint, typecheck, tests, build on push to `main` and on pull requests) and a CI status badge in the README.
 - `docs/ARCHITECTURE.md` (layers, data flow, Dexie versions 1–5, review algorithm, security model, known limitations), updated `CONTRIBUTING.md` (test-first rule, test commands, fixtures convention, changelog and bug-label rules) and a "Development & tests" section in the README.
 - Dependabot configuration for npm and GitHub Actions with weekly, grouped minor/patch updates.
