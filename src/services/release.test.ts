@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import packageJson from '../../package.json'
 import {
   APP_VERSION,
   ensureVersionInitialized,
@@ -32,6 +33,14 @@ describe('notesSince', () => {
     expect(notes.map((note) => note.version)).toContain('0.2.0')
   })
 
+  it('enthält 0.3.0 für die gesehene Version 0.2.0', () => {
+    // Arrange / Act
+    const notes = notesSince('0.2.0')
+
+    // Assert
+    expect(notes.map((note) => note.version)).toContain('0.3.0')
+  })
+
   it('enthält nichts für die aktuelle Version', () => {
     // Arrange / Act
     const notes = notesSince(APP_VERSION)
@@ -57,6 +66,13 @@ describe('notesSince', () => {
 
     // Assert
     expect(notes).toEqual(releaseNotes)
+  })
+})
+
+describe('APP_VERSION', () => {
+  it('entspricht der Version in package.json', () => {
+    // Arrange / Act / Assert
+    expect(APP_VERSION).toBe(packageJson.version)
   })
 })
 

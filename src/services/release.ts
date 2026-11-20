@@ -1,6 +1,6 @@
 import type { TranslationKey } from '../i18n/translations'
 
-export const APP_VERSION = '0.2.0'
+export const APP_VERSION = '0.3.0'
 
 const versionKey = 'quiet-signal-last-seen-version'
 
@@ -10,6 +10,10 @@ export interface ReleaseNote {
 }
 
 export const releaseNotes: ReleaseNote[] = [
+  {
+    version: '0.3.0',
+    items: ['release030Daily', 'release030Kindle', 'release030Encryption', 'release030Deck', 'release030Capture']
+  },
   { version: '0.2.0', items: ['release020Gestures', 'release020Onboarding', 'release020Brand'] }
 ]
 

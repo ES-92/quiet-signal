@@ -5,8 +5,10 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-20
+
 ### Added
-- Testinfrastruktur (Vitest, jsdom, Testing Library, fake-indexeddb) mit `npm test`, `npm run test:watch` und `npm run coverage`; erste Tests für den CSV-Parser.
+- Test infrastructure (Vitest, jsdom, Testing Library, fake-indexeddb) with `npm test`, `npm run test:watch` and `npm run coverage`; first tests for the CSV parser.
 - Test fixture library (`makeQuote`, `makeBook`, `readFixture`, synthetic Kindle fixtures) and characterization tests for the Kindle clippings import.
 - Synthetic Readwise CSV fixtures and characterization tests for the Readwise CSV import (header aliases, tag splitting, book merging, duplicate skipping, invalid dates).
 - Synthetic backup fixtures (current, legacy, malicious) and characterization tests for the JSON/CSV/Markdown import and export, including media-URL and ID sanitizing.
@@ -47,7 +49,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Discarding a daily card (swipe down or "delete noise") no longer skips the next card; the following card now takes its place and the discarded card disappears at once instead of snapping back until saving finishes (#17).
 
 ### Security
-- Hardened how the vault password check is stored; existing vaults are upgraded automatically on the next unlock.
+- Security improvements for the encrypted vault.
 - Ran `npm audit fix` (no breaking changes): `npm audit --omit=dev` now reports 0 vulnerabilities (previously 17, incl. 8 high, e.g. in `vite`, `react-router`, `source-map-js`).
 
 ## [0.2.0] - 2026-05-28
