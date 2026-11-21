@@ -1,6 +1,7 @@
 import { ArrowRight, Clock3, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
+import { daysUnclarified } from '../../services/lifecycle'
 import { entryType, type Quote } from '../../types/quote'
 import { AudioPlayer } from '../AudioRecorder'
 import { GestureCoach } from '../GestureCoach'
@@ -35,6 +36,7 @@ export function ClarifyDeckStack({
   onDismissCoach
 }: ClarifyDeckStackProps) {
   const { t } = useI18n()
+  const unclarifiedDays = daysUnclarified(quote)
   const clarifyLift = deck.exit ? 1 : Math.min(1, Math.hypot(deck.drag.x, deck.drag.y) / 132)
 
   return (
@@ -90,6 +92,9 @@ export function ClarifyDeckStack({
             {t(typeLabels[entryType(quote)])}
           </span>
         </div>
+        {unclarifiedDays >= 7 && (
+          <p className="mt-2 text-xs text-graphite">{t('unclarifiedSince', { days: unclarifiedDays })}</p>
+        )}
         {quote.imageDataUrl && (
           <img
             className="mt-4 max-h-56 w-full rounded-md border border-line object-cover"

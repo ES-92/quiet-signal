@@ -105,7 +105,7 @@ describe('useClarifyDraft', () => {
 
   it('baut den Patch bereinigt: getrimmt, Tags klein, leere Felder undefined', () => {
     // Arrange
-    const quote = makeQuote({ nextReviewAt: '2026-02-01T09:00:00.000Z' })
+    const quote = makeQuote({ status: 'inbox', nextReviewAt: '2026-02-01T09:00:00.000Z' })
     const { result } = renderHook(() => useClarifyDraft(quote, []))
     act(() =>
       result.current.updateDraft({
@@ -128,24 +128,78 @@ describe('useClarifyDraft', () => {
       author: 'Autor',
       people: ['Anna', 'Bob'],
       status: 'inbox',
-      signalStrength: 'normal',
-      nextReviewAt: '2026-02-01T09:00:00.000Z'
+      signalStrength: 'normal'
     })
+    expect(patch).not.toHaveProperty('nextReviewAt')
     expect(patch.note).toBeUndefined()
     expect(patch.work).toBeUndefined()
     expect(patch.occurredAt).toBe(new Date('2026-03-04T10:30').toISOString())
   })
 
-  it('löscht beim Signal den Wiedervorlagetermin und nimmt eine übergebene Stärke', () => {
+  it('startet ein Signal aus dem Eingang morgen um 06:00 mit Abstand 1', () => {
     // Arrange
-    const quote = makeQuote({ nextReviewAt: '2026-02-01T09:00:00.000Z' })
+    const quote = makeQuote({
+      status: 'inbox',
+      nextReviewAt: '2026-02-01T09:00:00.000Z',
+      snoozedUntil: '2099-01-01T00:00:00.000Z'
+    })
     const { result } = renderHook(() => useClarifyDraft(quote, []))
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(6, 0, 0, 0)
 
     // Act
     const patch = result.current.buildPatch('signal', 'quiet')
 
     // Assert
-    expect(patch).toMatchObject({ status: 'signal', signalStrength: 'quiet' })
-    expect(patch.nextReviewAt).toBeUndefined()
+    expect(patch).toMatchObject({ status: 'signal', signalStrength: 'quiet', reviewIntervalDays: 1 })
+    expect(patch.nextReviewAt).toBe(tomorrow.toISOString())
+    expect(patch).toHaveProperty('snoozedUntil', undefined)
+  })
+
+  it('lässt Abstand und Termin eines bestehenden Signals unverändert', () => {
+    // Arrange
+    const quote = makeQuote({ status: 'signal', reviewIntervalDays: 7, nextReviewAt: '2026-02-01T09:00:00.000Z' })
+    const { result } = renderHook(() => useClarifyDraft(quote, []))
+
+    // Act
+    const patch = result.current.buildPatch('signal')
+
+    // Assert
+    expect(patch).not.toHaveProperty('reviewIntervalDays')
+    expect(patch).not.toHaveProperty('nextReviewAt')
+  })
+
+  it('übernimmt einen ausgefüllten ersten Gedanken als Gedanken und lässt sonst thoughts weg', () => {
+    // Arrange
+    const quote = makeQuote({ status: 'inbox' })
+    const { result } = renderHook(() => useClarifyDraft(quote, []))
+    const withoutThought = result.current.buildPatch('signal')
+    act(() => result.current.updateDraft({ firstThought: '  Warum berührt mich das?  ' }))
+
+    // Act
+    const patch = result.current.buildPatch('signal')
+
+    // Assert
+    expect(withoutThought).not.toHaveProperty('thoughts')
+    expect(patch.thoughts).toHaveLength(1)
+    expect(patch.thoughts?.[0]).toMatchObject({ text: 'Warum berührt mich das?' })
+    expect(patch).not.toHaveProperty('updatedAt')
+  })
+
+  it('hängt den ersten Gedanken an vorhandene Gedanken an und startet leer', () => {
+    // Arrange
+    const existing = { id: 't1', text: 'Alt', createdAt: '2026-01-01T09:00:00.000Z' }
+    const quote = makeQuote({ status: 'inbox', thoughts: [existing] })
+    const { result } = renderHook(() => useClarifyDraft(quote, []))
+    const initial = result.current.draft.firstThought
+    act(() => result.current.updateDraft({ firstThought: 'Neu' }))
+
+    // Act
+    const patch = result.current.buildPatch('inbox')
+
+    // Assert
+    expect(initial).toBe('')
+    expect(patch.thoughts?.map((thought) => thought.text)).toEqual(['Alt', 'Neu'])
   })
 })

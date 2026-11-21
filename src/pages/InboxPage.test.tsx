@@ -48,6 +48,10 @@ function lastButton(name: string) {
   return buttons[buttons.length - 1]
 }
 
+function daysAgo(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
 function currentCardText() {
   return screen.getByRole('blockquote').textContent
 }
@@ -67,6 +71,37 @@ afterEach(() => {
 })
 
 describe('InboxPage', () => {
+  it('zeigt die Klär-Frage im Kopf der Klären-Seite', async () => {
+    // Arrange / Act
+    await renderInbox()
+
+    // Assert
+    expect(screen.getByText(en.clarifyQuestion)).toBeInTheDocument()
+  })
+
+  it('zeigt bei einem 22 Tage alten Eintrag den Altershinweis', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'old', status: 'inbox', createdAt: daysAgo(22) })])
+
+    // Act
+    await renderInbox()
+
+    // Assert
+    expect(await screen.findByText('unclarified for 22 days')).toBeInTheDocument()
+  })
+
+  it('zeigt bei einem 6 Tage alten Eintrag keinen Altershinweis', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'young', status: 'inbox', createdAt: daysAgo(6) })])
+
+    // Act
+    await renderInbox()
+
+    // Assert
+    await screen.findByRole('blockquote')
+    expect(screen.queryByText(/unclarified for/)).not.toBeInTheDocument()
+  })
+
   it('zeigt den Leerzustand, wenn nichts im Eingang liegt', async () => {
     // Arrange / Act
     await renderInbox()
@@ -472,7 +507,8 @@ describe('InboxPage', () => {
         people: ['Anna', 'Bob']
       })
       expect(saved?.note).toBeUndefined()
-      expect(saved?.nextReviewAt).toBeUndefined()
+      expect(saved?.reviewIntervalDays).toBe(1)
+      expect(new Date(saved?.nextReviewAt ?? '').getHours()).toBe(6)
       expect(new Date(saved?.occurredAt ?? '').getTime()).toBe(new Date('2026-03-04T10:30').getTime())
     })
 

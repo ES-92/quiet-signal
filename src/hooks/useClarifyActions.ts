@@ -1,12 +1,12 @@
 import { useI18n } from '../i18n/useI18n'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
-import type { Quote, SignalStrength } from '../types/quote'
+import type { Quote, QuoteStatus, SignalStrength } from '../types/quote'
 
 // Handlers for the top card: move to signals, keep in the inbox with edits, snooze, discard (with undo).
 export function useClarifyActions(
   quote: Quote | undefined,
-  buildPatch: (status: Quote['status'], strength?: SignalStrength) => Partial<Quote>,
+  buildPatch: (status: QuoteStatus, strength?: SignalStrength) => Partial<Quote>,
   onMessage: (message: string) => void
 ) {
   const { t } = useI18n()
