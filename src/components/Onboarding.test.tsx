@@ -46,6 +46,36 @@ describe('Onboarding', () => {
     expect(screen.queryByRole('heading')).not.toBeInTheDocument()
   })
 
+  it('zeigt auf dem ersten Schritt nur einen Weiter-Button', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    expect(screen.getAllByRole('button', { name: en.onboardingNext })).toHaveLength(1)
+  })
+
+  it('bietet auf Schritten mit eigener Aktion zusätzlich Weiter an', () => {
+    // Arrange
+    renderWithProviders(<Onboarding />)
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.onboardingNext }))
+
+    // Assert
+    expect(screen.getByRole('button', { name: en.onboardingTryCapture })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: en.onboardingNext })).toHaveLength(1)
+  })
+
+  it('lässt das Fenster scrollen, wenn der Inhalt höher als der Bildschirm ist', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    const sheet = screen.getByRole('dialog')
+    expect(sheet).toHaveClass('overflow-y-auto')
+    expect(sheet).not.toHaveClass('overflow-hidden')
+  })
+
   it('wechselt mit Weiter zum nächsten Schritt', () => {
     // Arrange
     renderWithProviders(<Onboarding />)

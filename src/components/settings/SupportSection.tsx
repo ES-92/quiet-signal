@@ -13,7 +13,7 @@ export function SupportSection() {
         </span>
         <div className="min-w-0">
           <p className="text-sm leading-6 text-graphite">{t('supportProjectBody')}</p>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 grid grid-cols-1 gap-2">
             <SupportLink href="https://ko-fi.com/esc92" label={t('supportProjectAction')} provider="Ko-fi" variant="primary" />
             <SupportLink href="https://paypal.me/ErikSchroeder92" label={t('supportProjectAction')} provider="PayPal" variant="secondary" />
           </div>
