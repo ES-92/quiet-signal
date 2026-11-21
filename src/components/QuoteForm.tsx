@@ -100,15 +100,24 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
   const [saving, setSaving] = useState(false)
   const canSave = Boolean(text.trim() || audioDataUrl || imageDataUrl)
 
-  // Status, note and favorite are also changed by actions beside the form (wake, adopt as thought, favorite); follow them (adjusting state while rendering).
+  // Status, note and favorite are also changed by actions beside the form (wake, adopt as thought, favorite).
+  // Each follows its stored value independently, and only overwrites the local value if the user has not touched it (adjusting state while rendering).
   if (quote) {
     const latest = toFormValues(quote, defaultStatus)
-    if (latest.status !== initial.status || latest.note !== initial.note || latest.favorite !== initial.favorite) {
-      setInitial({ ...initial, status: latest.status, note: latest.note, favorite: latest.favorite })
-      setStatus(latest.status)
-      setNote(latest.note)
-      setFavorite(latest.favorite)
+    let nextInitial = initial
+    if (latest.status !== initial.status) {
+      nextInitial = { ...nextInitial, status: latest.status }
+      if (status === initial.status) setStatus(latest.status)
     }
+    if (latest.note !== initial.note) {
+      nextInitial = { ...nextInitial, note: latest.note }
+      if (note === initial.note) setNote(latest.note)
+    }
+    if (latest.favorite !== initial.favorite) {
+      nextInitial = { ...nextInitial, favorite: latest.favorite }
+      if (favorite === initial.favorite) setFavorite(latest.favorite)
+    }
+    if (nextInitial !== initial) setInitial(nextInitial)
   }
 
   useEffect(() => {

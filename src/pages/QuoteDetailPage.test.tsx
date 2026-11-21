@@ -334,6 +334,47 @@ describe('QuoteDetailPage', () => {
       expect((await getQuote('q-1'))?.favorite).toBe(true)
     })
 
+    it('keeps an unsaved description when the favorite is toggled on the page', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', note: 'Alt' })])
+      await renderDetail()
+      fireEvent.change(screen.getByLabelText(en.note), { target: { value: 'Neu getippt' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.favorite }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.favorite).toBe(true), SLOW)
+
+      // Assert
+      expect(screen.getByLabelText(en.note)).toHaveValue('Neu getippt')
+    })
+
+    it('empties an untouched description field when the note is adopted as a thought', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', text: 'Text', note: 'Meine Beschreibung' })])
+      await renderDetail()
+      expect(screen.getByLabelText(en.note)).toHaveValue('Meine Beschreibung')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.adoptNote }))
+
+      // Assert
+      await waitFor(() => expect(screen.getByLabelText(en.note)).toHaveValue(''), SLOW)
+    })
+
+    it('keeps an unsaved status choice when the entry is woken on the page', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest' })])
+      await renderDetail()
+      fireEvent.change(screen.getByLabelText(en.entryStatus), { target: { value: 'inbox' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.wake }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.status).toBe('signal'), SLOW)
+
+      // Assert
+      expect(screen.getByLabelText(en.entryStatus)).toHaveValue('inbox')
+    })
+
     it('starts a rest entry saved as signal at interval 1 for tomorrow 06:00', async () => {
       // Arrange
       vi.useFakeTimers({ toFake: ['Date'] })
