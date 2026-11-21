@@ -200,6 +200,60 @@ describe('Quotes: Anlegen und Aktualisieren', () => {
   })
 })
 
+describe('updateQuote updater form', () => {
+  it('passes the freshly read row to the updater and writes its patch', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', likes: 1 })])
+    await updateQuote('q1', { likes: 5 })
+
+    // Act
+    const updated = await updateQuote('q1', (current) => ({ likes: current.likes + 1 }))
+
+    // Assert
+    expect(updated?.likes).toBe(6)
+    expect((await getQuote('q1'))?.likes).toBe(6)
+  })
+
+  it('writes nothing and returns the current row when the updater returns null', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Same' })])
+    const before = (await getQuote('q1'))?.updatedAt
+
+    // Act
+    const result = await updateQuote('q1', () => null)
+
+    // Assert
+    expect(result?.text).toBe('Same')
+    expect((await getQuote('q1'))?.updatedAt).toBe(before)
+  })
+
+  it('does not call the updater for a missing row', async () => {
+    // Arrange
+    const updater = vi.fn(() => ({ likes: 1 }))
+
+    // Act
+    const result = await updateQuote('missing', updater)
+
+    // Assert
+    expect(result).toBeUndefined()
+    expect(updater).not.toHaveBeenCalled()
+  })
+
+  it('serializes concurrent updaters so no increment is lost', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', likes: 0 })])
+
+    // Act
+    await Promise.all([
+      updateQuote('q1', (current) => ({ likes: current.likes + 1 })),
+      updateQuote('q1', (current) => ({ likes: current.likes + 1 }))
+    ])
+
+    // Assert
+    expect((await getQuote('q1'))?.likes).toBe(2)
+  })
+})
+
 describe('Papierkorb (Soft-Delete)', () => {
   it('blendet gelöschte Zitate aus listQuotes aus und zeigt sie in listTrashed (neueste zuerst)', async () => {
     // Arrange

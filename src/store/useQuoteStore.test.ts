@@ -49,6 +49,50 @@ describe('lifecycle store actions', () => {
     expect(JSON.stringify(raw)).not.toContain('Plain secret text')
   })
 
+  it('stores thoughts only inside the encrypted payload under an active vault', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+    await seedLegacyQuote()
+
+    // Act
+    await useQuoteStore.getState().addThought('legacy', 'Secret thought')
+    const raw = await db.quotes.get('legacy')
+
+    // Assert
+    expect(raw?.encrypted).toBe(true)
+    expect(raw).not.toHaveProperty('thoughts')
+    expect(JSON.stringify(raw)).not.toContain('Secret thought')
+    expect(useQuoteStore.getState().quotes[0].thoughts?.[0].text).toBe('Secret thought')
+  })
+
+  it('keeps both thoughts when addThought is called twice without awaiting', async () => {
+    // Arrange
+    await seedLegacyQuote()
+
+    // Act
+    await Promise.all([
+      useQuoteStore.getState().addThought('legacy', 'A'),
+      useQuoteStore.getState().addThought('legacy', 'B')
+    ])
+
+    // Assert
+    const texts = (await db.quotes.get('legacy'))?.thoughts?.map((t) => t.text)
+    expect(texts).toEqual(['A', 'B'])
+  })
+
+  it('applies two concurrent moreOften calls on top of each other', async () => {
+    // Arrange
+    await seedLegacyQuote({ reviewIntervalDays: 1, reviewCount: 0 })
+
+    // Act
+    await Promise.all([useQuoteStore.getState().moreOften('legacy'), useQuoteStore.getState().moreOften('legacy')])
+
+    // Assert
+    const row = await db.quotes.get('legacy')
+    expect(row?.reviewCount).toBe(2)
+    expect(row?.reviewIntervalDays).toBe(3)
+  })
+
   it('lessOften returns the new interval', async () => {
     // Arrange
     await seedLegacyQuote()

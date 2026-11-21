@@ -105,61 +105,45 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     await get().loadQuotes()
   },
   moreOften: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return undefined
-    const patch = moreOftenPatch(quote)
-    await updateQuote(id, patch)
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    const updated = await updateQuote(id, (current) => moreOftenPatch(current))
     await get().loadQuotes()
-    return patch.reviewIntervalDays
+    return updated?.reviewIntervalDays
   },
   lessOften: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return undefined
-    const patch = lessOftenPatch(quote)
-    await updateQuote(id, patch)
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    const updated = await updateQuote(id, (current) => lessOftenPatch(current))
     await get().loadQuotes()
-    return patch.reviewIntervalDays
+    return updated?.reviewIntervalDays
   },
   restQuote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    await updateQuote(id, restPatch(quote))
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => restPatch(current))
     await get().loadQuotes()
   },
   wakeQuote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    await updateQuote(id, wakePatch(quote))
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => wakePatch(current))
     await get().loadQuotes()
   },
   addThought: async (id, text) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const patch = addThoughtPatch(quote, text)
-    if (!patch) return
-    await updateQuote(id, patch)
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => addThoughtPatch(current, text))
     await get().loadQuotes()
   },
   editThought: async (id, thoughtId, text) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const patch = editThoughtPatch(quote, thoughtId, text)
-    if (!patch) return
-    await updateQuote(id, patch)
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => editThoughtPatch(current, thoughtId, text))
     await get().loadQuotes()
   },
   removeThought: async (id, thoughtId) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    await updateQuote(id, removeThoughtPatch(quote, thoughtId))
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => removeThoughtPatch(current, thoughtId))
     await get().loadQuotes()
   },
   adoptNote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const patch = adoptNotePatch(quote)
-    if (!patch) return
-    await updateQuote(id, patch)
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => adoptNotePatch(current))
     await get().loadQuotes()
   },
   discardQuote: async (id) => {
