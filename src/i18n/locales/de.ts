@@ -460,7 +460,7 @@ export const de: Record<keyof typeof en, string> = {
   gesturesMoreSection: 'Weitere Griffe',
   coachFooter: 'Lange drücken: Aktionen',
   coachGotIt: 'Verstanden',
-  gestureCapture: 'Nach unten wischen erfasst neues Rauschen.',
+  gestureCapture: 'Am oberen Rand nach unten wischen erfasst neues Rauschen.',
   gestureInbox: 'Vom linken Rand wischen öffnet das Klären (Inbox).',
   gestureMenu: 'Oben rechts öffnet die Werkzeuge (am Rechner auch ⌘K).',
   gestureLongPress: 'Lange auf eine Karte drücken öffnet die Aktionen.'

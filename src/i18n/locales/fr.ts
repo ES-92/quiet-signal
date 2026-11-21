@@ -460,7 +460,7 @@ export const fr: Record<keyof typeof en, string> = {
   gesturesMoreSection: 'Autres gestes',
   coachFooter: 'Appui long : actions',
   coachGotIt: 'Compris',
-  gestureCapture: 'Balaye vers le bas pour capturer du bruit.',
+  gestureCapture: 'Balaye vers le bas depuis le bord supérieur pour capturer du bruit.',
   gestureInbox: 'Balaye depuis le bord gauche pour ouvrir Clarifier (boîte).',
   gestureMenu: 'En haut à droite s’ouvrent les outils (sur ordinateur aussi ⌘K).',
   gestureLongPress: 'Appui long sur une carte pour ouvrir ses actions.'

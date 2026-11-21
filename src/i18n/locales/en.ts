@@ -458,7 +458,7 @@ export const en = {
   gesturesMoreSection: 'More gestures',
   coachFooter: 'Long-press: actions',
   coachGotIt: 'Got it',
-  gestureCapture: 'Swipe down to capture new noise.',
+  gestureCapture: 'Swipe down from the top edge to capture new noise.',
   gestureInbox: 'Swipe from the left edge to open Clarify (inbox).',
   gestureMenu: 'Top right opens the tools (on a computer also ⌘K).',
   gestureLongPress: 'Long-press a card to open its actions.'

@@ -460,7 +460,7 @@ export const es: Record<keyof typeof en, string> = {
   gesturesMoreSection: 'Más gestos',
   coachFooter: 'Pulsación larga: acciones',
   coachGotIt: 'Entendido',
-  gestureCapture: 'Desliza hacia abajo para capturar ruido nuevo.',
+  gestureCapture: 'Desliza hacia abajo desde el borde superior para capturar ruido nuevo.',
   gestureInbox: 'Desliza desde el borde izquierdo para abrir Aclarar (bandeja).',
   gestureMenu: 'Arriba a la derecha se abren las herramientas (en el ordenador también ⌘K).',
   gestureLongPress: 'Mantén pulsada una tarjeta para abrir sus acciones.'
