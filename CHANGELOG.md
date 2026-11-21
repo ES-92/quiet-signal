@@ -6,6 +6,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Changed
+- README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
 - Dependency updates: React 19.3, Dexie 4.4.7, Zustand 5.1 and other minor/patch updates (#19); Vite 8 (#21); lucide-react 1.x (#22).
 
 ## [0.3.0] - 2026-11-20
