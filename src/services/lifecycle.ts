@@ -33,7 +33,7 @@ function reviewedPatch(quote: Quote, intervalDays: number, now: Date): Partial<Q
 }
 
 export function moreOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
-  const next = Math.min(maxIntervalDays, Math.round(effectiveInterval(quote) * moreOftenFactor))
+  const next = Math.min(maxIntervalDays, Math.ceil(effectiveInterval(quote) * moreOftenFactor))
   return { ...reviewedPatch(quote, next, now), likes: quote.likes + 1 }
 }
 
