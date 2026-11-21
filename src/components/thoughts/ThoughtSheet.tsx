@@ -35,16 +35,19 @@ export function ThoughtSheet({ thoughts, onSave, onClose }: ThoughtSheetProps) {
     }
   }
 
+  // Backdrop and Escape only dismiss an empty sheet; typed text is never lost by accident (Cancel closes explicitly).
+  const hasText = text.trim().length > 0
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape' && !hasText) onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  }, [onClose, hasText])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-ink/15 p-3 backdrop-blur-[2px] sm:items-center sm:justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end bg-ink/15 p-3 backdrop-blur-[2px] sm:items-center sm:justify-center" onClick={() => !hasText && onClose()}>
       <form
         role="dialog"
         aria-modal="true"

@@ -1,4 +1,4 @@
-import { Clock3, Flame } from 'lucide-react'
+import { ChevronsLeft, Flame } from 'lucide-react'
 import { useFitText } from '../../hooks/useFitText'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
@@ -66,7 +66,7 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
           transform: `translate3d(${lerp(-12, 0, dislikeHint)}px, ${lerp(8, 0, dislikeHint)}px, 0) rotate(${lerp(-6, 0, dislikeHint)}deg)`
         }}
       >
-        <Clock3 size={16} /> {t('gestureLessOften')}
+        <ChevronsLeft size={16} /> {t('gestureLessOften')}
       </div>
 
       <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />

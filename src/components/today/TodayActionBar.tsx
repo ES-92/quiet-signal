@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, MoreHorizontal } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Moon, MoreHorizontal, PenLine } from 'lucide-react'
 import { useI18n } from '../../i18n/useI18n'
 
 interface TodayActionBarProps {
@@ -7,13 +7,14 @@ interface TodayActionBarProps {
   onThought: () => void
   onRest: () => void
   onMenu: () => void
+  contextOpen?: boolean
   disabled?: boolean
 }
 
 const buttonClass = 'quiet-touch inline-flex h-11 items-center justify-center rounded-full border border-line text-graphite'
 
-// Button alternative to the four swipe gestures plus the card menu.
-export function TodayActionBar({ onMoreOften, onLessOften, onThought, onRest, onMenu, disabled }: TodayActionBarProps) {
+// Button alternative to the four swipe gestures plus the card menu; icons hint at the action (thought, rest) rather than the swipe direction.
+export function TodayActionBar({ onMoreOften, onLessOften, onThought, onRest, onMenu, contextOpen = false, disabled }: TodayActionBarProps) {
   const { t } = useI18n()
 
   return (
@@ -22,10 +23,10 @@ export function TodayActionBar({ onMoreOften, onLessOften, onThought, onRest, on
         <ArrowLeft size={16} />
       </button>
       <button disabled={disabled} className={buttonClass} aria-label={t('gestureThought')} title={t('gestureThought')} onClick={onThought}>
-        <ArrowUp size={16} />
+        <PenLine size={16} />
       </button>
       <button disabled={disabled} className={buttonClass} aria-label={t('gestureRest')} title={t('gestureRest')} onClick={onRest}>
-        <ArrowDown size={16} />
+        <Moon size={16} />
       </button>
       <button
         disabled={disabled}
@@ -36,7 +37,15 @@ export function TodayActionBar({ onMoreOften, onLessOften, onThought, onRest, on
       >
         <ArrowRight size={16} />
       </button>
-      <button disabled={disabled} className={buttonClass} aria-label={t('cardMenu')} title={t('cardMenu')} onClick={onMenu}>
+      <button
+        disabled={disabled}
+        className={buttonClass}
+        aria-label={t('cardMenu')}
+        aria-haspopup="menu"
+        aria-expanded={contextOpen}
+        title={t('cardMenu')}
+        onClick={onMenu}
+      >
         <MoreHorizontal size={16} />
       </button>
     </div>

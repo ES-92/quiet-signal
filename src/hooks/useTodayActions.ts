@@ -40,10 +40,17 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     setBookEditorOpen(false)
   }
 
+  // An undo toast of an earlier action would act on a card that is no longer where it was; the next deck action dismisses it.
+  function dismissUndoToast() {
+    const { toast, hideToast } = useToastStore.getState()
+    if (toast?.onAction) hideToast()
+  }
+
   // moreOften/lessOften already bump the review bookkeeping, so no separate like here.
   async function reviewWithInterval(change: (id: string) => Promise<number | undefined>) {
     if (!currentQuote) return
     const id = currentQuote.id
+    dismissUndoToast()
     advanceIndex()
     try {
       const days = await change(id)
@@ -57,6 +64,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   async function likeWhileBrowsing() {
     if (!currentQuote) return
     const id = currentQuote.id
+    dismissUndoToast()
     advanceIndex()
     try {
       await likeQuote(id)
@@ -71,7 +79,10 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
 
   function handleLessOften() {
     if (!browsing) return reviewWithInterval(lessOften)
-    if (currentQuote) advanceIndex()
+    if (currentQuote) {
+      dismissUndoToast()
+      advanceIndex()
+    }
     return Promise.resolve()
   }
 
@@ -80,6 +91,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     if (!currentQuote) return
     const id = currentQuote.id
     const previousSnooze = currentQuote.snoozedUntil
+    dismissUndoToast()
     restQuote(id).catch(() => {
       showQuote(id)
       showToast({ message: t('restFailed') })
@@ -98,6 +110,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
 
   function openThought() {
     if (!currentQuote) return
+    dismissUndoToast()
     setThoughtOpen(true)
   }
 

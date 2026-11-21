@@ -52,7 +52,7 @@ export function TodayContextMenu({
         )}
         <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-graphite hover:bg-white/50" onClick={onDiscard}>
           <Trash2 size={17} className="text-graphite" />
-          {t('deleteNoise')}
+          {t('deleteEntry')}
         </button>
       </div>
     </div>

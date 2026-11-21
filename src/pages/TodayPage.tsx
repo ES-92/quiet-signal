@@ -117,7 +117,7 @@ export function TodayPage() {
       ) : (
         <DailyRestState
           title={session.stackCompleted ? t('doneForToday') : t('nothingDueToday')}
-          body={session.stackCompleted ? t('doneForTodayBody') : t('nothingDueBody')}
+          body={session.stackCompleted ? t('doneForTodayBody') : session.hasSignals ? t('nothingDueBodyWithSignals') : t('nothingDueBody')}
           showReflection={session.showReflectionNudge}
           onOpenReflections={() => navigate('/reflections')}
           inboxCount={session.inboxCount}
@@ -150,6 +150,7 @@ export function TodayPage() {
             onThought={actions.openThought}
             onRest={actions.handleRest}
             onMenu={actions.openContext}
+            contextOpen={actions.contextOpen}
             disabled={coachVisible || actions.contextOpen || actions.thoughtOpen}
           />
         )}

@@ -65,6 +65,42 @@ describe('ThoughtSheet', () => {
     // Assert
     expect(onClose).toHaveBeenCalledTimes(3)
   })
+
+  it('keeps typed text when the backdrop is tapped or Escape is pressed, closing only via cancel', () => {
+    // Arrange
+    const onClose = vi.fn()
+    const { container } = renderWithProviders(<ThoughtSheet thoughts={[]} onSave={vi.fn()} onClose={onClose} />)
+    fireEvent.change(screen.getByPlaceholderText(en.thoughtPlaceholder), { target: { value: 'Halb getippt' } })
+
+    // Act
+    fireEvent.click(container.firstElementChild as HTMLElement)
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    // Assert
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByPlaceholderText(en.thoughtPlaceholder)).toHaveValue('Halb getippt')
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.cancel }))
+
+    // Assert
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('still closes on backdrop and Escape when the text is only whitespace', () => {
+    // Arrange
+    const onClose = vi.fn()
+    const { container } = renderWithProviders(<ThoughtSheet thoughts={[]} onSave={vi.fn()} onClose={onClose} />)
+    fireEvent.change(screen.getByPlaceholderText(en.thoughtPlaceholder), { target: { value: '   ' } })
+
+    // Act
+    fireEvent.click(container.firstElementChild as HTMLElement)
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    // Assert
+    expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
   it('ignores further saves while onSave is pending', async () => {
     // Arrange
     let resolve: () => void = () => {}

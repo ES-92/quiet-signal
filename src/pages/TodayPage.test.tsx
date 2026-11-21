@@ -108,6 +108,28 @@ describe('TodayPage', () => {
     expect(await screen.findByText(en.nothingDueToday)).toBeInTheDocument()
   })
 
+  it('zeigt bei leerer Bibliothek den Hinweis auf Beispieldaten', async () => {
+    // Arrange / Act
+    await renderToday()
+
+    // Assert
+    expect(await screen.findByText(en.nothingDueBody)).toBeInTheDocument()
+    expect(screen.queryByText(en.nothingDueBodyWithSignals)).not.toBeInTheDocument()
+  })
+
+  it('verweist bei vorhandenen Signalen nicht auf Beispieldaten, wenn heute nichts fällig ist', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })])
+
+    // Act
+    await renderToday()
+
+    // Assert
+    expect(await screen.findByText(en.nothingDueBodyWithSignals)).toBeInTheDocument()
+    expect(screen.queryByText(en.nothingDueBody)).not.toBeInTheDocument()
+  })
+
   it('zeigt eine fällige Karte mit Fortschritt', async () => {
     // Arrange
     await seedStack()
@@ -236,7 +258,7 @@ describe('TodayPage', () => {
     await longPress()
 
     // Act
-    fireEvent.click(screen.getByRole('button', { name: en.deleteNoise }))
+    fireEvent.click(screen.getByRole('button', { name: en.deleteEntry }))
     await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
 
     // Assert
@@ -289,7 +311,7 @@ describe('TodayPage', () => {
     })
 
     // Act
-    fireEvent.click(screen.getByRole('button', { name: en.deleteNoise }))
+    fireEvent.click(screen.getByRole('button', { name: en.deleteEntry }))
 
     // Assert
     expect(currentText()).not.toBe(first)
@@ -435,7 +457,7 @@ describe('TodayPage', () => {
     const first = currentText()
     const firstId = currentId()
     await longPress()
-    fireEvent.click(screen.getByRole('button', { name: en.deleteNoise }))
+    fireEvent.click(screen.getByRole('button', { name: en.deleteEntry }))
     await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
     const toast = useToastStore.getState().toast
@@ -561,7 +583,7 @@ describe('TodayPage', () => {
     await longPress()
 
     // Assert
-    for (const name of [en.favorite, en.openDetails, en.editBookInline, en.deleteNoise]) {
+    for (const name of [en.favorite, en.openDetails, en.editBookInline, en.deleteEntry]) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: en.later })).not.toBeInTheDocument()
@@ -720,6 +742,35 @@ describe('TodayPage', () => {
       expect(screen.getByText('1 of 2')).toBeInTheDocument()
       await waitFor(async () => expect((await getQuote(first))?.status).toBe('rest'), SLOW)
       expect(useToastStore.getState().toast?.message).toBe(en.restedToast)
+    })
+
+    it('kennzeichnet die Aktionen-Schaltfläche als Menü mit Zustand', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      const menuButton = screen.getByRole('button', { name: en.cardMenu })
+
+      // Assert
+      expect(menuButton).toHaveAttribute('aria-haspopup', 'menu')
+      expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+
+      // Act
+      fireEvent.click(menuButton)
+
+      // Assert
+      expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    it('zeigt für Gedanke und Ruhen lassen eigene Symbole statt Pfeilen', async () => {
+      // Arrange / Act
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.gestureThought }).querySelector('svg.lucide-pen-line')).not.toBeNull()
+      expect(screen.getByRole('button', { name: en.gestureRest }).querySelector('svg.lucide-moon')).not.toBeNull()
     })
 
     it('Aktionen öffnet das Kontextmenü', async () => {

@@ -23,13 +23,14 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 interface Props {
   quote?: Quote
   book?: Book
+  browsing?: boolean
 }
 
 function setup(props: Props) {
   const callbacks = { advanceIndex: vi.fn(), hideQuote: vi.fn(), showQuote: vi.fn() }
   const hook = renderHook(
     (current: Props) => ({
-      actions: useTodayActions({ currentQuote: current.quote, currentBook: current.book, browsing: false, ...callbacks }),
+      actions: useTodayActions({ currentQuote: current.quote, currentBook: current.book, browsing: current.browsing ?? false, ...callbacks }),
       path: useLocation().pathname
     }),
     { wrapper, initialProps: props }
@@ -191,6 +192,34 @@ describe('useTodayActions', () => {
       const stored = await getQuote('q')
       expect(stored?.status).toBe('signal')
       expect(stored?.snoozedUntil).toBe(previous)
+    })
+  })
+
+  describe('Rückgängig-Hinweis nach dem Ruhenlassen', () => {
+    async function restThenAct(props: Props, next: (actions: ReturnType<typeof setup>['result']['current']['actions']) => void | Promise<unknown>) {
+      const quote = makeQuote({ id: 'q', reviewIntervalDays: 3 })
+      await upsertQuotes([quote])
+      await useQuoteStore.getState().loadQuotes()
+      const { result } = setup({ quote, ...props })
+      await act(async () => result.current.actions.handleRest())
+      expect(useToastStore.getState().toast?.actionLabel).toBe(en.undo)
+      await act(async () => {
+        await next(result.current.actions)
+      })
+    }
+
+    it.each([
+      ['→ in the daily deck', {}, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleMoreOften()],
+      ['← in the daily deck', {}, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleLessOften()],
+      ['→ while browsing', { browsing: true }, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleMoreOften()],
+      ['← while browsing', { browsing: true }, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleLessOften()],
+      ['↑ (thought)', {}, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.openThought()]
+    ])('is dismissed by the next deck action: %s', async (_name, props, next) => {
+      // Arrange / Act
+      await restThenAct(props, next)
+
+      // Assert
+      expect(useToastStore.getState().toast?.actionLabel).toBeUndefined()
     })
   })
 
