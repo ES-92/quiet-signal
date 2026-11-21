@@ -11,14 +11,14 @@ interface TodayActionBarProps {
   disabled?: boolean
 }
 
-const buttonClass = 'quiet-touch inline-flex h-11 items-center justify-center rounded-full border border-line text-graphite'
+const buttonClass = 'quiet-touch inline-flex h-11 items-center justify-center rounded-full border border-line text-graphite disabled:pointer-events-none disabled:opacity-40'
 
 // Button alternative to the four swipe gestures plus the card menu; icons hint at the action (thought, rest) rather than the swipe direction.
 export function TodayActionBar({ onMoreOften, onLessOften, onThought, onRest, onMenu, contextOpen = false, disabled }: TodayActionBarProps) {
   const { t } = useI18n()
 
   return (
-    <div className="grid w-full grid-cols-5 gap-2">
+    <div className="grid w-full grid-cols-5 gap-2" role="toolbar" aria-label={t('cardActionBar')}>
       <button disabled={disabled} className={buttonClass} aria-label={t('gestureLessOften')} title={t('gestureLessOften')} onClick={onLessOften}>
         <ArrowLeft size={16} />
       </button>
@@ -30,7 +30,7 @@ export function TodayActionBar({ onMoreOften, onLessOften, onThought, onRest, on
       </button>
       <button
         disabled={disabled}
-        className="quiet-touch inline-flex h-11 items-center justify-center rounded-full bg-ink text-paper shadow-[0_12px_28px_rgba(31,30,28,0.14)]"
+        className="quiet-touch inline-flex h-11 items-center justify-center rounded-full bg-ink text-paper shadow-[0_12px_28px_rgba(31,30,28,0.14)] disabled:pointer-events-none disabled:opacity-40"
         aria-label={t('gestureMoreOften')}
         title={t('gestureMoreOften')}
         onClick={onMoreOften}

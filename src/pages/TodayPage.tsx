@@ -147,7 +147,7 @@ export function TodayPage() {
           onSave={() => void actions.handleSaveBook()}
         />
       )}
-      <footer className="flex shrink-0 flex-col items-center gap-2 pb-1" aria-label={t('quickNoise')}>
+      <footer className="flex shrink-0 flex-col items-center gap-2 pb-1">
         {currentQuote && (
           <TodayActionBar
             onMoreOften={() => void actions.handleMoreOften()}
@@ -159,7 +159,7 @@ export function TodayPage() {
             disabled={coachVisible || actions.contextOpen || actions.thoughtOpen}
           />
         )}
-        <div className="sm:hidden">
+        <div className="sm:hidden" role="group" aria-label={t('quickNoise')}>
           <QuickCaptureDock />
         </div>
       </footer>

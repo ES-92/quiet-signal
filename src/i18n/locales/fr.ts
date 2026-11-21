@@ -424,6 +424,7 @@ export const fr: Record<keyof typeof en, string> = {
   gestureThought: 'Pensée',
   gestureRest: 'Laisser reposer',
   cardMenu: 'Actions',
+  cardActionBar: 'Actions de la carte',
   restedToast: 'Au repos maintenant.',
   comesBackInDays: 'Revient dans {days} jours',
   restFailed: 'Impossible de le laisser reposer.',

@@ -422,6 +422,7 @@ export const en = {
   gestureThought: 'Thought',
   gestureRest: 'Let rest',
   cardMenu: 'Actions',
+  cardActionBar: 'Card actions',
   restedToast: 'Resting now.',
   comesBackInDays: 'Comes back in {days} days',
   restFailed: 'Could not let it rest.',

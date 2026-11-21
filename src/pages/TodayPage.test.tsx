@@ -593,6 +593,35 @@ describe('TodayPage', () => {
   })
 
   describe('Aktionsleiste', () => {
+    it('hat eine eigene Werkzeugleiste mit Beschriftung, getrennt vom Erfassen-Dock', async () => {
+      // Arrange
+      await seedStack()
+
+      // Act
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      const toolbar = screen.getByRole('toolbar', { name: en.cardActionBar })
+      expect(toolbar).toContainElement(screen.getByRole('button', { name: en.gestureRest }))
+      expect(screen.getByLabelText(en.quickNoise)).not.toContainElement(toolbar)
+    })
+
+    it('macht gesperrte Schaltflächen sichtbar blasser', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.gestureThought }))
+
+      // Assert
+      const rest = screen.getByRole('button', { name: en.gestureRest })
+      expect(rest).toBeDisabled()
+      expect(rest).toHaveClass('disabled:opacity-40')
+    })
+
     it('Öfter wirkt wie Wischen nach rechts', async () => {
       // Arrange
       await seedStack()

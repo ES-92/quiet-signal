@@ -37,6 +37,16 @@ describe('CommandDrawer', () => {
     expect(screen.getByRole('link', { name: en.today })).toBeInTheDocument()
   })
 
+  it('nutzt für das Suchfeld mindestens 16px auf dem Handy, damit iOS nicht hineinzoomt', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+
+    // Assert
+    const input = screen.getByRole('textbox', { name: en.commandSearchPlaceholder })
+    expect(input).toHaveClass('text-base', 'sm:text-sm')
+    expect(input).not.toHaveClass('text-sm')
+  })
+
   it('filtert die Navigationsziele nach der Suche', () => {
     // Arrange
     renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)

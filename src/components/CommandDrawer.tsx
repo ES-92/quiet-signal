@@ -114,7 +114,7 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
         <label className="flex min-h-[46px] items-center gap-2 rounded-md border border-line bg-white/40 px-3">
           <Search size={16} className="text-graphite" />
           <input
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-graphite/65"
+            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-graphite/65 sm:text-sm"
             placeholder={t('commandSearchPlaceholder')}
             aria-label={t('commandSearchPlaceholder')}
             value={query}
