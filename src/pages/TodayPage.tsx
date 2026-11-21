@@ -79,7 +79,11 @@ export function TodayPage() {
           {t('loadingLibrary')}
         </div>
       ) : currentQuote ? (
-        <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+        <div
+          data-testid="today-deck-area"
+          // The hint row only exists while browsing; without it the card must own the single flexible row.
+          className={`grid min-h-0 gap-2 ${session.browsing ? 'grid-rows-[auto_minmax(0,1fr)]' : 'grid-rows-[minmax(0,1fr)]'}`}
+        >
           {session.browsing && (
             <div className="flex items-center justify-center gap-3 text-xs text-graphite">
               <span>{t('browsingLabel')}</span>

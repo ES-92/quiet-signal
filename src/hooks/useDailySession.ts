@@ -78,6 +78,8 @@ export function useDailySession() {
 
   const currentIndex = Math.min(index, dailyQuotes.length)
   const currentQuote = dailyQuotes[currentIndex]
+  // The visit had cards (also when all were rested or deleted since), so an empty deck means "finished", not "nothing due".
+  const visitHadCards = browseIds ? browseIds.length > 0 : sessionQuoteIds.length > 0
   const currentBook = currentQuote?.bookId ? books.find((book) => book.id === currentQuote.bookId) : undefined
 
   return {
@@ -88,7 +90,7 @@ export function useDailySession() {
     nextQuote: dailyQuotes[currentIndex + 1],
     thirdQuote: dailyQuotes[currentIndex + 2],
     currentBook,
-    stackCompleted: dailyQuotes.length > 0 && !currentQuote,
+    stackCompleted: visitHadCards && !currentQuote,
     reflectionCount: weeklyReflection.entries.length,
     showReflectionNudge: weeklyReflection.entries.length >= 3,
     inboxCount,

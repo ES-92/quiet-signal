@@ -795,6 +795,75 @@ describe('TodayPage', () => {
       expect(screen.queryByRole('button', { name: en.gestureRest })).not.toBeInTheDocument()
     })
   })
+  describe('Layout des Kartenbereichs', () => {
+    it('gibt der Karte die ganze Höhe, solange nicht gestöbert wird', async () => {
+      // Arrange
+      await seedStack()
+
+      // Act
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      const area = screen.getByTestId('today-deck-area')
+      expect(area).toHaveClass('grid-rows-[minmax(0,1fr)]')
+      expect(area).not.toHaveClass('grid-rows-[auto_minmax(0,1fr)]')
+    })
+
+    it('reserviert beim Stöbern eine Zeile für den Hinweis über der Karte', async () => {
+      // Arrange
+      const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+      await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })])
+      await renderToday()
+      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
+      await screen.findByRole('blockquote')
+
+      // Act
+      const area = screen.getByTestId('today-deck-area')
+
+      // Assert
+      expect(area).toHaveClass('grid-rows-[auto_minmax(0,1fr)]')
+    })
+  })
+
+  describe('Abschluss nach dem Ruhenlassen aller Karten', () => {
+    it('zeigt Stapel beendet statt Nichts fällig, wenn jede Karte des Tages ruht', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins' })])
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Act
+      swipe(0, 160)
+
+      // Assert
+      expect(await screen.findByText(en.doneForToday, undefined, SLOW)).toBeInTheDocument()
+      expect(screen.queryByText(en.nothingDueToday)).not.toBeInTheDocument()
+    })
+
+    it('zeigt Stapel beendet, wenn die letzte Stöberkarte ruht, und bietet Stöbern weiter an', async () => {
+      // Arrange
+      const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+      await upsertQuotes([
+        makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 }),
+        makeQuote({ id: 't-2', text: 'Zwei', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })
+      ])
+      await renderToday()
+      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
+      await screen.findByRole('blockquote')
+      const first = currentText()
+      swipe(0, 160)
+      await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+
+      // Act
+      swipe(0, 160)
+
+      // Assert
+      expect(await screen.findByText(en.doneForToday, undefined, SLOW)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: en.browseAnyway })).toBeInTheDocument()
+    })
+  })
+
   describe('Stöbern', () => {
     const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
 
