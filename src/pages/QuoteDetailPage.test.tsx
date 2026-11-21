@@ -188,6 +188,28 @@ describe('QuoteDetailPage', () => {
     })
   })
 
+  it('keeps a thought added after adopting the description when the adoption is undone', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q-1', text: 'Text', note: 'Meine Beschreibung', thoughts: [thought] })])
+    await renderDetail()
+    fireEvent.click(screen.getByRole('button', { name: en.adoptNote }))
+    await waitFor(async () => expect((await getQuote('q-1'))?.note).toBeFalsy(), SLOW)
+    const undo = useToastStore.getState().toast?.onAction
+    await act(async () => {
+      await useQuoteStore.getState().addThought('q-1', 'Später dazu')
+    })
+
+    // Act
+    await act(async () => {
+      undo?.()
+    })
+
+    // Assert
+    await waitFor(async () => expect((await getQuote('q-1'))?.note).toBe('Meine Beschreibung'), SLOW)
+    const texts = (await getQuote('q-1'))?.thoughts?.map((item) => item.text)
+    expect(texts).toEqual([thought.text, 'Später dazu'])
+  })
+
   it('wakes a resting entry', async () => {
     // Arrange
     await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest' })])

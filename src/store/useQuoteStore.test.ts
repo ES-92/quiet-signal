@@ -204,6 +204,23 @@ describe('lifecycle store actions', () => {
     expect(quote.thoughts?.[0]).toMatchObject({ text: 'remember this', fromNote: true })
   })
 
+  it('adoptNote returns the id of the adopted thought and undoAdoptNote removes only that thought', async () => {
+    // Arrange
+    const other = { id: 'other', text: 'bleibt', createdAt: '2026-11-01T00:00:00.000Z' }
+    await seedLegacyQuote({ note: 'remember this', thoughts: [other] })
+    const adoptedId = await useQuoteStore.getState().adoptNote('legacy')
+    await useQuoteStore.getState().addThought('legacy', 'spaeter')
+
+    // Act
+    await useQuoteStore.getState().undoAdoptNote('legacy', adoptedId as string, 'remember this')
+
+    // Assert
+    const quote = useQuoteStore.getState().quotes[0]
+    expect(adoptedId).toEqual(expect.any(String))
+    expect(quote.note).toBe('remember this')
+    expect(quote.thoughts?.map((item) => item.text)).toEqual(['bleibt', 'spaeter'])
+  })
+
   it('thought actions ignore unknown ids', async () => {
     // Arrange
     await seedLegacyQuote()

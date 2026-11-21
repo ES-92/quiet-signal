@@ -15,7 +15,8 @@ import {
   adoptNotePatch,
   editThoughtPatch,
   removeThoughtPatch,
-  restoreThoughtPatch
+  restoreThoughtPatch,
+  undoAdoptNotePatch
 } from '../services/thoughts'
 import { tapHaptic } from '../services/haptics'
 import type { Quote, QuoteFilters, QuoteInput, Thought } from '../types/quote'
@@ -42,7 +43,9 @@ interface QuoteStore {
   editThought: (id: string, thoughtId: string, text: string) => Promise<void>
   removeThought: (id: string, thoughtId: string) => Promise<void>
   restoreThought: (id: string, thought: Thought) => Promise<void>
-  adoptNote: (id: string) => Promise<void>
+  // Resolves with the id of the thought created from the note (undefined when there was nothing to adopt).
+  adoptNote: (id: string) => Promise<string | undefined>
+  undoAdoptNote: (id: string, thoughtId: string, note: string | undefined) => Promise<void>
   discardQuote: (id: string) => Promise<void>
   restoreQuote: (id: string) => Promise<void>
   emptyTrash: () => Promise<void>
@@ -149,8 +152,19 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     await get().loadQuotes()
   },
   adoptNote: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    let adoptedId: string | undefined
+    await updateQuote(id, (current) => {
+      const patch = adoptNotePatch(current)
+      adoptedId = patch?.thoughts?.at(-1)?.id
+      return patch
+    })
+    await get().loadQuotes()
+    return adoptedId
+  },
+  undoAdoptNote: async (id, thoughtId, note) => {
     if (!get().quotes.some((item) => item.id === id)) return
-    await updateQuote(id, (current) => adoptNotePatch(current))
+    await updateQuote(id, (current) => undoAdoptNotePatch(current, thoughtId, note))
     await get().loadQuotes()
   },
   discardQuote: async (id) => {

@@ -19,7 +19,7 @@ export function QuoteDetailPage() {
   const { t } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, wakeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -101,15 +101,18 @@ export function QuoteDetailPage() {
 
   async function handleAdoptNote() {
     if (!quote) return
-    // The user is on this page and the undo is immediate, so restoring from this snapshot is safe.
+    // Undo removes only the adopted thought (by id) and restores the note, so thoughts added in between survive.
     const previousNote = quote.note
-    const previousThoughts = quote.thoughts
-    const adopted = await attempt(() => adoptNote(quote.id))
-    if (!adopted) return
+    let adoptedId: string | undefined
+    const adopted = await attempt(async () => {
+      adoptedId = await adoptNote(quote.id)
+    })
+    if (!adopted || !adoptedId) return
+    const thoughtId = adoptedId
     showToast({
       message: t('adoptNoteToast'),
       actionLabel: t('undo'),
-      onAction: () => void attempt(() => saveQuote(quote.id, { note: previousNote, thoughts: previousThoughts }))
+      onAction: () => void attempt(() => undoAdoptNote(quote.id, thoughtId, previousNote))
     })
   }
 

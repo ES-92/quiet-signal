@@ -55,6 +55,15 @@ export function adoptNotePatch(quote: Quote, now = new Date()): Partial<Quote> |
   return { ...added, note: undefined }
 }
 
+// Undo of adoptNotePatch on the fresh row: drops only the adopted thought (by id) and puts the note back, so thoughts added since stay.
+export function undoAdoptNotePatch(quote: Quote, thoughtId: string, note: string | undefined, now = new Date()): Partial<Quote> {
+  return {
+    thoughts: (quote.thoughts ?? []).filter((thought) => thought.id !== thoughtId),
+    note,
+    updatedAt: now.toISOString()
+  }
+}
+
 export function thoughtsNewestFirst(quote: Pick<Quote, 'thoughts'>): Thought[] {
   return [...(quote.thoughts ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }

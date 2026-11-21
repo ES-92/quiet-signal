@@ -663,6 +663,34 @@ describe('TodayPage', () => {
       expect(await screen.findByText(/Mein Gedanke/)).toBeInTheDocument()
     })
 
+    it('Gedanke: ein doppeltes Tippen auf Speichern legt den Gedanken nur einmal an', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      let release: () => void = () => undefined
+      const addThought = vi.fn(() => new Promise<void>((resolve) => (release = resolve)))
+      act(() => {
+        useQuoteStore.setState({ addThought })
+      })
+      fireEvent.click(screen.getByRole('button', { name: en.gestureThought }))
+      fireEvent.change(screen.getByPlaceholderText(en.thoughtPlaceholder), { target: { value: 'Nur einmal' } })
+      const save = screen.getByRole('button', { name: en.save })
+
+      // Act: the second tap arrives while the first write is still running
+      await act(async () => {
+        fireEvent.click(save)
+      })
+      await act(async () => {
+        fireEvent.click(save)
+      })
+      release()
+
+      // Assert
+      await waitFor(() => expect(screen.queryByPlaceholderText(en.thoughtPlaceholder)).not.toBeInTheDocument(), SLOW)
+      expect(addThought).toHaveBeenCalledTimes(1)
+    })
+
     it('Gedanke: bei Speicherfehler bleibt das Sheet mit Text offen und ein Fehler-Toast erscheint', async () => {
       // Arrange
       await seedStack()

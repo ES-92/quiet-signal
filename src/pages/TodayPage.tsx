@@ -40,6 +40,7 @@ export function TodayPage() {
   const { showToast } = useToastStore()
 
   // Saves the thought, then closes the sheet; the card stays on top. On failure the sheet keeps the text.
+  // The sheet awaits this promise to keep its saving state, so it must settle only once the write is done.
   async function saveThought(text: string) {
     if (!currentQuote) return
     try {
@@ -132,7 +133,7 @@ export function TodayPage() {
       {actions.thoughtOpen && currentQuote && (
         <ThoughtSheet
           thoughts={thoughtsNewestFirst(currentQuote)}
-          onSave={(text) => void saveThought(text)}
+          onSave={saveThought}
           onClose={actions.closeThought}
         />
       )}
