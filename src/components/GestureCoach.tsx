@@ -8,7 +8,10 @@ interface GestureCoachProps {
 
 export function GestureCoach({ deck, onDismiss }: GestureCoachProps) {
   const { t } = useI18n()
-  const rightLabel = deck === 'today' ? t('gestureKeep') : t('finishSignal')
+  const rightLabel = deck === 'today' ? t('gestureMoreOften') : t('finishSignal')
+  const leftLabel = deck === 'today' ? t('gestureLessOften') : t('later')
+  const upLabel = deck === 'today' ? t('gestureThought') : t('details')
+  const downLabel = deck === 'today' ? t('gestureRest') : t('deleteNoise')
 
   function dismiss() {
     tapHaptic(8)
@@ -26,16 +29,16 @@ export function GestureCoach({ deck, onDismiss }: GestureCoachProps) {
       }}
     >
       <span className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-line bg-paper/90 px-3 py-1 text-xs text-graphite">
-        ↑ {t('details')}
+        ↑ {upLabel}
       </span>
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-line bg-paper/90 px-3 py-1 text-xs text-graphite">
-        ← {t('later')}
+        ← {leftLabel}
       </span>
       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-line bg-paper/90 px-3 py-1 text-xs text-graphite">
         {rightLabel} →
       </span>
       <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-clay/60 bg-paper/90 px-3 py-1 text-xs text-clay">
-        ↓ {t('deleteNoise')}
+        ↓ {downLabel}
       </span>
       <p className="pointer-events-none text-xs uppercase tracking-[0.18em] text-graphite">{t('coachFooter')}</p>
       <button

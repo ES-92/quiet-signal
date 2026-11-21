@@ -121,7 +121,7 @@ describe('TodayPage', () => {
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
   })
 
-  it('geht per Wisch nach rechts zur nächsten Karte und merkt die Karte mit Like', async () => {
+  it('geht per Wisch nach rechts zur nächsten Karte, stellt öfter und zeigt den Abstand', async () => {
     // Arrange
     await seedStack()
     await renderToday()
@@ -136,6 +136,7 @@ describe('TodayPage', () => {
     expect(currentId()).not.toBe(first)
     await waitFor(async () => expect((await getQuote(first))?.likes).toBe(1), SLOW)
     await expectKeptCount(1)
+    expect(useToastStore.getState().toast?.message).toBe('Comes back in 2 days')
   })
 
   it('behält die Reihenfolge des Stapels, obwohl gelesene Karten aus der Auswahl fallen', async () => {
@@ -188,23 +189,6 @@ describe('TodayPage', () => {
     expect(screen.queryByText(en.contextActions)).not.toBeInTheDocument()
   })
 
-  it('stellt eine Karte über das Kontextmenü zurück und zeigt die nächste', async () => {
-    // Arrange
-    await seedStack()
-    await renderToday()
-    await screen.findByRole('blockquote')
-    const first = currentId()
-    await longPress()
-
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: en.later }))
-
-    // Assert
-    await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument())
-    expect(screen.queryByText(en.contextActions)).not.toBeInTheDocument()
-    await waitFor(async () => expect((await getQuote(first))?.snoozedUntil).toBeTruthy())
-  })
-
   it('behält beim Behalten einer Karte das Like dauerhaft', async () => {
     // Arrange
     await seedStack()
@@ -226,12 +210,13 @@ describe('TodayPage', () => {
     expect(useQuoteStore.getState().quotes.find((quote) => quote.id === first)?.likes).toBe(1)
   })
 
-  it('zeigt nach dem Verwerfen per Wisch nach unten die nächste Karte statt die übernächste', async () => {
+  it('zeigt nach dem Ruhenlassen per Wisch nach unten die nächste Karte statt die übernächste', async () => {
     // Arrange
     await seedStack()
     await renderToday()
     await screen.findByRole('blockquote')
     const first = currentText()
+    const firstId = currentId()
 
     // Act
     swipe(0, 160)
@@ -239,7 +224,7 @@ describe('TodayPage', () => {
 
     // Assert
     expect(screen.getByText('1 of 2')).toBeInTheDocument()
-    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+    await waitFor(async () => expect((await getQuote(firstId))?.status).toBe('rest'), SLOW)
   })
 
   it('zeigt nach dem Verwerfen über das Kontextmenü die nächste Karte statt die übernächste', async () => {
@@ -259,7 +244,7 @@ describe('TodayPage', () => {
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
   })
 
-  it('blendet die verworfene Karte sofort aus, bevor das Speichern fertig ist', async () => {
+  it('blendet die ruhende Karte sofort aus, bevor das Speichern fertig ist', async () => {
     // Arrange
     await seedStack()
     await renderToday()
@@ -269,9 +254,9 @@ describe('TodayPage', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve
     })
-    const realDiscard = useQuoteStore.getState().discardQuote
+    const realRest = useQuoteStore.getState().restQuote
     act(() => {
-      useQuoteStore.setState({ discardQuote: async (id) => { await gate; await realDiscard(id) } })
+      useQuoteStore.setState({ restQuote: async (id) => { await gate; await realRest(id) } })
     })
 
     // Act
@@ -279,10 +264,10 @@ describe('TodayPage', () => {
     await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
 
     // Assert
-    expect(useQuoteStore.getState().quotes).toHaveLength(3)
     expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    expect(useQuoteStore.getState().quotes.every((quote) => quote.status !== 'rest')).toBe(true)
     release()
-    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+    await waitFor(() => expect(useQuoteStore.getState().quotes.some((quote) => quote.status === 'rest')).toBe(true), SLOW)
     expect(currentText()).not.toBe(first)
     expect(screen.getByText('1 of 2')).toBeInTheDocument()
   })
@@ -314,7 +299,7 @@ describe('TodayPage', () => {
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
   })
 
-  it('zeigt nach dem Verwerfen der letzten Karte den Abschlusszustand', async () => {
+  it('zeigt nach dem Ruhenlassen der letzten Karte den Abschlusszustand', async () => {
     // Arrange
     await seedStack()
     await renderToday()
@@ -330,7 +315,7 @@ describe('TodayPage', () => {
 
     // Assert
     await screen.findByText(en.doneForToday, undefined, SLOW)
-    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
+    await waitFor(() => expect(useQuoteStore.getState().quotes.some((quote) => quote.status === 'rest')).toBe(true), SLOW)
   })
 
   it('schließt den Buch-Editor, sobald eine andere Karte oben liegt', async () => {
@@ -360,7 +345,7 @@ describe('TodayPage', () => {
     await screen.findByRole('blockquote')
     swipe(-160)
     await screen.findByText(en.doneForToday, undefined, SLOW)
-    await waitFor(() => expect(useQuoteStore.getState().quotes[0]?.snoozedUntil).toBeTruthy(), SLOW)
+    await waitFor(() => expect(useQuoteStore.getState().quotes[0]?.reviewIntervalDays).toBe(14), SLOW)
 
     // Act
     act(() => {
@@ -401,20 +386,25 @@ describe('TodayPage', () => {
     expect(screen.queryByRole('dialog', { name: en.gestures })).not.toBeInTheDocument()
   })
 
-  it('öffnet per Wisch nach oben das Kontextmenü', async () => {
+  it('setzt per Wisch nach oben den Gedanken-Zustand und lässt die Karte stehen', async () => {
     // Arrange
     await seedStack()
     await renderToday()
     await screen.findByRole('blockquote')
 
+    const first = currentText()
+
     // Act
     swipe(0, -160)
+    swipe(160)
 
     // Assert
-    expect(await screen.findByText(en.contextActions, undefined, SLOW)).toBeInTheDocument()
+    await waitFor(() => expect(currentText()).toBe(first), SLOW)
+    expect(screen.queryByText(en.contextActions)).not.toBeInTheDocument()
+    expect(screen.getByText('1 of 3')).toBeInTheDocument()
   })
 
-  it('stellt eine verworfene Karte über die Rückgängig-Aktion wieder her und zeigt sie wieder im Stapel', async () => {
+  it('stellt eine ruhende Karte über die Rückgängig-Aktion wieder her und zeigt sie wieder im Stapel', async () => {
     // Arrange
     await seedStack()
     await renderToday()
@@ -423,19 +413,41 @@ describe('TodayPage', () => {
     const firstId = currentId()
     swipe(0, 160)
     await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+    await waitFor(async () => expect((await getQuote(firstId))?.status).toBe('rest'), SLOW)
+    const toast = useToastStore.getState().toast
+
+    // Act
+    expect(toast?.message).toBe(en.restedToast)
+    expect(toast?.actionLabel).toBe(en.undo)
+    act(() => toast?.onAction?.())
+
+    // Assert
+    await waitFor(async () => expect((await getQuote(firstId))?.status).toBe('signal'), SLOW)
+    await waitFor(() => expect(screen.getByText('1 of 3')).toBeInTheDocument(), SLOW)
+    expect(currentText()).toBe(first)
+  })
+
+  it('stellt eine über das Kontextmenü gelöschte Karte per Rückgängig wieder her', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentText()
+    const firstId = currentId()
+    await longPress()
+    fireEvent.click(screen.getByRole('button', { name: en.deleteNoise }))
+    await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2), SLOW)
     const toast = useToastStore.getState().toast
 
     // Act
     expect(toast?.message).toBe(en.discardedToast)
-    expect(toast?.actionLabel).toBe(en.undo)
     act(() => toast?.onAction?.())
 
     // Assert
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(3), SLOW)
     expect((await getQuote(firstId))?.deletedAt).toBeUndefined()
-    await waitFor(() => expect(screen.getByText('1 of 3')).toBeInTheDocument(), SLOW)
-    expect(currentText()).toBe(first)
+    await waitFor(() => expect(currentText()).toBe(first), SLOW)
   })
 
   it('markiert über das Kontextmenü einen Favoriten und schließt das Menü', async () => {
@@ -452,21 +464,6 @@ describe('TodayPage', () => {
     // Assert
     await waitFor(async () => expect((await getQuote(first))?.favorite).toBe(true), SLOW)
     await waitFor(() => expect(screen.queryByText(en.contextActions)).not.toBeInTheDocument())
-  })
-
-  it('senkt über das Kontextmenü die Likes und schließt das Menü', async () => {
-    // Arrange
-    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', likes: 2 })])
-    await renderToday()
-    await screen.findByRole('blockquote')
-    await longPress()
-
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: en.dislike }))
-
-    // Assert
-    expect(screen.queryByText(en.contextActions)).not.toBeInTheDocument()
-    await waitFor(async () => expect((await getQuote('t-1'))?.likes).toBe(1), SLOW)
   })
 
   it('öffnet über das Kontextmenü die Detailseite der Karte', async () => {
@@ -551,5 +548,111 @@ describe('TodayPage', () => {
     // Assert
     expect(screen.queryByRole('button', { name: en.openReflections })).not.toBeInTheDocument()
     expect(screen.getByText(en.swipeDownCapture)).toBeInTheDocument()
+  })
+
+  it('zeigt im Kontextmenü Favorit, Details, Buch bearbeiten und Löschen, aber weder Später noch Nicht mögen', async () => {
+    // Arrange
+    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
+    await renderToday()
+    await screen.findByRole('blockquote')
+
+    // Act
+    await longPress()
+
+    // Assert
+    for (const name of [en.favorite, en.openDetails, en.editBookInline, en.deleteNoise]) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: en.later })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.dislike })).not.toBeInTheDocument()
+  })
+
+  describe('Aktionsleiste', () => {
+    it('Öfter wirkt wie Wischen nach rechts', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      const first = currentId()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.gestureMoreOften }))
+
+      // Assert
+      await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument(), SLOW)
+      await waitFor(async () => expect((await getQuote(first))?.likes).toBe(1), SLOW)
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toBe('Comes back in 2 days'), SLOW)
+    })
+
+    it('Seltener wirkt wie Wischen nach links', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      const first = currentId()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.gestureLessOften }))
+
+      // Assert
+      await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument(), SLOW)
+      await waitFor(async () => expect((await getQuote(first))?.reviewIntervalDays).toBe(14), SLOW)
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toBe('Comes back in 14 days'), SLOW)
+    })
+
+    it('Gedanke lässt die Karte stehen und sperrt die Wischgesten', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      const first = currentText()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.gestureThought }))
+      swipe(160)
+
+      // Assert
+      expect(currentText()).toBe(first)
+      expect(screen.getByText('1 of 3')).toBeInTheDocument()
+    })
+
+    it('Ruhen lassen wirkt wie Wischen nach unten', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      const first = currentId()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.gestureRest }))
+
+      // Assert
+      expect(screen.getByText('1 of 2')).toBeInTheDocument()
+      await waitFor(async () => expect((await getQuote(first))?.status).toBe('rest'), SLOW)
+      expect(useToastStore.getState().toast?.message).toBe(en.restedToast)
+    })
+
+    it('Aktionen öffnet das Kontextmenü', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.cardMenu }))
+
+      // Assert
+      expect(screen.getByText(en.contextActions)).toBeInTheDocument()
+    })
+
+    it('fehlt, wenn keine Karte fällig ist', async () => {
+      // Arrange / Act
+      await renderToday()
+      await screen.findByText(en.nothingDueToday)
+
+      // Assert
+      expect(screen.queryByRole('button', { name: en.gestureRest })).not.toBeInTheDocument()
+    })
   })
 })

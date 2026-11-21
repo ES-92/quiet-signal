@@ -57,12 +57,11 @@ describe('useTodayActions', () => {
 
     // Act
     await act(async () => {
-      result.current.actions.handleKeep()
-      result.current.actions.handleSnooze()
-      result.current.actions.handleDiscard()
-      result.current.actions.handleContextSnooze()
+      result.current.actions.handleMoreOften()
+      result.current.actions.handleLessOften()
+      result.current.actions.handleRest()
+      result.current.actions.openThought()
       result.current.actions.handleContextDiscard()
-      result.current.actions.handleDislike()
       result.current.actions.handleOpenDetails()
       await result.current.actions.handleFavoriteToggle()
     })
@@ -72,67 +71,161 @@ describe('useTodayActions', () => {
     expect(callbacks.hideQuote).not.toHaveBeenCalled()
     expect(useToastStore.getState().toast).toBeNull()
     expect(result.current.path).toBe('/')
+    expect(result.current.actions.thoughtOpen).toBe(false)
   })
 
-  it('behält eine Karte mit Like und rückt vor', async () => {
+  it('stellt über → häufiger, rückt vor und zeigt den neuen Abstand, ohne doppelt zu liken', async () => {
     // Arrange
-    const quote = makeQuote({ id: 'q' })
+    const quote = makeQuote({ id: 'q', reviewIntervalDays: 3, likes: 0, reviewCount: 0 })
     await upsertQuotes([quote])
     await useQuoteStore.getState().loadQuotes()
     const { result, callbacks } = setup({ quote })
 
     // Act
     await act(async () => {
-      result.current.actions.handleKeep()
+      await result.current.actions.handleMoreOften()
     })
 
     // Assert
     expect(callbacks.advanceIndex).toHaveBeenCalledTimes(1)
-    await waitFor(async () => {
-      const stored = await getQuote('q')
-      expect(stored?.likes).toBe(1)
-    })
+    expect(useToastStore.getState().toast?.message).toBe('Comes back in 5 days')
+    const stored = await getQuote('q')
+    expect(stored?.reviewIntervalDays).toBe(5)
+    expect(stored?.likes).toBe(1)
+    expect(stored?.reviewCount).toBe(1)
   })
 
-  it('stellt per Wisch zurück, speichert und rückt vor', async () => {
+  it('stellt über ← seltener, rückt vor und zeigt den neuen Abstand', async () => {
     // Arrange
-    const quote = makeQuote({ id: 'q' })
+    const quote = makeQuote({ id: 'q', reviewIntervalDays: 3 })
     await upsertQuotes([quote])
+    await useQuoteStore.getState().loadQuotes()
     const { result, callbacks } = setup({ quote })
 
     // Act
     await act(async () => {
-      result.current.actions.handleSnooze()
+      await result.current.actions.handleLessOften()
     })
 
     // Assert
     expect(callbacks.advanceIndex).toHaveBeenCalledTimes(1)
-    await waitFor(async () => expect((await getQuote('q'))?.snoozedUntil).toBeTruthy())
+    expect(useToastStore.getState().toast?.message).toBe('Comes back in 14 days')
+    expect((await getQuote('q'))?.reviewIntervalDays).toBe(14)
   })
 
-  it('verwirft ohne Vorrücken, blendet aus und bietet Rückgängig an, das die Karte wiederherstellt', async () => {
+  it('zeigt keinen Intervall-Toast, wenn der Store keinen Abstand liefert', async () => {
     // Arrange
     const quote = makeQuote({ id: 'q' })
-    await upsertQuotes([quote])
+    vi.spyOn(useQuoteStore.getState(), 'moreOften').mockResolvedValue(undefined)
     const { result, callbacks } = setup({ quote })
 
     // Act
     await act(async () => {
-      result.current.actions.handleDiscard()
+      await result.current.actions.handleMoreOften()
     })
-    const toast = useToastStore.getState().toast
-    await waitFor(async () => expect((await getQuote('q'))?.deletedAt).toBeTruthy())
+
+    // Assert
+    expect(callbacks.advanceIndex).toHaveBeenCalledTimes(1)
+    expect(useToastStore.getState().toast).toBeNull()
+  })
+
+  it.each([
+    ['moreOften', 'handleMoreOften'],
+    ['lessOften', 'handleLessOften']
+  ] as const)('zeigt einen Fehler-Toast, wenn %s scheitert', async (storeAction, handler) => {
+    // Arrange
+    const quote = makeQuote({ id: 'q' })
+    vi.spyOn(useQuoteStore.getState(), storeAction).mockRejectedValue(new Error('Schreibfehler'))
+    const { result } = setup({ quote })
+
+    // Act
     await act(async () => {
-      toast?.onAction?.()
+      await result.current.actions[handler]()
+    })
+
+    // Assert
+    expect(useToastStore.getState().toast?.message).toBe(en.saveFailed)
+  })
+
+  it('lässt über ↓ ruhen: blendet sofort aus, ruht und rückt nicht vor', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', status: 'signal' })
+    await upsertQuotes([quote])
+    await useQuoteStore.getState().loadQuotes()
+    const { result, callbacks } = setup({ quote })
+
+    // Act
+    await act(async () => {
+      result.current.actions.handleRest()
     })
 
     // Assert
     expect(callbacks.hideQuote).toHaveBeenCalledWith('q')
     expect(callbacks.advanceIndex).not.toHaveBeenCalled()
-    expect(toast?.message).toBe(en.discardedToast)
-    expect(toast?.actionLabel).toBe(en.undo)
+    expect(useToastStore.getState().toast?.message).toBe(en.restedToast)
+    expect(useToastStore.getState().toast?.actionLabel).toBe(en.undo)
+    await waitFor(async () => expect((await getQuote('q'))?.status).toBe('rest'))
+  })
+
+  it('stellt eine ruhende Karte per Rückgängig mit dem früheren snoozedUntil wieder her', async () => {
+    // Arrange
+    const previous = '2030-01-01T06:00:00.000Z'
+    const quote = makeQuote({ id: 'q', status: 'signal', snoozedUntil: previous })
+    await upsertQuotes([quote])
+    await useQuoteStore.getState().loadQuotes()
+    const { result, callbacks } = setup({ quote })
+    await act(async () => {
+      result.current.actions.handleRest()
+    })
+    await waitFor(async () => expect((await getQuote('q'))?.status).toBe('rest'))
+    const toast = useToastStore.getState().toast
+
+    // Act
+    await act(async () => {
+      toast?.onAction?.()
+    })
+
+    // Assert
     expect(callbacks.showQuote).toHaveBeenCalledWith('q')
-    await waitFor(async () => expect((await getQuote('q'))?.deletedAt).toBeUndefined())
+    await waitFor(async () => {
+      const stored = await getQuote('q')
+      expect(stored?.status).toBe('signal')
+      expect(stored?.snoozedUntil).toBe(previous)
+    })
+  })
+
+  it('blendet die Karte wieder ein und zeigt einen Fehler, wenn das Ruhenlassen scheitert', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', status: 'signal' })
+    await upsertQuotes([quote])
+    vi.spyOn(useQuoteStore.getState(), 'restQuote').mockRejectedValue(new Error('Schreibfehler'))
+    const { result, callbacks } = setup({ quote })
+
+    // Act
+    await act(async () => {
+      result.current.actions.handleRest()
+    })
+
+    // Assert
+    expect(callbacks.hideQuote).toHaveBeenCalledWith('q')
+    await waitFor(() => expect(callbacks.showQuote).toHaveBeenCalledWith('q'))
+    expect(useToastStore.getState().toast?.message).toBe(en.restFailed)
+    expect((await getQuote('q'))?.status).toBe('signal')
+  })
+
+  it('öffnet und schließt den Gedanken-Zustand, ohne die Karte zu wechseln', () => {
+    // Arrange
+    const { result, callbacks } = setup({ quote: makeQuote({ id: 'q' }) })
+
+    // Act
+    act(() => result.current.actions.openThought())
+    const opened = result.current.actions.thoughtOpen
+    act(() => result.current.actions.closeThought())
+
+    // Assert
+    expect(opened).toBe(true)
+    expect(result.current.actions.thoughtOpen).toBe(false)
+    expect(callbacks.advanceIndex).not.toHaveBeenCalled()
   })
 
   it('verwirft über das Kontextmenü, schließt das Menü und rückt nicht vor', async () => {
@@ -155,10 +248,7 @@ describe('useTodayActions', () => {
     await waitFor(async () => expect((await getQuote('q'))?.deletedAt).toBeTruthy())
   })
 
-  it.each([
-    ['Wischen', 'handleDiscard'],
-    ['Kontextmenü', 'handleContextDiscard']
-  ] as const)('blendet die Karte wieder ein und zeigt einen Fehler, wenn das Verwerfen per %s scheitert', async (_weg, action) => {
+  it('blendet die Karte wieder ein und zeigt einen Fehler, wenn das Verwerfen scheitert', async () => {
     // Arrange
     const quote = makeQuote({ id: 'q' })
     await upsertQuotes([quote])
@@ -167,7 +257,7 @@ describe('useTodayActions', () => {
 
     // Act
     await act(async () => {
-      result.current.actions[action]()
+      result.current.actions.handleContextDiscard()
     })
 
     // Assert
@@ -175,24 +265,6 @@ describe('useTodayActions', () => {
     await waitFor(() => expect(callbacks.showQuote).toHaveBeenCalledWith('q'))
     expect(useToastStore.getState().toast?.message).toBe(en.discardFailed)
     expect((await getQuote('q'))?.deletedAt).toBeUndefined()
-  })
-
-  it('stellt über das Kontextmenü zurück, schließt das Menü und rückt vor', async () => {
-    // Arrange
-    const quote = makeQuote({ id: 'q' })
-    await upsertQuotes([quote])
-    const { result, callbacks } = setup({ quote })
-    act(() => result.current.actions.openContext())
-
-    // Act
-    await act(async () => {
-      result.current.actions.handleContextSnooze()
-    })
-
-    // Assert
-    expect(result.current.actions.contextOpen).toBe(false)
-    expect(callbacks.advanceIndex).toHaveBeenCalledTimes(1)
-    await waitFor(async () => expect((await getQuote('q'))?.snoozedUntil).toBeTruthy())
   })
 
   it('schaltet den Favoriten um und schließt das Menü', async () => {
@@ -212,24 +284,6 @@ describe('useTodayActions', () => {
     expect(result.current.actions.contextOpen).toBe(false)
   })
 
-  it('senkt die Likes über Dislike und schließt das Menü', async () => {
-    // Arrange
-    const quote = makeQuote({ id: 'q', likes: 2 })
-    await upsertQuotes([quote])
-    await useQuoteStore.getState().loadQuotes()
-    const { result } = setup({ quote })
-    act(() => result.current.actions.openContext())
-
-    // Act
-    await act(async () => {
-      result.current.actions.handleDislike()
-    })
-
-    // Assert
-    expect(result.current.actions.contextOpen).toBe(false)
-    await waitFor(async () => expect((await getQuote('q'))?.likes).toBe(1))
-  })
-
   it('navigiert zur Detailseite der Karte', () => {
     // Arrange
     const { result } = setup({ quote: makeQuote({ id: 'q' }) })
@@ -241,7 +295,7 @@ describe('useTodayActions', () => {
     expect(result.current.path).toBe('/quote/q')
   })
 
-  it('schließt Menü und Buch-Editor, sobald eine andere Karte oben liegt', async () => {
+  it('schließt Menü, Gedanke und Buch-Editor, sobald eine andere Karte oben liegt', async () => {
     // Arrange
     const book = makeBook({ id: 'b', title: 'Buch', author: 'Autor' })
     const first = makeQuote({ id: 'q1', bookId: 'b' })
@@ -249,12 +303,14 @@ describe('useTodayActions', () => {
     const { result, rerender } = setup({ quote: first, book })
     act(() => result.current.actions.openBookEditor())
     act(() => result.current.actions.openContext())
+    act(() => result.current.actions.openThought())
 
     // Act
     rerender({ quote: second, book })
 
     // Assert
     expect(result.current.actions.contextOpen).toBe(false)
+    expect(result.current.actions.thoughtOpen).toBe(false)
     expect(result.current.actions.bookEditorOpen).toBe(false)
   })
 

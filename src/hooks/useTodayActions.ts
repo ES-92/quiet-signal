@@ -16,14 +16,15 @@ interface TodayActionsInput {
   showQuote: (id: string) => void
 }
 
-// Card actions of the daily deck (keep, snooze, discard with undo, context menu, inline book editor).
+// Card actions of the daily deck (more/less often, rest with undo, thought, discard with undo, context menu, inline book editor).
 export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQuote, showQuote }: TodayActionsInput) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, likeQuote, dislikeQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, moreOften, lessOften, restQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { saveBook } = useBookStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
+  const [thoughtOpen, setThoughtOpen] = useState(false)
   const [bookEditorOpen, setBookEditorOpen] = useState(false)
   const [bookTitle, setBookTitle] = useState('')
   const [bookAuthor, setBookAuthor] = useState('')
@@ -34,14 +35,55 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
   if (currentQuoteId !== popupQuoteId) {
     setPopupQuoteId(currentQuoteId)
     setContextOpen(false)
+    setThoughtOpen(false)
     setBookEditorOpen(false)
   }
 
-  function handleKeep() {
+  // moreOften/lessOften already bump the review bookkeeping, so no separate like here.
+  async function reviewWithInterval(change: (id: string) => Promise<number | undefined>) {
     if (!currentQuote) return
     const id = currentQuote.id
-    void likeQuote(id)
     advanceIndex()
+    try {
+      const days = await change(id)
+      if (typeof days === 'number') showToast({ message: t('comesBackInDays', { days }) })
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
+  }
+
+  function handleMoreOften() {
+    return reviewWithInterval(moreOften)
+  }
+
+  function handleLessOften() {
+    return reviewWithInterval(lessOften)
+  }
+
+  // Hides the card at once and rests it in the background; undo restores the previous snooze, a failure brings the card back.
+  function handleRest() {
+    if (!currentQuote) return
+    const id = currentQuote.id
+    const previousSnooze = currentQuote.snoozedUntil
+    restQuote(id).catch(() => {
+      showQuote(id)
+      showToast({ message: t('restFailed') })
+    })
+    hideQuote(id)
+    showToast({
+      message: t('restedToast'),
+      actionLabel: t('undo'),
+      onAction: () => {
+        showQuote(id)
+        void saveQuote(id, { status: 'signal', snoozedUntil: previousSnooze })
+      }
+    })
+    // No advance: hiding the rested quote moves the next card into this slot.
+  }
+
+  function openThought() {
+    if (!currentQuote) return
+    setThoughtOpen(true)
   }
 
   // Hides the card at once and saves in the background; if saving fails, the card comes back with an error toast.
@@ -61,32 +103,11 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
     })
   }
 
-  function handleSnooze() {
-    if (!currentQuote) return
-    void snoozeQuote(currentQuote.id)
-    advanceIndex()
-  }
-
-  function handleDiscard() {
-    if (!currentQuote) return
-    const id = currentQuote.id
-    discardWithUndo(id)
-    // No advance: hiding the discarded quote moves the next card into this slot.
-  }
-
   async function handleFavoriteToggle() {
     if (!currentQuote) return
     tapHaptic(10)
     await saveQuote(currentQuote.id, { favorite: !currentQuote.favorite })
     setContextOpen(false)
-  }
-
-  function handleContextSnooze() {
-    if (!currentQuote) return
-    const id = currentQuote.id
-    setContextOpen(false)
-    void snoozeQuote(id)
-    advanceIndex()
   }
 
   function handleContextDiscard() {
@@ -95,12 +116,6 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
     setContextOpen(false)
     discardWithUndo(id)
     // No advance: hiding the discarded quote moves the next card into this slot.
-  }
-
-  function handleDislike() {
-    if (!currentQuote) return
-    void dislikeQuote(currentQuote.id)
-    setContextOpen(false)
   }
 
   function handleOpenDetails() {
@@ -138,13 +153,14 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
     setBookTitle,
     bookAuthor,
     setBookAuthor,
-    handleKeep,
-    handleSnooze,
-    handleDiscard,
+    handleMoreOften,
+    handleLessOften,
+    handleRest,
+    thoughtOpen,
+    openThought,
+    closeThought: () => setThoughtOpen(false),
     handleFavoriteToggle,
-    handleContextSnooze,
     handleContextDiscard,
-    handleDislike,
     handleOpenDetails,
     openBookEditor,
     handleSaveBook

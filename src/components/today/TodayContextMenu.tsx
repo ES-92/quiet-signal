@@ -1,4 +1,4 @@
-import { BookOpen, Clock3, ExternalLink, Heart, Minus, Trash2, X } from 'lucide-react'
+import { BookOpen, ExternalLink, Heart, Trash2, X } from 'lucide-react'
 import { useI18n } from '../../i18n/useI18n'
 
 interface TodayContextMenuProps {
@@ -6,21 +6,17 @@ interface TodayContextMenuProps {
   hasBook: boolean
   onClose: () => void
   onFavorite: () => void
-  onSnooze: () => void
-  onDislike: () => void
   onOpenDetails: () => void
   onEditBook: () => void
   onDiscard: () => void
 }
 
-// Popup with the secondary card actions, opened by swiping up or long-pressing the top card.
+// Popup with the secondary card actions, opened by long-pressing the top card or via the action bar.
 export function TodayContextMenu({
   favorite,
   hasBook,
   onClose,
   onFavorite,
-  onSnooze,
-  onDislike,
   onOpenDetails,
   onEditBook,
   onDiscard
@@ -43,14 +39,6 @@ export function TodayContextMenu({
         <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={onFavorite}>
           <Heart size={17} fill={favorite ? 'currentColor' : 'none'} className={favorite ? 'text-clay' : 'text-graphite'} />
           {t('favorite')}
-        </button>
-        <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={onSnooze}>
-          <Clock3 size={17} className="text-graphite" />
-          {t('later')}
-        </button>
-        <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={onDislike}>
-          <Minus size={17} className="text-graphite" />
-          {t('dislike')}
         </button>
         <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={onOpenDetails}>
           <ExternalLink size={17} className="text-graphite" />

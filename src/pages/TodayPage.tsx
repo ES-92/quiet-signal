@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { DailyRestState } from '../components/deck/DailyRestState'
 import { QuickCaptureDock } from '../components/deck/QuickCaptureDock'
 import { GestureCoach } from '../components/GestureCoach'
+import { TodayActionBar } from '../components/today/TodayActionBar'
 import { TodayBookEditor } from '../components/today/TodayBookEditor'
 import { TodayContextMenu } from '../components/today/TodayContextMenu'
 import { TodayDeckStack } from '../components/today/TodayDeckStack'
@@ -37,13 +38,13 @@ export function TodayPage() {
 
   const deck = useSwipeDeck(
     {
-      right: actions.handleKeep,
-      left: actions.handleSnooze,
-      down: actions.handleDiscard,
-      up: actions.openContext,
+      right: () => void actions.handleMoreOften(),
+      left: () => void actions.handleLessOften(),
+      down: actions.handleRest,
+      up: actions.openThought,
       longPress: actions.openContext
     },
-    { enabled: Boolean(currentQuote) && !actions.contextOpen && !coachVisible, distance: 76, exitMs: 620 }
+    { enabled: Boolean(currentQuote) && !actions.contextOpen && !actions.thoughtOpen && !coachVisible, distance: 76, exitMs: 620 }
   )
 
   return (
@@ -69,8 +70,6 @@ export function TodayPage() {
               hasBook={Boolean(currentBook)}
               onClose={actions.closeContext}
               onFavorite={() => void actions.handleFavoriteToggle()}
-              onSnooze={actions.handleContextSnooze}
-              onDislike={actions.handleDislike}
               onOpenDetails={actions.handleOpenDetails}
               onEditBook={actions.openBookEditor}
               onDiscard={actions.handleContextDiscard}
@@ -98,8 +97,19 @@ export function TodayPage() {
           onSave={() => void actions.handleSaveBook()}
         />
       )}
-      <footer className="flex shrink-0 justify-center pb-1 sm:hidden" aria-label={t('quickNoise')}>
-        <QuickCaptureDock />
+      <footer className="flex shrink-0 flex-col items-center gap-2 pb-1" aria-label={t('quickNoise')}>
+        {currentQuote && (
+          <TodayActionBar
+            onMoreOften={() => void actions.handleMoreOften()}
+            onLessOften={() => void actions.handleLessOften()}
+            onThought={actions.openThought}
+            onRest={actions.handleRest}
+            onMenu={actions.openContext}
+          />
+        )}
+        <div className="sm:hidden">
+          <QuickCaptureDock />
+        </div>
       </footer>
     </div>
   )
