@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { Book } from '../types/book'
 import { statusChangePatch } from '../services/lifecycle'
-import { addThoughtPatch } from '../services/thoughts'
 import {
   entryType,
   quoteStatus,
@@ -97,7 +96,6 @@ export function useClarifyDraft(quote: Quote | undefined, books: Book[]) {
   }
 
   function buildPatch(status: QuoteStatus, strength = draft.strength): Partial<Quote> {
-    const firstThought = quote ? addThoughtPatch(quote, draft.firstThought) : null
     return {
       text: draft.text.trim(),
       tags: splitList(draft.tags).map((tag) => tag.toLowerCase()),
@@ -115,8 +113,7 @@ export function useClarifyDraft(quote: Quote | undefined, books: Book[]) {
       locationName: clean(draft.locationName),
       locationLatitude: draft.locationLatitude,
       locationLongitude: draft.locationLongitude,
-      ...statusChangePatch(quote ? quoteStatus(quote) : 'inbox', status),
-      ...(firstThought?.thoughts ? { thoughts: firstThought.thoughts } : {})
+      ...statusChangePatch(quote ? quoteStatus(quote) : 'inbox', status)
     }
   }
 

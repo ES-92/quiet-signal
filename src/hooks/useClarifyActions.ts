@@ -7,21 +7,31 @@ import type { Quote, QuoteStatus, SignalStrength } from '../types/quote'
 export function useClarifyActions(
   quote: Quote | undefined,
   buildPatch: (status: QuoteStatus, strength?: SignalStrength) => Partial<Quote>,
-  onMessage: (message: string) => void
+  onMessage: (message: string) => void,
+  // The optional first thought is appended on the fresh row after the main save, then cleared so a second save cannot repeat it.
+  firstThought?: { text: string; onSaved: () => void }
 ) {
   const { t } = useI18n()
-  const { saveQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, addThought, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
+
+  async function saveWithThought(id: string, status: QuoteStatus, strength?: SignalStrength) {
+    await saveQuote(id, buildPatch(status, strength))
+    if (firstThought?.text.trim()) {
+      await addThought(id, firstThought.text)
+      firstThought.onSaved()
+    }
+  }
 
   async function finishSignal(strength?: SignalStrength) {
     if (!quote) return
-    await saveQuote(quote.id, buildPatch('signal', strength))
+    await saveWithThought(quote.id, 'signal', strength)
     onMessage(t('movedToSignals'))
   }
 
   async function saveDetails() {
     if (!quote) return
-    await saveQuote(quote.id, buildPatch('inbox'))
+    await saveWithThought(quote.id, 'inbox')
     onMessage(t('keptInNoise'))
   }
 

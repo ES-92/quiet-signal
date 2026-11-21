@@ -27,7 +27,8 @@ export function InboxPage() {
   const { finishSignal, saveDetails, snoozeCurrent, discardCurrent } = useClarifyActions(
     currentQuote,
     buildPatch,
-    setMessage
+    setMessage,
+    { text: draft.firstThought, onSaved: () => updateDraft({ firstThought: '' }) }
   )
 
   // The coach is shown once per device; whether it was seen is read once when the page mounts.

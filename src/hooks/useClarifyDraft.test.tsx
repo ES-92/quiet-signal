@@ -170,24 +170,7 @@ describe('useClarifyDraft', () => {
     expect(patch).not.toHaveProperty('nextReviewAt')
   })
 
-  it('übernimmt einen ausgefüllten ersten Gedanken als Gedanken und lässt sonst thoughts weg', () => {
-    // Arrange
-    const quote = makeQuote({ status: 'inbox' })
-    const { result } = renderHook(() => useClarifyDraft(quote, []))
-    const withoutThought = result.current.buildPatch('signal')
-    act(() => result.current.updateDraft({ firstThought: '  Warum berührt mich das?  ' }))
-
-    // Act
-    const patch = result.current.buildPatch('signal')
-
-    // Assert
-    expect(withoutThought).not.toHaveProperty('thoughts')
-    expect(patch.thoughts).toHaveLength(1)
-    expect(patch.thoughts?.[0]).toMatchObject({ text: 'Warum berührt mich das?' })
-    expect(patch).not.toHaveProperty('updatedAt')
-  })
-
-  it('hängt den ersten Gedanken an vorhandene Gedanken an und startet leer', () => {
+  it('startet den ersten Gedanken leer, auch wenn der Eintrag schon Gedanken hat, und legt ihn nicht in den Patch', () => {
     // Arrange
     const existing = { id: 't1', text: 'Alt', createdAt: '2026-01-01T09:00:00.000Z' }
     const quote = makeQuote({ status: 'inbox', thoughts: [existing] })
@@ -200,6 +183,6 @@ describe('useClarifyDraft', () => {
 
     // Assert
     expect(initial).toBe('')
-    expect(patch.thoughts?.map((thought) => thought.text)).toEqual(['Alt', 'Neu'])
+    expect(patch).not.toHaveProperty('thoughts')
   })
 })

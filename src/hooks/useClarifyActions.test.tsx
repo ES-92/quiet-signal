@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertQuotes } from '../db/database'
@@ -89,5 +89,42 @@ describe('useClarifyActions', () => {
     expect(discarded).toBeTruthy()
     expect(toast).toMatchObject({ message: en.discardedToast, actionLabel: en.undo })
     expect((await getQuote('q'))?.deletedAt).toBeUndefined()
+    // Undo reloads the store without being awaited; let that finish before the next test resets the database.
+    await waitFor(() => expect(useQuoteStore.getState().quotes.some((item) => item.id === 'q')).toBe(true))
+  })
+
+  it('hängt den ersten Gedanken einmal an und leert ihn nach jedem Speichern', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', status: 'inbox' })
+    await upsertQuotes([quote])
+    const onSaved = vi.fn()
+    const { result } = renderHook(() => useClarifyActions(quote, buildPatch, vi.fn(), { text: ' Erster ', onSaved }), {
+      wrapper
+    })
+
+    // Act
+    await act(async () => result.current.saveDetails())
+    const afterFirst = (await getQuote('q'))?.thoughts
+
+    // Assert
+    expect(afterFirst?.map((thought) => thought.text)).toEqual(['Erster'])
+    expect(onSaved).toHaveBeenCalledTimes(1)
+  })
+
+  it('speichert ohne ersten Gedanken keinen Gedanken und ruft onSaved nicht', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', status: 'inbox' })
+    await upsertQuotes([quote])
+    const onSaved = vi.fn()
+    const { result } = renderHook(() => useClarifyActions(quote, buildPatch, vi.fn(), { text: '  ', onSaved }), {
+      wrapper
+    })
+
+    // Act
+    await act(async () => result.current.finishSignal())
+
+    // Assert
+    expect((await getQuote('q'))?.thoughts).toBeUndefined()
+    expect(onSaved).not.toHaveBeenCalled()
   })
 })

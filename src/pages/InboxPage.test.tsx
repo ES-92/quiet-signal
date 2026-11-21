@@ -530,5 +530,24 @@ describe('InboxPage', () => {
       const saved = await getQuote('k-1')
       expect(saved).toMatchObject({ status: 'inbox', note: 'Notiz dazu', nextReviewAt: '2026-02-01T09:00:00.000Z' })
     })
+
+    it('speichert den ersten Gedanken bei zweimaligem Speichern nur einmal', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 't-1', text: 'Roh', status: 'inbox' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.change(await screen.findByLabelText(en.firstThoughtLabel), { target: { value: 'Mein Gedanke' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.saveDetails }))
+      await waitFor(async () => expect((await getQuote('t-1'))?.thoughts).toHaveLength(1))
+      await waitFor(() => expect(screen.getByLabelText(en.firstThoughtLabel)).toHaveValue(''))
+      fireEvent.click(screen.getByRole('button', { name: en.saveDetails }))
+
+      // Assert
+      await waitFor(async () => expect((await getQuote('t-1'))?.updatedAt).toBeTruthy())
+      expect((await getQuote('t-1'))?.thoughts?.map((thought) => thought.text)).toEqual(['Mein Gedanke'])
+    })
   })
 })
