@@ -5,8 +5,23 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- Signal lifecycle: a signal can be let go quiet (new status *Rest* / *Stille*) and woken again, restarting at a 1-day interval. Rested entries keep their thoughts and appear under a "Rest" filter in the library.
+- Dated thoughts on every signal (add, edit, delete), a resurfacing hint on cards, and "Keep as thought" to turn the former note into a dated thought (with undo).
+- "Browse anyway" on an empty daily stack: shuffles through all signals without changing any interval or due date.
+- Action bar on the Today deck (less often, thought, rest, more often) next to the swipe gestures; the gesture help page and onboarding now explain noise, signal and rest.
+- Age hint for noise that has been waiting unclarified for a week or more (never deleted automatically), a first-thought field and a clarifying question on the Clarify page.
+
 ### Changed
+- Today gestures: → more often (interval ×1.5), ← less often (×4, at least 14 days), ↑ add a thought, ↓ let it rest; long-press opens the actions menu. Clarify gestures are unchanged.
+- Intervals are now adaptive per entry (`reviewIntervalDays`, 1 to 365 days) instead of a fixed table; the next review is set to 06:00 local time.
+- The daily stack shows only due signals and is no longer padded from the backlog, so it can be empty.
+- The entry's "note" is now shown as "Description".
+- Onboarding tagline and terminology: Rauschen / Signal / Stille (Noise / Signal / Rest), each with its guiding question; README documents the lifecycle.
 - Dependency updates: React 19.3, Dexie 4.4.7, Zustand 5.1 and other minor/patch updates (#19); Vite 8 (#21); lucide-react 1.x (#22).
+
+### Removed
+- The random daily mode and the `dailyMode` setting.
 
 ## [0.3.0] - 2026-11-20
 

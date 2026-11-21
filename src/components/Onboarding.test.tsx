@@ -16,6 +16,25 @@ describe('Onboarding', () => {
     expect(screen.getByRole('heading', { name: en.onboardingTitle })).toBeInTheDocument()
   })
 
+  it('nennt auf dem ersten Schritt Rauschen, Signal und Stille mit ihren Leitfragen', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    expect(screen.getByText(en.onboardingNoise)).toBeInTheDocument()
+    expect(screen.getByText(en.onboardingSignal)).toBeInTheDocument()
+    expect(screen.getByText(en.onboardingRest)).toBeInTheDocument()
+  })
+
+  it('beschreibt die Gesten mit dem neuen Lebenszyklus statt mit Snooze', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    expect(screen.getByText(en.onboardingGestureBody)).toBeInTheDocument()
+    expect(en.onboardingGestureBody).not.toMatch(/snooze/i)
+  })
+
   it('zeigt nichts, wenn das Onboarding bereits gesehen wurde', () => {
     // Arrange
     localStorage.setItem(onboardingKey, 'true')

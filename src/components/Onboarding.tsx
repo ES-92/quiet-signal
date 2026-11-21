@@ -20,6 +20,7 @@ export function Onboarding() {
         eyebrow: t('onboardingEyebrow'),
         title: t('onboardingTitle'),
         body: t('onboardingBody'),
+        states: [t('onboardingNoise'), t('onboardingSignal'), t('onboardingRest')],
         action: t('onboardingNext')
       },
       {
@@ -112,6 +113,15 @@ export function Onboarding() {
         </div>
 
         <p className="mt-4 leading-7 text-graphite">{current.body}</p>
+        {current.states && (
+          <ul className="mt-3 grid gap-2 text-sm leading-6 text-graphite">
+            {current.states.map((line) => (
+              <li key={line} className="rounded-md bg-paper/60 px-3 py-2">
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="mt-5 grid grid-cols-4 gap-1" aria-label={t('onboardingProgress')}>
           {steps.map((item, index) => (
