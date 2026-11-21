@@ -156,7 +156,7 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     let adoptedId: string | undefined
     await updateQuote(id, (current) => {
       const patch = adoptNotePatch(current)
-      adoptedId = patch?.thoughts?.at(-1)?.id
+      adoptedId = patch?.thoughts?.[patch.thoughts.length - 1]?.id
       return patch
     })
     await get().loadQuotes()
