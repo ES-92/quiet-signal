@@ -102,7 +102,11 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
       actionLabel: t('undo'),
       onAction: () => {
         showQuote(id)
-        void saveQuote(id, { status: 'signal', snoozedUntil: previousSnooze })
+        saveQuote(id, { status: 'signal', snoozedUntil: previousSnooze }).catch(() => {
+          // The undo did not persist: the card stays rested, so take it off the deck again.
+          hideQuote(id)
+          showToast({ message: t('saveFailed') })
+        })
       }
     })
     // No advance: hiding the rested quote moves the next card into this slot.

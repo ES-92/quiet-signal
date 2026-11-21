@@ -39,6 +39,21 @@ describe('QuoteForm', () => {
     expect(Object.keys(onSubmit.mock.calls[0][0])).toEqual(expect.arrayContaining(['author', 'note', 'people', 'status']))
   })
 
+  it('re-enables the save button when the submit fails', async () => {
+    // Arrange
+    const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
+    renderWithProviders(<QuoteForm submitLabel="Go" onSubmit={onSubmit} />)
+    fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neu' } })
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+
+    // Assert
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(await screen.findByRole('button', { name: 'Go' })).toBeEnabled()
+    expect(screen.getByLabelText(en.text)).toHaveValue('Neu')
+  })
+
   it('submits only the changed fields when editing', async () => {
     // Arrange
     const onSubmit = vi.fn().mockResolvedValue(undefined)

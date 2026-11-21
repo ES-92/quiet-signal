@@ -195,6 +195,34 @@ describe('useTodayActions', () => {
     })
   })
 
+  it('blendet die Karte wieder aus und meldet einen Fehler, wenn das Rückgängig-Speichern scheitert', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', status: 'signal' })
+    await upsertQuotes([quote])
+    await useQuoteStore.getState().loadQuotes()
+    const { result, callbacks } = setup({ quote })
+    const { saveQuote } = useQuoteStore.getState()
+    act(() => {
+      useQuoteStore.setState({ saveQuote: () => Promise.reject(new Error('boom')) })
+    })
+    await act(async () => {
+      result.current.actions.handleRest()
+    })
+    await waitFor(async () => expect((await getQuote('q'))?.status).toBe('rest'))
+    const toast = useToastStore.getState().toast
+
+    // Act
+    await act(async () => {
+      toast?.onAction?.()
+    })
+
+    // Assert
+    await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed))
+    useQuoteStore.setState({ saveQuote })
+    expect(callbacks.hideQuote).toHaveBeenCalledTimes(2)
+    expect(callbacks.hideQuote).toHaveBeenLastCalledWith('q')
+  })
+
   describe('Rückgängig-Hinweis nach dem Ruhenlassen', () => {
     async function restThenAct(props: Props, next: (actions: ReturnType<typeof setup>['result']['current']['actions']) => void | Promise<unknown>) {
       const quote = makeQuote({ id: 'q', reviewIntervalDays: 3 })

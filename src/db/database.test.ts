@@ -171,6 +171,25 @@ describe('Quotes: Anlegen und Aktualisieren', () => {
     expect(await getQuote('gibt-es-nicht')).toBeUndefined()
   })
 
+  it('wirft bei einem Updater auf eine unbekannte ID, statt Erfolg zu melden', async () => {
+    // Arrange / Act
+    const attempt = updateQuote('gibt-es-nicht', () => ({ text: 'x' }))
+
+    // Assert
+    await expect(attempt).rejects.toThrow('Quote not found or unreadable')
+  })
+
+  it('schreibt bei einem Updater, der null liefert, nichts und meldet trotzdem Erfolg', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Alt' })])
+
+    // Act
+    const result = await updateQuote('q1', () => null)
+
+    // Assert
+    expect(result?.text).toBe('Alt')
+  })
+
   it('entfernt Zitate einzeln und per clearQuotes', async () => {
     // Arrange
     await upsertQuotes([makeQuote({ id: 'a' }), makeQuote({ id: 'b' }), makeQuote({ id: 'c' })])
@@ -232,10 +251,10 @@ describe('updateQuote updater form', () => {
     const updater = vi.fn(() => ({ likes: 1 }))
 
     // Act
-    const result = await updateQuote('missing', updater)
+    const attempt = updateQuote('missing', updater)
 
     // Assert
-    expect(result).toBeUndefined()
+    await expect(attempt).rejects.toThrow('Quote not found or unreadable')
     expect(updater).not.toHaveBeenCalled()
   })
 

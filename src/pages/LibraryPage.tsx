@@ -5,6 +5,7 @@ import { QuoteCard } from '../components/QuoteCard'
 import { useI18n } from '../i18n/useI18n'
 import { filterQuotes, getFilterOptions } from '../services/search'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { quoteStatus } from '../types/quote'
 
 type LibraryView = 'signal' | 'rest' | 'all'
@@ -14,6 +15,15 @@ export function LibraryPage() {
   const { quotes, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [view, setView] = useState<LibraryView>('signal')
+  const { showToast } = useToastStore()
+
+  async function wakeEntry(id: string) {
+    try {
+      await wakeQuote(id)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
+  }
 
   useEffect(() => {
     void loadQuotes()
@@ -116,7 +126,7 @@ export function LibraryPage() {
               onFavorite={(id) => void saveQuote(id, { favorite: !quote.favorite })}
               onLike={(id) => void likeQuote(id)}
               onDislike={(id) => void dislikeQuote(id)}
-              onWake={quoteStatus(quote) === 'rest' ? (id) => void wakeQuote(id) : undefined}
+              onWake={quoteStatus(quote) === 'rest' ? (id) => void wakeEntry(id) : undefined}
             />
           ))}
         </div>

@@ -1,8 +1,9 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db, getQuote, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { makeQuote, resetFactories } from '../test/factories'
 import { renderWithProviders } from '../test/render'
 import { LibraryPage } from './LibraryPage'
@@ -78,6 +79,27 @@ describe('LibraryPage', () => {
 
     // Assert
     await waitFor(async () => expect((await getQuote('l-2'))?.status).toBe('signal'), SLOW)
+  })
+
+  it('shows an error toast when waking an entry fails', async () => {
+    // Arrange
+    await renderLibrary()
+    const { wakeQuote } = useQuoteStore.getState()
+    act(() => {
+      useQuoteStore.setState({ wakeQuote: () => Promise.reject(new Error('boom')) })
+    })
+    fireEvent.click(screen.getByRole('button', { name: en.libraryViewRest }))
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: en.wake }))
+
+    // Assert
+    try {
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed), SLOW)
+    } finally {
+      useQuoteStore.setState({ wakeQuote })
+      useToastStore.setState({ toast: null })
+    }
   })
 
   it('applies the other filters within the chosen view', async () => {

@@ -221,6 +221,16 @@ describe('lifecycle store actions', () => {
     expect(quote.thoughts?.map((item) => item.text)).toEqual(['bleibt', 'spaeter'])
   })
 
+  it('updater actions reject when the row cannot be read, so callers can show an error', async () => {
+    // Arrange
+    await seedLegacyQuote()
+    await db.quotes.delete('legacy')
+
+    // Act / Assert
+    await expect(useQuoteStore.getState().restQuote('legacy')).rejects.toThrow('Quote not found or unreadable')
+    await expect(useQuoteStore.getState().addThought('legacy', 'x')).rejects.toThrow('Quote not found or unreadable')
+  })
+
   it('thought actions ignore unknown ids', async () => {
     // Arrange
     await seedLegacyQuote()

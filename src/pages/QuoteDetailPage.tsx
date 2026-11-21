@@ -69,7 +69,8 @@ export function QuoteDetailPage() {
     // Moving between states (e.g. noise to signal) carries the matching schedule fields; only a status the user actually changed counts.
     const previous = useQuoteStore.getState().quotes.find((item) => item.id === id)
     const patch = changes.status && previous ? statusChangePatch(quoteStatus(previous), changes.status) : {}
-    await saveQuote(id, { ...changes, ...patch })
+    // The form keeps its values on failure; the toast tells the user the save did not happen.
+    await attempt(() => saveQuote(id, { ...changes, ...patch }))
   }
 
   // Runs a store action and reports failure with a toast instead of an unhandled rejection.

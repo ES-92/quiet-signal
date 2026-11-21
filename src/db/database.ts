@@ -243,7 +243,11 @@ export function updateQuote(id: string, patch: QuotePatchOrUpdater): Promise<Quo
 async function applyQuoteUpdate(id: string, patchOrUpdater: QuotePatchOrUpdater) {
   const timestamp = now()
   const current = await getQuote(id)
-  if (!current) return undefined
+  if (!current) {
+    // A plain patch on a vanished row stays a quiet no-op; an updater derives from the row, so a missing one is a failure the caller must see.
+    if (typeof patchOrUpdater === 'function') throw new Error('Quote not found or unreadable')
+    return undefined
+  }
   const patch = typeof patchOrUpdater === 'function' ? patchOrUpdater(current) : patchOrUpdater
   if (!patch) return current
   const nextQuote = {

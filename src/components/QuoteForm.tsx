@@ -167,17 +167,23 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
       locationLatitude,
       locationLongitude
     }
-    if (quote) {
-      const current: FormValues = {
-        text, author, work, source, year, bookId, tags, note, audioDataUrl, audioMimeType, audioDurationMs, imageDataUrl,
-        imageMimeType, favorite, status, signalStrength, entryType: draftEntryType, occurredAt, people, locationName,
-        locationLatitude, locationLongitude
+    // Saving always ends, even when the caller's submit fails; the caller reports the failure and the form keeps its values.
+    try {
+      if (quote) {
+        const current: FormValues = {
+          text, author, work, source, year, bookId, tags, note, audioDataUrl, audioMimeType, audioDurationMs, imageDataUrl,
+          imageMimeType, favorite, status, signalStrength, entryType: draftEntryType, occurredAt, people, locationName,
+          locationLatitude, locationLongitude
+        }
+        await onSubmit(changedFields(input, current, initial))
+      } else {
+        await onSubmit(input)
       }
-      await onSubmit(changedFields(input, current, initial))
-    } else {
-      await onSubmit(input)
+    } catch {
+      // reported by the caller
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   return (
