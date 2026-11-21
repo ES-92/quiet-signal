@@ -8,11 +8,15 @@ import { TodayBookEditor } from '../components/today/TodayBookEditor'
 import { TodayContextMenu } from '../components/today/TodayContextMenu'
 import { TodayDeckStack } from '../components/today/TodayDeckStack'
 import { TodayHeader } from '../components/today/TodayHeader'
+import { ThoughtSheet } from '../components/thoughts/ThoughtSheet'
 import { useDailySession } from '../hooks/useDailySession'
 import { useSwipeDeck } from '../hooks/useSwipeDeck'
 import { useTodayActions } from '../hooks/useTodayActions'
 import { useI18n } from '../i18n/useI18n'
 import { markCoachmarkSeen, shouldShowCoachmark } from '../services/coach'
+import { thoughtsNewestFirst } from '../services/thoughts'
+import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 
 export function TodayPage() {
   const { t } = useI18n()
@@ -30,6 +34,20 @@ export function TodayPage() {
   // The coach is shown once per device; whether it was seen is read once when the page mounts.
   const [coachDismissed, setCoachDismissed] = useState(() => !shouldShowCoachmark())
   const coachVisible = Boolean(currentQuote) && !coachDismissed
+
+  const { addThought } = useQuoteStore()
+  const { showToast } = useToastStore()
+
+  // Saves the thought, then closes the sheet; the card stays on top. On failure the sheet keeps the text.
+  async function saveThought(text: string) {
+    if (!currentQuote) return
+    try {
+      await addThought(currentQuote.id, text)
+      actions.closeThought()
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
+  }
 
   function dismissCoach() {
     markCoachmarkSeen()
@@ -87,6 +105,9 @@ export function TodayPage() {
           onOpenInbox={() => navigate('/inbox')}
         />
       )}
+      {actions.thoughtOpen && currentQuote && (
+        <ThoughtSheet thoughts={thoughtsNewestFirst(currentQuote)} onSave={(text) => void saveThought(text)} onClose={actions.closeThought} />
+      )}
       {actions.bookEditorOpen && currentBook && (
         <TodayBookEditor
           title={actions.bookTitle}
@@ -105,6 +126,7 @@ export function TodayPage() {
             onThought={actions.openThought}
             onRest={actions.handleRest}
             onMenu={actions.openContext}
+            disabled={coachVisible || actions.contextOpen || actions.thoughtOpen}
           />
         )}
         <div className="sm:hidden">

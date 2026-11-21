@@ -6,6 +6,7 @@ import type { Quote } from '../../types/quote'
 import { lerp } from '../../utils/math'
 import { AudioPlayer } from '../AudioRecorder'
 import { PhotoPreview } from '../PhotoCapture'
+import { ThoughtHint } from '../thoughts/ThoughtHint'
 
 interface TodayTopCardProps {
   quote: Quote
@@ -107,6 +108,12 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
           </h2>
         )}
       </div>
+
+      {quote.thoughts && quote.thoughts.length > 0 && (
+        <div className="relative mb-3 shrink-0">
+          <ThoughtHint thoughts={quote.thoughts} />
+        </div>
+      )}
 
       <div className="shrink-0 border-t border-line pt-3 sm:pt-5">
         <p className="truncate text-sm text-graphite sm:text-base">

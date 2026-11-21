@@ -617,6 +617,95 @@ describe('TodayPage', () => {
       expect(screen.getByText('1 of 3')).toBeInTheDocument()
     })
 
+    it('Gedanke öffnet das Sheet, speichert und lässt die Karte oben ohne Toast', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      const first = currentText()
+      const firstId = currentId()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.gestureThought }))
+      fireEvent.change(screen.getByPlaceholderText(en.thoughtPlaceholder), { target: { value: '  Mein Gedanke ' } })
+      fireEvent.click(screen.getByRole('button', { name: en.save }))
+
+      // Assert
+      await waitFor(() => expect(screen.queryByPlaceholderText(en.thoughtPlaceholder)).not.toBeInTheDocument(), SLOW)
+      expect((await getQuote(firstId))?.thoughts?.[0]?.text).toBe('Mein Gedanke')
+      expect(currentText()).toBe(first)
+      expect(screen.getByText('1 of 3')).toBeInTheDocument()
+      expect(useToastStore.getState().toast).toBeNull()
+      expect(await screen.findByText(/Mein Gedanke/)).toBeInTheDocument()
+    })
+
+    it('Gedanke: bei Speicherfehler bleibt das Sheet mit Text offen und ein Fehler-Toast erscheint', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      act(() => {
+        useQuoteStore.setState({ addThought: () => Promise.reject(new Error('boom')) })
+      })
+      fireEvent.click(screen.getByRole('button', { name: en.gestureThought }))
+      fireEvent.change(screen.getByPlaceholderText(en.thoughtPlaceholder), { target: { value: 'Bleibt' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.save }))
+
+      // Assert
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed), SLOW)
+      expect(screen.getByPlaceholderText(en.thoughtPlaceholder)).toHaveValue('Bleibt')
+    })
+
+    it('sperrt die Leiste, solange Sheet, Kontextmenü oder Gesten-Coach offen sind', async () => {
+      // Arrange
+      await seedStack()
+      await renderToday()
+      await screen.findByRole('blockquote')
+      const buttons = () =>
+        [en.gestureLessOften, en.gestureThought, en.gestureRest, en.gestureMoreOften, en.cardMenu].map((name) =>
+          screen.getByRole('button', { name, hidden: true })
+        )
+      expect(buttons().every((button) => !button.hasAttribute('disabled'))).toBe(true)
+
+      // Act / Assert: thought sheet
+      fireEvent.click(screen.getByRole('button', { name: en.gestureThought }))
+      expect(buttons().every((button) => button.hasAttribute('disabled'))).toBe(true)
+      fireEvent.click(screen.getByRole('button', { name: en.cancel }))
+      expect(buttons().every((button) => !button.hasAttribute('disabled'))).toBe(true)
+
+      // Act / Assert: context menu
+      fireEvent.click(screen.getByRole('button', { name: en.cardMenu }))
+      expect(buttons().every((button) => button.hasAttribute('disabled'))).toBe(true)
+    })
+
+    it('sperrt die Leiste, solange der Gesten-Coach sichtbar ist', async () => {
+      // Arrange
+      localStorage.removeItem(coachKey)
+      await seedStack()
+
+      // Act
+      await renderToday()
+      await screen.findByRole('button', { name: en.coachGotIt })
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.gestureMoreOften, hidden: true })).toBeDisabled()
+    })
+
+    it('zeigt den Hinweis zum jüngsten Gedanken auf der Karte', async () => {
+      // Arrange
+      await upsertQuotes([
+        makeQuote({ id: 't-1', text: 'Eins', thoughts: [{ id: 'x', text: 'Ein alter Gedanke', createdAt: new Date().toISOString() }] })
+      ])
+
+      // Act
+      await renderToday()
+
+      // Assert
+      expect(await screen.findByText(/Ein alter Gedanke/)).toBeInTheDocument()
+    })
+
     it('Ruhen lassen wirkt wie Wischen nach unten', async () => {
       // Arrange
       await seedStack()
