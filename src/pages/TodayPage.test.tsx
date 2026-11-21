@@ -44,8 +44,8 @@ async function renderToday() {
 }
 
 // A kept card is persisted asynchronously; wait until the store reflects it so nothing is pending at test end.
-async function expectReadCount(count: number) {
-  await waitFor(() => expect(useQuoteStore.getState().quotes.filter((quote) => quote.reviewCount > 0)).toHaveLength(count), SLOW)
+async function expectKeptCount(count: number) {
+  await waitFor(() => expect(useQuoteStore.getState().quotes.filter((quote) => (quote.likes ?? 0) > 0)).toHaveLength(count), SLOW)
 }
 
 function currentText() {
@@ -121,7 +121,7 @@ describe('TodayPage', () => {
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
   })
 
-  it('geht per Wisch nach rechts zur nächsten Karte und merkt die Karte als gelesen', async () => {
+  it('geht per Wisch nach rechts zur nächsten Karte und merkt die Karte mit Like', async () => {
     // Arrange
     await seedStack()
     await renderToday()
@@ -134,8 +134,8 @@ describe('TodayPage', () => {
     // Assert
     await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument(), SLOW)
     expect(currentId()).not.toBe(first)
-    await waitFor(async () => expect((await getQuote(first))?.reviewCount).toBe(1), SLOW)
-    await expectReadCount(1)
+    await waitFor(async () => expect((await getQuote(first))?.likes).toBe(1), SLOW)
+    await expectKeptCount(1)
   })
 
   it('behält die Reihenfolge des Stapels, obwohl gelesene Karten aus der Auswahl fallen', async () => {
@@ -152,7 +152,7 @@ describe('TodayPage', () => {
     swipe(160)
     await waitFor(() => expect(screen.getByText('3 of 3')).toBeInTheDocument(), SLOW)
     seen.push(currentText())
-    await expectReadCount(2)
+    await expectKeptCount(2)
 
     // Assert
     expect(new Set(seen).size).toBe(3)
@@ -205,7 +205,7 @@ describe('TodayPage', () => {
     await waitFor(async () => expect((await getQuote(first))?.snoozedUntil).toBeTruthy())
   })
 
-  it('behält beim Behalten einer Karte das Like und die Wiederholung dauerhaft', async () => {
+  it('behält beim Behalten einer Karte das Like dauerhaft', async () => {
     // Arrange
     await seedStack()
     await renderToday()
@@ -215,7 +215,7 @@ describe('TodayPage', () => {
     // Act
     swipe(160)
     await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument(), SLOW)
-    await expectReadCount(1)
+    await expectKeptCount(1)
     await act(async () => {
       await useQuoteStore.getState().loadQuotes()
     })
@@ -223,7 +223,6 @@ describe('TodayPage', () => {
     // Assert
     const stored = await getQuote(first)
     expect(stored?.likes).toBe(1)
-    expect(stored?.reviewCount).toBe(1)
     expect(useQuoteStore.getState().quotes.find((quote) => quote.id === first)?.likes).toBe(1)
   })
 
@@ -324,7 +323,7 @@ describe('TodayPage', () => {
     await waitFor(() => expect(screen.getByText('2 of 3')).toBeInTheDocument(), SLOW)
     swipe(160)
     await waitFor(() => expect(screen.getByText('3 of 3')).toBeInTheDocument(), SLOW)
-    await expectReadCount(2)
+    await expectKeptCount(2)
 
     // Act
     swipe(0, 160)

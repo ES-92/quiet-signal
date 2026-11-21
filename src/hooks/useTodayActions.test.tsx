@@ -74,7 +74,7 @@ describe('useTodayActions', () => {
     expect(result.current.path).toBe('/')
   })
 
-  it('behält eine Karte mit Like und Wiederholung und rückt vor', async () => {
+  it('behält eine Karte mit Like und rückt vor', async () => {
     // Arrange
     const quote = makeQuote({ id: 'q' })
     await upsertQuotes([quote])
@@ -91,7 +91,6 @@ describe('useTodayActions', () => {
     await waitFor(async () => {
       const stored = await getQuote('q')
       expect(stored?.likes).toBe(1)
-      expect(stored?.reviewCount).toBe(1)
     })
   })
 

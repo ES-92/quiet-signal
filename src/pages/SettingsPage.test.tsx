@@ -43,7 +43,6 @@ const en = translations.en
 function resetSettings() {
   useSettingsStore.setState({
     dailyCount: 5,
-    dailyMode: 'balanced',
     theme: 'light',
     reminderEnabled: false,
     reminderTime: '08:00'
@@ -100,17 +99,17 @@ describe('SettingsPage: Sprache, Darstellung, Tagesansicht', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('speichert Anzahl und Auswahlstil der Tageshighlights', () => {
+  it('speichert die Anzahl der Tageshighlights und bietet keinen Auswahlmodus mehr', () => {
     // Arrange
     renderWithProviders(<SettingsPage />)
 
     // Act
     fireEvent.change(screen.getByLabelText(en.highlightsPerDay), { target: { value: '10' } })
-    fireEvent.change(screen.getByLabelText(en.selectionStyle), { target: { value: 'random' } })
 
     // Assert
     expect(useSettingsStore.getState().dailyCount).toBe(10)
-    expect(useSettingsStore.getState().dailyMode).toBe('random')
+    expect(screen.queryByText('Selection style')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'More random' })).not.toBeInTheDocument()
   })
 })
 

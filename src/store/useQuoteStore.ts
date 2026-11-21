@@ -8,7 +8,7 @@ import {
   updateQuote,
   upsertQuotes
 } from '../db/database'
-import { applyReview, nextMorningISO, type ReviewAction } from '../services/review'
+import { nextMorningISO } from '../services/review'
 import { tapHaptic } from '../services/haptics'
 import type { Quote, QuoteFilters, QuoteInput } from '../types/quote'
 import { emptyFilters } from '../services/search'
@@ -35,7 +35,6 @@ interface QuoteStore {
     nextBook: { title: string; author?: string },
     previousBook?: { title: string; author?: string }
   ) => Promise<void>
-  reviewQuote: (id: string, action: ReviewAction) => Promise<void>
   importQuotes: (quotes: Quote[]) => Promise<void>
   clearAll: () => Promise<void>
   setFilters: (patch: Partial<QuoteFilters>) => void
@@ -133,12 +132,6 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
         return updateQuote(quote.id, patch)
       })
     )
-    await get().loadQuotes()
-  },
-  reviewQuote: async (id, action) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    await updateQuote(id, applyReview(quote, action))
     await get().loadQuotes()
   },
   importQuotes: async (quotes) => {

@@ -1,16 +1,13 @@
 import { create } from 'zustand'
 
-export type DailyMode = 'balanced' | 'random'
 export type AppTheme = 'light' | 'dark'
 
 interface AppSettings {
   dailyCount: number
-  dailyMode: DailyMode
   theme: AppTheme
   reminderEnabled: boolean
   reminderTime: string
   setDailyCount: (dailyCount: number) => void
-  setDailyMode: (dailyMode: DailyMode) => void
   setTheme: (theme: AppTheme) => void
   setReminderEnabled: (reminderEnabled: boolean) => void
   setReminderTime: (reminderTime: string) => void
@@ -18,7 +15,7 @@ interface AppSettings {
 
 const storageKey = 'quiet-signal-review-settings'
 
-type Persisted = Pick<AppSettings, 'dailyCount' | 'dailyMode' | 'theme' | 'reminderEnabled' | 'reminderTime'>
+type Persisted = Pick<AppSettings, 'dailyCount' | 'theme' | 'reminderEnabled' | 'reminderTime'>
 
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -29,7 +26,6 @@ function loadSettings(): Persisted {
     applyTheme(theme)
     return {
       dailyCount: stored.dailyCount && [3, 5, 10, 15].includes(stored.dailyCount) ? stored.dailyCount : 5,
-      dailyMode: (stored.dailyMode === 'random' ? 'random' : 'balanced') as DailyMode,
       theme,
       reminderEnabled: stored.reminderEnabled === true,
       reminderTime: typeof stored.reminderTime === 'string' && timePattern.test(stored.reminderTime) ? stored.reminderTime : '08:00'
@@ -37,7 +33,7 @@ function loadSettings(): Persisted {
   } catch {
     const theme = preferredTheme()
     applyTheme(theme)
-    return { dailyCount: 5, dailyMode: 'balanced', theme, reminderEnabled: false, reminderTime: '08:00' }
+    return { dailyCount: 5, theme, reminderEnabled: false, reminderTime: '08:00' }
   }
 }
 
@@ -50,10 +46,6 @@ export const useSettingsStore = create<AppSettings>((set, get) => ({
   setDailyCount: (dailyCount) => {
     set({ dailyCount })
     persist(snapshot(get(), { dailyCount }))
-  },
-  setDailyMode: (dailyMode) => {
-    set({ dailyMode })
-    persist(snapshot(get(), { dailyMode }))
   },
   setTheme: (theme) => {
     applyTheme(theme)
@@ -73,7 +65,6 @@ export const useSettingsStore = create<AppSettings>((set, get) => ({
 function snapshot(state: AppSettings, patch: Partial<Persisted>): Persisted {
   return {
     dailyCount: state.dailyCount,
-    dailyMode: state.dailyMode,
     theme: state.theme,
     reminderEnabled: state.reminderEnabled,
     reminderTime: state.reminderTime,

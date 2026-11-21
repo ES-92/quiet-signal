@@ -20,7 +20,7 @@ interface TodayActionsInput {
 export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQuote, showQuote }: TodayActionsInput) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, likeQuote, dislikeQuote, reviewQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, likeQuote, dislikeQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { saveBook } = useBookStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
@@ -41,7 +41,6 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
     if (!currentQuote) return
     const id = currentQuote.id
     void likeQuote(id)
-    void reviewQuote(id, 'read')
     advanceIndex()
   }
 

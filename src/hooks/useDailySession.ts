@@ -10,7 +10,7 @@ import { quoteStatus, type Quote } from '../types/quote'
 export function useDailySession() {
   const { quotes, loading, loadQuotes } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
-  const { dailyCount, dailyMode } = useSettingsStore()
+  const { dailyCount } = useSettingsStore()
   const [index, setIndex] = useState(0)
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
   // Discarded cards vanish from the deck at once, before the store has finished persisting and reloading.
@@ -30,8 +30,8 @@ export function useDailySession() {
   )
 
   const selectedDailyQuotes = useMemo(
-    () => selectDailyStack(quotes, { limit: dailyCount, mode: dailyMode, bookWeights }),
-    [bookWeights, dailyCount, dailyMode, quotes]
+    () => selectDailyStack(quotes, { limit: dailyCount, bookWeights }),
+    [bookWeights, dailyCount, quotes]
   )
 
   // Keep the cards of this visit stable while the underlying selection changes (adjusting state while rendering, not in an effect).
