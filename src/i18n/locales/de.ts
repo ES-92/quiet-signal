@@ -38,7 +38,6 @@ export const de: Record<keyof typeof en, string> = {
   openCommandMenu: 'Werkzeuge öffnen',
   hiddenTools: 'Werkzeuge',
   quickNoise: 'Schnell ins Rauschen',
-  swipeDownCapture: 'Nach unten wischen für Rauschen',
   commandSearchPlaceholder: 'Suchen oder Aktion starten...',
   commandNoMatches: 'Nichts gefunden.',
   openCapture: 'Rauschen erfassen',
@@ -458,10 +457,10 @@ export const de: Record<keyof typeof en, string> = {
   gesturesTodaySection: 'Heute',
   gesturesClarifySection: 'Klären',
   gesturesMoreSection: 'Weitere Griffe',
-  coachFooter: '↓ erfassen · ⌘K Menü',
+  coachFooter: 'Lange drücken: Aktionen',
   coachGotIt: 'Verstanden',
   gestureCapture: 'Nach unten wischen erfasst neues Rauschen.',
   gestureInbox: 'Vom linken Rand wischen öffnet das Klären (Inbox).',
-  gestureMenu: 'Oben rechts oder ⌘K öffnet die Werkzeuge.',
+  gestureMenu: 'Oben rechts öffnet die Werkzeuge (am Rechner auch ⌘K).',
   gestureLongPress: 'Lange auf eine Karte drücken öffnet die Aktionen.'
 }

@@ -36,7 +36,6 @@ export const en = {
   openCommandMenu: 'Open tools',
   hiddenTools: 'Tools',
   quickNoise: 'Quick noise',
-  swipeDownCapture: 'Swipe down for noise',
   commandSearchPlaceholder: 'Search or start an action...',
   commandNoMatches: 'Nothing found.',
   openCapture: 'Capture noise',
@@ -456,10 +455,10 @@ export const en = {
   gesturesTodaySection: 'Today',
   gesturesClarifySection: 'Clarify',
   gesturesMoreSection: 'More gestures',
-  coachFooter: '↓ capture · ⌘K menu',
+  coachFooter: 'Long-press: actions',
   coachGotIt: 'Got it',
   gestureCapture: 'Swipe down to capture new noise.',
   gestureInbox: 'Swipe from the left edge to open Clarify (inbox).',
-  gestureMenu: 'Top right or ⌘K opens the tools.',
+  gestureMenu: 'Top right opens the tools (on a computer also ⌘K).',
   gestureLongPress: 'Long-press a card to open its actions.'
 }

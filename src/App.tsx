@@ -40,6 +40,7 @@ export default function App() {
           <Route path="/trash" element={<TrashPage />} />
           <Route path="/gestures" element={<GesturesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/today" replace />} />
         </Route>
       </Routes>
     </Suspense>

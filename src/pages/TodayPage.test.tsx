@@ -563,13 +563,15 @@ describe('TodayPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/reflections')
   })
 
-  it('zeigt ohne genug Einträge den Hinweis zum Erfassen statt des Reflexions-Hinweises', async () => {
+  it('zeigt ohne genug Einträge keinen Reflexions-Hinweis und keinen Wisch-Hinweis, der dem Ruhen lassen widerspricht', async () => {
     // Arrange / Act
+    await seedStack()
     await renderToday()
+    await screen.findByRole('blockquote')
 
     // Assert
     expect(screen.queryByRole('button', { name: en.openReflections })).not.toBeInTheDocument()
-    expect(screen.getByText(en.swipeDownCapture)).toBeInTheDocument()
+    expect(screen.queryByText(/swipe down for noise/i)).not.toBeInTheDocument()
   })
 
   it('zeigt im Kontextmenü Favorit, Details, Buch bearbeiten und Löschen, aber weder Später noch Nicht mögen', async () => {

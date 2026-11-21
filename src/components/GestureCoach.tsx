@@ -40,7 +40,9 @@ export function GestureCoach({ deck, onDismiss }: GestureCoachProps) {
       <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-clay/60 bg-paper/90 px-3 py-1 text-xs text-clay">
         ↓ {downLabel}
       </span>
-      <p className="pointer-events-none text-xs uppercase tracking-[0.18em] text-graphite">{t('coachFooter')}</p>
+      {deck === 'today' && (
+        <p className="pointer-events-none text-xs uppercase tracking-[0.18em] text-graphite">{t('coachFooter')}</p>
+      )}
       <button
         type="button"
         className="quiet-touch mt-4 min-h-[44px] rounded-md bg-ink px-5 py-2 text-sm text-paper"
