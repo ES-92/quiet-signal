@@ -8,7 +8,14 @@ import {
   updateQuote,
   upsertQuotes
 } from '../db/database'
+import { lessOftenPatch, moreOftenPatch, restPatch, wakePatch } from '../services/lifecycle'
 import { nextMorningISO } from '../services/review'
+import {
+  addThoughtPatch,
+  adoptNotePatch,
+  editThoughtPatch,
+  removeThoughtPatch
+} from '../services/thoughts'
 import { tapHaptic } from '../services/haptics'
 import type { Quote, QuoteFilters, QuoteInput } from '../types/quote'
 import { emptyFilters } from '../services/search'
@@ -26,6 +33,14 @@ interface QuoteStore {
   dislikeQuote: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
+  moreOften: (id: string) => Promise<number | undefined>
+  lessOften: (id: string) => Promise<number | undefined>
+  restQuote: (id: string) => Promise<void>
+  wakeQuote: (id: string) => Promise<void>
+  addThought: (id: string, text: string) => Promise<void>
+  editThought: (id: string, thoughtId: string, text: string) => Promise<void>
+  removeThought: (id: string, thoughtId: string) => Promise<void>
+  adoptNote: (id: string) => Promise<void>
   discardQuote: (id: string) => Promise<void>
   restoreQuote: (id: string) => Promise<void>
   emptyTrash: () => Promise<void>
@@ -87,6 +102,64 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   },
   snoozeQuote: async (id) => {
     await updateQuote(id, { snoozedUntil: nextMorningISO() })
+    await get().loadQuotes()
+  },
+  moreOften: async (id) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return undefined
+    const patch = moreOftenPatch(quote)
+    await updateQuote(id, patch)
+    await get().loadQuotes()
+    return patch.reviewIntervalDays
+  },
+  lessOften: async (id) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return undefined
+    const patch = lessOftenPatch(quote)
+    await updateQuote(id, patch)
+    await get().loadQuotes()
+    return patch.reviewIntervalDays
+  },
+  restQuote: async (id) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return
+    await updateQuote(id, restPatch(quote))
+    await get().loadQuotes()
+  },
+  wakeQuote: async (id) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return
+    await updateQuote(id, wakePatch(quote))
+    await get().loadQuotes()
+  },
+  addThought: async (id, text) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return
+    const patch = addThoughtPatch(quote, text)
+    if (!patch) return
+    await updateQuote(id, patch)
+    await get().loadQuotes()
+  },
+  editThought: async (id, thoughtId, text) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return
+    const patch = editThoughtPatch(quote, thoughtId, text)
+    if (!patch) return
+    await updateQuote(id, patch)
+    await get().loadQuotes()
+  },
+  removeThought: async (id, thoughtId) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return
+    await updateQuote(id, removeThoughtPatch(quote, thoughtId))
+    await get().loadQuotes()
+  },
+  adoptNote: async (id) => {
+    const quote = get().quotes.find((item) => item.id === id)
+    if (!quote) return
+    const patch = adoptNotePatch(quote)
+    if (!patch) return
+    await updateQuote(id, patch)
     await get().loadQuotes()
   },
   discardQuote: async (id) => {
