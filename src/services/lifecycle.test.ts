@@ -55,6 +55,8 @@ describe('lessOftenPatch', () => {
       lastReviewedAt: now.toISOString()
     })
   })
+  it('rounds a fractional interval up before applying the cap', () =>
+    expect(lessOftenPatch(makeQuote({ reviewIntervalDays: 15.3 }), now).reviewIntervalDays).toBe(62))
   it('does not touch likes', () => expect(lessOftenPatch(makeQuote({ likes: 3 }), now)).not.toHaveProperty('likes'))
 })
 

@@ -127,4 +127,30 @@ describe('useClarifyActions', () => {
     expect((await getQuote('q'))?.thoughts).toBeUndefined()
     expect(onSaved).not.toHaveBeenCalled()
   })
+
+  it('meldet einen Fehler, wenn nur das Anhängen des ersten Gedankens scheitert, ohne zu werfen', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', status: 'inbox' })
+    await upsertQuotes([quote])
+    const onMessage = vi.fn()
+    const onSaved = vi.fn()
+    const original = useQuoteStore.getState().addThought
+    useQuoteStore.setState({ addThought: vi.fn().mockRejectedValue(new Error('boom')) })
+    const { result } = renderHook(() => useClarifyActions(quote, buildPatch, onMessage, { text: 'Erster', onSaved }), {
+      wrapper
+    })
+
+    // Act
+    try {
+      await act(async () => result.current.finishSignal())
+    } finally {
+      useQuoteStore.setState({ addThought: original })
+    }
+
+    // Assert
+    expect((await getQuote('q'))?.status).toBe('signal')
+    expect(useToastStore.getState().toast?.message).toBe(en.saveFailed)
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(onMessage).toHaveBeenCalledWith(en.movedToSignals)
+  })
 })

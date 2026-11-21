@@ -91,6 +91,17 @@ describe('Stille und Gedanken im Import/Export', () => {
     expect(result.thoughts?.[1]).toMatchObject({ text: 'Ohne ID', fromNote: true })
   })
 
+  it('speichert das Datum eines Gedankens als ISO-String', () => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', thoughts: [{ id: 't', text: 'Gedanke', createdAt: 'Jan 1 2026 10:00 UTC' }] }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts?.[0].createdAt).toBe('2026-01-01T10:00:00.000Z')
+  })
+
   it('verwirft leere Texte und unparsbare Daten, kürzt Texte und vergibt doppelte IDs neu', () => {
     // Arrange
     const content = JSON.stringify([

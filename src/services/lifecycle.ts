@@ -38,7 +38,7 @@ export function moreOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
 }
 
 export function lessOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
-  const next = Math.min(maxIntervalDays, Math.max(lessOftenMinDays, effectiveInterval(quote) * lessOftenFactor))
+  const next = Math.min(maxIntervalDays, Math.max(lessOftenMinDays, Math.ceil(effectiveInterval(quote) * lessOftenFactor)))
   return reviewedPatch(quote, next, now)
 }
 

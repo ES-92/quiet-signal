@@ -190,7 +190,7 @@ function normalizeThoughts(value: unknown): Thought[] | undefined {
     thoughts.push({
       id: thoughtId,
       text: text.slice(0, maxThoughtTextChars),
-      createdAt,
+      createdAt: new Date(createdAt).toISOString(),
       ...(fromNote === true ? { fromNote: true } : {})
     })
   }

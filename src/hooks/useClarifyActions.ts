@@ -18,8 +18,13 @@ export function useClarifyActions(
   async function saveWithThought(id: string, status: QuoteStatus, strength?: SignalStrength) {
     await saveQuote(id, buildPatch(status, strength))
     if (firstThought?.text.trim()) {
-      await addThought(id, firstThought.text)
-      firstThought.onSaved()
+      // The entry itself is saved at this point; a failing thought keeps its draft text and only reports the failure.
+      try {
+        await addThought(id, firstThought.text)
+        firstThought.onSaved()
+      } catch {
+        showToast({ message: t('saveFailed') })
+      }
     }
   }
 
