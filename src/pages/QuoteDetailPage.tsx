@@ -64,11 +64,12 @@ export function QuoteDetailPage() {
 
   const sortedThoughts = [...(quote.thoughts ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
-  async function handleSubmit(input: QuoteInput) {
-    if (!id || !quote) return
-    // Moving between states (e.g. noise to signal) carries the matching schedule fields.
-    const patch = statusChangePatch(quoteStatus(quote), input.status ?? quoteStatus(quote))
-    await saveQuote(id, { ...input, ...patch })
+  async function handleSubmit(changes: Partial<QuoteInput>) {
+    if (!id) return
+    // Moving between states (e.g. noise to signal) carries the matching schedule fields; only a status the user actually changed counts.
+    const previous = useQuoteStore.getState().quotes.find((item) => item.id === id)
+    const patch = changes.status && previous ? statusChangePatch(quoteStatus(previous), changes.status) : {}
+    await saveQuote(id, { ...changes, ...patch })
   }
 
   // Runs a store action and reports failure with a toast instead of an unhandled rejection.

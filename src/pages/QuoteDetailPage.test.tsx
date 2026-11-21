@@ -1,8 +1,9 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
+import { reviewDateFromInterval } from '../services/lifecycle'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
@@ -38,6 +39,10 @@ beforeEach(async () => {
   useQuoteStore.setState({ quotes: [], loading: true })
   useBookStore.setState({ books: [], loading: true })
   useToastStore.setState({ toast: null })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('QuoteDetailPage', () => {
@@ -255,6 +260,79 @@ describe('QuoteDetailPage', () => {
       // Assert
       await waitFor(async () => expect((await getQuote('q-1'))?.status).toBe('rest'), SLOW)
       expect((await getQuote('q-1'))?.thoughts).toEqual([thought])
+    })
+  })
+
+  describe('saving the edit form after changes made elsewhere on the page', () => {
+    async function saveTags(value: string) {
+      fireEvent.change(screen.getByLabelText(en.tags), { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.tags).toEqual([value]), SLOW)
+    }
+
+    it('keeps a woken entry awake when only a tag is edited afterwards', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest', tags: ['alt'] })])
+      await renderDetail()
+      fireEvent.click(screen.getByRole('button', { name: en.wake }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.status).toBe('signal'), SLOW)
+
+      // Act
+      await saveTags('neu')
+
+      // Assert
+      const stored = await getQuote('q-1')
+      expect(stored?.status).toBe('signal')
+      expect(stored?.reviewIntervalDays).toBe(1)
+    })
+
+    it('keeps the note empty after adopting it when only a tag is edited afterwards', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', text: 'Text', note: 'Meine Beschreibung', tags: ['alt'] })])
+      await renderDetail()
+      fireEvent.click(screen.getByRole('button', { name: en.adoptNote }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.note).toBeFalsy(), SLOW)
+
+      // Act
+      await saveTags('neu')
+
+      // Assert
+      const stored = await getQuote('q-1')
+      expect(stored?.note).toBeFalsy()
+      expect(stored?.thoughts?.map((item) => item.text)).toEqual(['Meine Beschreibung'])
+    })
+
+    it('keeps the favorite toggled on the page when the form is saved afterwards', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', tags: ['alt'] })])
+      await renderDetail()
+      fireEvent.click(screen.getByRole('button', { name: en.favorite }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.favorite).toBe(true), SLOW)
+
+      // Act
+      await saveTags('neu')
+
+      // Assert
+      expect((await getQuote('q-1'))?.favorite).toBe(true)
+    })
+
+    it('starts a rest entry saved as signal at interval 1 for tomorrow 06:00', async () => {
+      // Arrange
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-03-10T12:00:00'))
+      await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest' })])
+      await renderDetail()
+
+      // Act
+      fireEvent.change(screen.getByLabelText(en.entryStatus), { target: { value: 'signal' } })
+      fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
+
+      // Assert
+      await waitFor(async () => expect((await getQuote('q-1'))?.status).toBe('signal'), SLOW)
+      const stored = await getQuote('q-1')
+      expect(stored?.reviewIntervalDays).toBe(1)
+      expect(stored?.nextReviewAt).toBe(reviewDateFromInterval(1, new Date('2026-03-10T12:00:00')))
+      expect(new Date(stored?.nextReviewAt as string).getHours()).toBe(6)
     })
   })
 })
