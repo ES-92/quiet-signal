@@ -14,10 +14,11 @@ import {
   addThoughtPatch,
   adoptNotePatch,
   editThoughtPatch,
-  removeThoughtPatch
+  removeThoughtPatch,
+  restoreThoughtPatch
 } from '../services/thoughts'
 import { tapHaptic } from '../services/haptics'
-import type { Quote, QuoteFilters, QuoteInput } from '../types/quote'
+import type { Quote, QuoteFilters, QuoteInput, Thought } from '../types/quote'
 import { emptyFilters } from '../services/search'
 
 interface QuoteStore {
@@ -40,6 +41,7 @@ interface QuoteStore {
   addThought: (id: string, text: string) => Promise<void>
   editThought: (id: string, thoughtId: string, text: string) => Promise<void>
   removeThought: (id: string, thoughtId: string) => Promise<void>
+  restoreThought: (id: string, thought: Thought) => Promise<void>
   adoptNote: (id: string) => Promise<void>
   discardQuote: (id: string) => Promise<void>
   restoreQuote: (id: string) => Promise<void>
@@ -139,6 +141,11 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   removeThought: async (id, thoughtId) => {
     if (!get().quotes.some((item) => item.id === id)) return
     await updateQuote(id, (current) => removeThoughtPatch(current, thoughtId))
+    await get().loadQuotes()
+  },
+  restoreThought: async (id, thought) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => restoreThoughtPatch(current, thought))
     await get().loadQuotes()
   },
   adoptNote: async (id) => {

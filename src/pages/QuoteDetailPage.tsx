@@ -13,13 +13,13 @@ import { statusChangePatch } from '../services/lifecycle'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
-import { entryType, quoteStatus, signalStrength, type QuoteInput } from '../types/quote'
+import { entryType, quoteStatus, signalStrength, type QuoteInput, type Thought } from '../types/quote'
 
 export function QuoteDetailPage() {
   const { t } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote, addThought, editThought, removeThought, adoptNote, wakeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, wakeQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -86,6 +86,17 @@ export function QuoteDetailPage() {
   async function saveThought(text: string) {
     if (!id) return
     if (await attempt(() => addThought(id, text))) setThoughtSheetOpen(false)
+  }
+
+  // Deleting is one tap, so the toast offers to put the thought back exactly as it was.
+  async function handleRemoveThought(thought: Thought) {
+    if (!id) return
+    if (!(await attempt(() => removeThought(id, thought.id)))) return
+    showToast({
+      message: t('thoughtDeleted'),
+      actionLabel: t('undo'),
+      onAction: () => void attempt(() => restoreThought(id, thought))
+    })
   }
 
   async function handleAdoptNote() {
@@ -160,7 +171,10 @@ export function QuoteDetailPage() {
             <ThoughtList
               thoughts={sortedThoughts}
               onEdit={(thoughtId, text) => void attempt(() => editThought(quote.id, thoughtId, text))}
-              onRemove={(thoughtId) => void attempt(() => removeThought(quote.id, thoughtId))}
+              onRemove={(thoughtId) => {
+                const removed = sortedThoughts.find((item) => item.id === thoughtId)
+                if (removed) void handleRemoveThought(removed)
+              }}
             />
           )}
           <button

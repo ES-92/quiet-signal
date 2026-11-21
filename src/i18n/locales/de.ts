@@ -430,6 +430,7 @@ export const de: Record<keyof typeof en, string> = {
   save: 'Speichern',
   thoughtsTitle: 'Gedanken',
   removeThought: 'Gedanken löschen',
+  thoughtDeleted: 'Gedanke gelöscht.',
   editThought: 'Gedanken bearbeiten',
   adoptNote: 'Als Gedanken übernehmen',
   adoptNoteToast: 'Als Gedanke übernommen.',

@@ -177,6 +177,20 @@ describe('lifecycle store actions', () => {
     ])
   })
 
+  it('restoreThought re-inserts a removed thought in order', async () => {
+    // Arrange
+    const first = { id: 't1', text: 'a', createdAt: '2026-11-01T00:00:00.000Z' }
+    const second = { id: 't2', text: 'b', createdAt: '2026-11-02T00:00:00.000Z', fromNote: true }
+    await seedLegacyQuote({ thoughts: [first, second] })
+    await useQuoteStore.getState().removeThought('legacy', 't1')
+
+    // Act
+    await useQuoteStore.getState().restoreThought('legacy', first)
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].thoughts).toEqual([first, second])
+  })
+
   it('adoptNote moves the note into a fromNote thought', async () => {
     // Arrange
     await seedLegacyQuote({ note: 'remember this' })

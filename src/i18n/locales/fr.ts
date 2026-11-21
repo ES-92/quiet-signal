@@ -430,6 +430,7 @@ export const fr: Record<keyof typeof en, string> = {
   save: 'Enregistrer',
   thoughtsTitle: 'Pensées',
   removeThought: 'Supprimer la pensée',
+  thoughtDeleted: 'Pensée supprimée.',
   editThought: 'Modifier la pensée',
   adoptNote: 'Garder comme pensée',
   adoptNoteToast: 'Gardé comme pensée.',

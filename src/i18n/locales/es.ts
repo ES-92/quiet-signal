@@ -430,6 +430,7 @@ export const es: Record<keyof typeof en, string> = {
   save: 'Guardar',
   thoughtsTitle: 'Pensamientos',
   removeThought: 'Eliminar pensamiento',
+  thoughtDeleted: 'Pensamiento eliminado.',
   editThought: 'Editar pensamiento',
   adoptNote: 'Guardar como pensamiento',
   adoptNoteToast: 'Guardado como pensamiento.',

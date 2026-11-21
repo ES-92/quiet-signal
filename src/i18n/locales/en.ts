@@ -428,6 +428,7 @@ export const en = {
   save: 'Save',
   thoughtsTitle: 'Thoughts',
   removeThought: 'Delete thought',
+  thoughtDeleted: 'Thought deleted.',
   editThought: 'Edit thought',
   adoptNote: 'Keep as thought',
   adoptNoteToast: 'Kept as a thought.',

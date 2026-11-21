@@ -40,6 +40,14 @@ export function removeThoughtPatch(quote: Quote, thoughtId: string, now = new Da
   }
 }
 
+// Puts a removed thought back (undo) on the fresh row, keeping chronological order; a thought that is already there is left alone.
+export function restoreThoughtPatch(quote: Quote, thought: Thought, now = new Date()): Partial<Quote> {
+  const existing = quote.thoughts ?? []
+  if (existing.some((item) => item.id === thought.id)) return { thoughts: existing }
+  const thoughts = [...existing, thought].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  return { thoughts, updatedAt: now.toISOString() }
+}
+
 export function adoptNotePatch(quote: Quote, now = new Date()): Partial<Quote> | null {
   if (!quote.text.trim() || !quote.note?.trim()) return null
   const added = addThoughtPatch(quote, quote.note, now, { fromNote: true })

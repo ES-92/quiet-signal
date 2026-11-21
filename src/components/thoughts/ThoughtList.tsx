@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useI18n } from '../../i18n/useI18n'
 import type { Thought } from '../../types/quote'
 import { formatRelativeDay } from '../../utils/date'
@@ -33,7 +33,7 @@ export function ThoughtList({ thoughts, now, onEdit, onRemove }: ThoughtListProp
           {onRemove && (
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-graphite hover:bg-white/50"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-graphite hover:bg-white/50"
               aria-label={t('removeThought')}
               onClick={() => onRemove(thought.id)}
             >
@@ -47,12 +47,23 @@ export function ThoughtList({ thoughts, now, onEdit, onRemove }: ThoughtListProp
 }
 
 // Edits on blur; an empty or unchanged value reverts to the stored text (clearing never deletes).
+// A textarea so line breaks survive; it grows with its content.
 function ThoughtInput({ thought, label, onEdit }: { thought: Thought; label: string; onEdit: (id: string, text: string) => void }) {
   const [value, setValue] = useState(thought.text)
+  const fieldRef = useRef<HTMLTextAreaElement>(null)
+
+  useLayoutEffect(() => {
+    const field = fieldRef.current
+    if (!field) return
+    field.style.height = 'auto'
+    if (field.scrollHeight > 0) field.style.height = `${field.scrollHeight}px`
+  }, [value])
 
   return (
-    <input
-      className="rounded-md border border-line bg-paper px-2 py-1 text-ink"
+    <textarea
+      ref={fieldRef}
+      rows={1}
+      className="resize-none overflow-hidden rounded-md border border-line bg-paper px-2 py-1 text-ink"
       value={value}
       aria-label={label}
       onChange={(event) => setValue(event.target.value)}

@@ -48,4 +48,28 @@ describe('ThoughtList', () => {
     expect(onEdit).not.toHaveBeenCalled()
     expect(input).toHaveValue('Erster Gedanke')
   })
+
+  it('edits in a textarea so line breaks survive', () => {
+    // Arrange
+    const onEdit = vi.fn()
+    renderWithProviders(<ThoughtList thoughts={thoughts} onEdit={onEdit} />)
+    const field = screen.getByLabelText(en.editThought)
+
+    // Act
+    fireEvent.change(field, { target: { value: 'Zeile 1\nZeile 2' } })
+    fireEvent.blur(field)
+
+    // Assert
+    expect(field.tagName).toBe('TEXTAREA')
+    expect(onEdit).toHaveBeenCalledExactlyOnceWith('th-1', 'Zeile 1\nZeile 2')
+  })
+
+  it('gives the remove button a touch target of at least 44px', () => {
+    // Arrange / Act
+    renderWithProviders(<ThoughtList thoughts={thoughts} onRemove={vi.fn()} />)
+
+    // Assert
+    const button = screen.getByRole('button', { name: en.removeThought })
+    expect(button).toHaveClass('min-h-[44px]', 'min-w-[44px]')
+  })
 })

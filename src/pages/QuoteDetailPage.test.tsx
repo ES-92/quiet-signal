@@ -123,6 +123,24 @@ describe('QuoteDetailPage', () => {
       // Assert
       await waitFor(async () => expect((await getQuote('q-1'))?.thoughts).toEqual([]), SLOW)
     })
+
+    it('offers undo after removing a thought and restores it unchanged', async () => {
+      // Arrange
+      const fromNote: Thought = { ...thought, fromNote: true }
+      await upsertQuotes([makeQuote({ id: 'q-1', thoughts: [fromNote] })])
+      await renderDetail()
+      fireEvent.click(screen.getByRole('button', { name: en.removeThought }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.thoughts).toEqual([]), SLOW)
+      expect(useToastStore.getState().toast).toMatchObject({ message: en.thoughtDeleted, actionLabel: en.undo })
+
+      // Act
+      await act(async () => {
+        useToastStore.getState().toast?.onAction?.()
+      })
+
+      // Assert
+      await waitFor(async () => expect((await getQuote('q-1'))?.thoughts).toEqual([fromNote]), SLOW)
+    })
   })
 
   describe('adopting the description as a thought', () => {

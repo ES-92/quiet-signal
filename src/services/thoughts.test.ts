@@ -5,6 +5,7 @@ import {
   adoptNotePatch,
   editThoughtPatch,
   removeThoughtPatch,
+  restoreThoughtPatch,
   thoughtsNewestFirst
 } from './thoughts'
 
@@ -104,6 +105,46 @@ describe('removeThoughtPatch', () => {
     // Assert
     expect(patch.thoughts).toEqual([{ id: 't2', text: 'b', createdAt: 'c2' }])
     expect(patch.updatedAt).toBe(now.toISOString())
+  })
+})
+
+describe('restoreThoughtPatch', () => {
+  const t1 = { id: 't1', text: 'a', createdAt: '2026-01-01T10:00:00.000Z' }
+  const t2 = { id: 't2', text: 'b', createdAt: '2026-01-02T10:00:00.000Z' }
+  const t3 = { id: 't3', text: 'c', createdAt: '2026-01-03T10:00:00.000Z', fromNote: true }
+
+  it('re-inserts the thought keeping chronological order', () => {
+    // Arrange
+    const quote = makeQuote({ thoughts: [t1, t3] })
+
+    // Act
+    const patch = restoreThoughtPatch(quote, t2, now)
+
+    // Assert
+    expect(patch.thoughts).toEqual([t1, t2, t3])
+    expect(patch.updatedAt).toBe(now.toISOString())
+  })
+
+  it('keeps the original id, text, date and fromNote flag', () => {
+    // Arrange
+    const quote = makeQuote({ thoughts: [t1] })
+
+    // Act
+    const patch = restoreThoughtPatch(quote, t3, now)
+
+    // Assert
+    expect(patch.thoughts?.[1]).toEqual(t3)
+  })
+
+  it('does not duplicate a thought that is already present', () => {
+    // Arrange
+    const quote = makeQuote({ thoughts: [t1, t2] })
+
+    // Act
+    const patch = restoreThoughtPatch(quote, t2, now)
+
+    // Assert
+    expect(patch.thoughts).toEqual([t1, t2])
   })
 })
 
