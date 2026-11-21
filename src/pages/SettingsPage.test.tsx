@@ -116,16 +116,16 @@ describe('SettingsPage: Sprache, Darstellung, Tagesansicht', () => {
 describe('SettingsPage: Statusband und Bibliothek', () => {
   it('zeigt Signal-, Rausch- und Buchzahlen sowie offenen Schutz', async () => {
     // Arrange
-    await upsertQuotes([makeQuote({ status: 'signal' }), makeQuote({ status: 'signal' }), makeQuote({ status: 'inbox' })])
+    await upsertQuotes([makeQuote({ status: 'signal' }), makeQuote({ status: 'signal' }), makeQuote({ status: 'rest' }), makeQuote({ status: 'inbox' })])
     await upsertBooks([makeBook()])
 
     // Act
     renderWithProviders(<SettingsPage />)
 
     // Assert
-    expect(await screen.findByText(en.dataSignalsValue.replace('{signals}', '2').replace('{noise}', '1'))).toBeInTheDocument()
+    expect(await screen.findByText(en.dataSignalsValue.replace('{signals}', '2').replace('{rest}', '1').replace('{noise}', '1'))).toBeInTheDocument()
     expect(screen.getByText(en.dataBooksValue.replace('{count}', '1'))).toBeInTheDocument()
-    expect(screen.getByText(en.storedLocally.replace('{count}', '3'))).toBeInTheDocument()
+    expect(screen.getByText(en.storedLocally.replace('{count}', '4'))).toBeInTheDocument()
     expect(screen.getByText(en.dataProtectionOpen)).toBeInTheDocument()
     expect(screen.getByText(en.dataBackupStale)).toBeInTheDocument()
   })

@@ -1,4 +1,4 @@
-import type { Quote } from '../types/quote'
+import type { Quote, Thought } from '../types/quote'
 import type { Book } from '../types/book'
 import { normalizeTags } from '../db/database'
 import { csvEscape, parseCsv } from './csv'
@@ -66,7 +66,9 @@ export function exportCsv(quotes: Quote[]) {
     'people',
     'locationName',
     'locationLatitude',
-    'locationLongitude'
+    'locationLongitude',
+    'reviewIntervalDays',
+    'thoughts'
   ]
   const rows = quotes.map((quote) =>
     [
@@ -86,7 +88,9 @@ export function exportCsv(quotes: Quote[]) {
       quote.people?.join(', ') ?? '',
       quote.locationName ?? '',
       quote.locationLatitude !== undefined ? String(quote.locationLatitude) : '',
-      quote.locationLongitude !== undefined ? String(quote.locationLongitude) : ''
+      quote.locationLongitude !== undefined ? String(quote.locationLongitude) : '',
+      quote.reviewIntervalDays !== undefined ? String(quote.reviewIntervalDays) : '',
+      (quote.thoughts ?? []).map((thought) => `${thought.createdAt} ${thought.text}`).join('\n')
     ].map(csvEscape)
   )
 
@@ -144,7 +148,7 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     imageMimeType: safeMediaMimeType(row.imageDataUrl, row.imageMimeType, allowedImageMimeTypes),
     favorite: row.favorite === true || String(row.favorite).toLowerCase() === 'true',
     likes: Number(row.likes ?? 0) || 0,
-    status: row.status === 'inbox' ? 'inbox' : 'signal',
+    status: row.status === 'inbox' || row.status === 'rest' ? row.status : 'signal',
     signalStrength: row.signalStrength === 'quiet' || row.signalStrength === 'strong' ? row.signalStrength : 'normal',
     entryType: normalizeEntryType(row.entryType),
     occurredAt: optional(row.occurredAt),
@@ -156,8 +160,32 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     updatedAt: row.updatedAt || timestamp,
     reviewCount: optionalNumber(row.reviewCount) ?? 0,
     lastReviewedAt: optional(row.lastReviewedAt),
-    nextReviewAt: optional(row.nextReviewAt)
+    nextReviewAt: optional(row.nextReviewAt),
+    reviewIntervalDays: validReviewInterval(row.reviewIntervalDays),
+    thoughts: normalizeThoughts(row.thoughts)
   }
+}
+
+function validReviewInterval(value: unknown) {
+  const days = optionalNumber(value)
+  return days !== undefined && days > 0 && days <= 365 ? days : undefined
+}
+
+function normalizeThoughts(value: unknown): Thought[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const thoughts: Thought[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const { id, text, createdAt, fromNote } = item as Record<string, unknown>
+    if (typeof text !== 'string' || typeof createdAt !== 'string') continue
+    thoughts.push({
+      id: safeImportedId(id) ?? crypto.randomUUID(),
+      text,
+      createdAt,
+      ...(fromNote === true ? { fromNote: true } : {})
+    })
+  }
+  return thoughts
 }
 
 function normalizeImportedBook(row: BookImportRow): Book {

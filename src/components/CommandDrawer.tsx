@@ -68,8 +68,8 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
     () =>
       normalizedQuery
         ? quotes
-            .filter((quote) => quoteStatus(quote) === 'signal')
-            .filter((quote) => [quote.text, quote.author, quote.work, quote.note, quote.tags.join(' ')].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery))
+            .filter((quote) => quoteStatus(quote) !== 'inbox')
+            .filter((quote) => [quote.text, quote.author, quote.work, quote.note, quote.tags.join(' '), quote.thoughts?.map((thought) => thought.text).join(' ')].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery))
             .slice(0, 4)
         : [],
     [normalizedQuery, quotes]

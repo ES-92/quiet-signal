@@ -14,6 +14,95 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('Stille und Gedanken im Import/Export', () => {
+  const thought = { id: 'th-1', text: 'Noch ein Gedanke', createdAt: '2026-01-05T09:00:00.000Z', fromNote: true }
+
+  it('übersteht einen JSON-Roundtrip mit Status, Abstand und Gedanken', () => {
+    // Arrange
+    const quote = makeQuote({ status: 'rest', reviewIntervalDays: 8, thoughts: [thought] })
+
+    // Act
+    const [result] = parseJsonImport(exportJson([quote]))
+
+    // Assert
+    expect(result).toMatchObject({ status: 'rest', reviewIntervalDays: 8, thoughts: [thought] })
+  })
+
+  it('übersteht einen CSV-Roundtrip für Status und Abstand und exportiert Gedanken lesbar', () => {
+    // Arrange
+    const second = { id: 'th-2', text: 'Zweiter', createdAt: '2026-01-06T09:00:00.000Z' }
+    const quote = makeQuote({ status: 'rest', reviewIntervalDays: 8, thoughts: [thought, second] })
+
+    // Act
+    const csv = exportCsv([quote])
+    const [result] = parseCsvImport(csv)
+
+    // Assert
+    expect(result).toMatchObject({ status: 'rest', reviewIntervalDays: 8 })
+    expect(csv).toContain(`${thought.createdAt} ${thought.text}\n${second.createdAt} ${second.text}`)
+    // Thoughts only survive losslessly via JSON; the CSV import does not read them back.
+    expect(result.thoughts).toBeUndefined()
+  })
+
+  it('fällt bei unbekanntem Status auf signal zurück', () => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', status: 'archived' }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.status).toBe('signal')
+  })
+
+  it.each([0, -3, Number.NaN, 366, 'abc'])('lässt ungültiges reviewIntervalDays %s weg', (value) => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', reviewIntervalDays: value }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.reviewIntervalDays).toBeUndefined()
+  })
+
+  it('übernimmt nur gültige Gedanken, vergibt fehlende IDs und behält fromNote nur bei true', () => {
+    // Arrange
+    const content = JSON.stringify([
+      {
+        text: 'x',
+        thoughts: [
+          { id: 'ok-1', text: 'Gültig', createdAt: '2026-01-05T09:00:00.000Z', fromNote: false },
+          { text: 'Ohne ID', createdAt: '2026-01-06T09:00:00.000Z', fromNote: true },
+          { id: 'bad-1', text: 42, createdAt: '2026-01-07T09:00:00.000Z' },
+          { id: 'bad-2', text: 'Ohne Datum' },
+          'kein Objekt'
+        ]
+      }
+    ])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts).toHaveLength(2)
+    expect(result.thoughts?.[0]).toEqual({ id: 'ok-1', text: 'Gültig', createdAt: '2026-01-05T09:00:00.000Z' })
+    expect(result.thoughts?.[1].id).toMatch(uuidPattern)
+    expect(result.thoughts?.[1]).toMatchObject({ text: 'Ohne ID', fromNote: true })
+  })
+
+  it('lässt thoughts weg, wenn kein Array geliefert wird', () => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', thoughts: 'nope' }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts).toBeUndefined()
+  })
+})
+
 describe('exportJson und parseJsonImportBundle', () => {
   it('erzeugt einen Envelope mit App-Name, Version und Exportzeitpunkt', () => {
     // Arrange

@@ -26,6 +26,11 @@ export function QuoteDetailPage() {
 
   const quote = quotes.find((item) => item.id === id)
   const book = quote?.bookId ? books.find((item) => item.id === quote.bookId) : undefined
+  const statusLabels = {
+    inbox: 'entryStatus_inbox',
+    signal: 'entryStatus_signal',
+    rest: 'entryStatus_rest'
+  } as const
   const strengthLabels = {
     quiet: 'signalStrength_quiet',
     normal: 'signalStrength_normal',
@@ -104,7 +109,7 @@ export function QuoteDetailPage() {
           <Metric label={t('likesLabel')} value={String(quote.likes)} />
           <Metric label={t('favorite')} value={quote.favorite ? t('yes') : t('no')} />
           <Metric label={t('entryKind')} value={t(typeLabels[entryType(quote)])} />
-          <Metric label={t('entryStatus')} value={t(quoteStatus(quote) === 'inbox' ? 'entryStatus_inbox' : 'entryStatus_signal')} />
+          <Metric label={t('entryStatus')} value={t(statusLabels[quoteStatus(quote)])} />
           <Metric label={t('signalStrength')} value={t(strengthLabels[signalStrength(quote)])} />
           {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString()} />}
           {quote.locationName && <Metric label={t('locationLabel')} value={quote.locationName} />}

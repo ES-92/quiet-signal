@@ -68,7 +68,7 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislik
           {t(typeLabels[entryType(quote)])}
         </span>
         <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">
-          {status === 'inbox' ? t('entryStatus_inbox') : t(strengthLabels[strength])}
+          {status === 'inbox' ? t('entryStatus_inbox') : status === 'rest' ? t('entryStatus_rest') : t(strengthLabels[strength])}
         </span>
         {quote.locationName && (
           <span className="inline-flex items-center gap-1 rounded border border-line px-2 py-1 text-xs text-graphite">

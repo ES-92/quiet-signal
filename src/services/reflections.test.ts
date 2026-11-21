@@ -139,6 +139,19 @@ describe('buildReflection', () => {
     expect(result.noise.map((q) => q.id)).toEqual([newer.id])
   })
 
+  it('zählt Stille-Einträge zu den Signalen und nie zum Rauschen', () => {
+    // Arrange
+    const resting = makeQuote({ status: 'rest', createdAt: '2026-03-10T09:00:00+01:00' })
+    const inbox = makeQuote({ status: 'inbox', createdAt: '2026-03-10T10:00:00+01:00' })
+
+    // Act
+    const result = buildReflection([resting, inbox], [], 'week', new Date(NOW))
+
+    // Assert
+    expect(result.signals.map((q) => q.id)).toEqual([resting.id])
+    expect(result.noise.map((q) => q.id)).toEqual([inbox.id])
+  })
+
   it('wählt das Signal mit dem höchsten Score als Top-Signal', () => {
     // Arrange
     const schwach = makeQuote({ createdAt: '2026-03-10T09:00:00+01:00' })

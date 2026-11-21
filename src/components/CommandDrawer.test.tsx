@@ -76,6 +76,23 @@ describe('CommandDrawer', () => {
     expect(screen.getByText('Schweigen lernen')).toBeInTheDocument()
   })
 
+  it('findet Einträge über Gedanken und listet Stille-Einträge mit, aber kein Rauschen', async () => {
+    // Arrange
+    await db.quotes.bulkPut([
+      makeQuote({ text: 'Ruhender Eintrag', status: 'rest', thoughts: [{ id: 't-1', text: 'Nebelmorgen', createdAt: '2026-02-01T09:00:00.000Z' }] }),
+      makeQuote({ text: 'Nebel im Posteingang', status: 'inbox' })
+    ])
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+
+    // Act
+    await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2))
+    fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'nebel' } })
+
+    // Assert
+    expect(screen.getByText('Ruhender Eintrag')).toBeInTheDocument()
+    expect(screen.queryByText('Nebel im Posteingang')).not.toBeInTheDocument()
+  })
+
   it('leert die Suche beim erneuten Öffnen', () => {
     // Arrange
     const { rerender } = renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
