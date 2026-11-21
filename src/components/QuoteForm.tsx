@@ -183,8 +183,9 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
               onChange={(event) => setStatus(event.target.value as QuoteInput['status'])}
               className="rounded-md border border-line bg-white/50 px-3 py-3"
             >
-              <option value="signal">{t('entryStatus_signal')}</option>
               <option value="inbox">{t('entryStatus_inbox')}</option>
+              <option value="signal">{t('entryStatus_signal')}</option>
+              <option value="rest">{t('entryStatus_rest')}</option>
             </select>
           </label>
         </div>

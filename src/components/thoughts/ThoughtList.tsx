@@ -26,15 +26,7 @@ export function ThoughtList({ thoughts, now, onEdit, onRemove }: ThoughtListProp
             {thought.fromNote ? ` · ${t('fromNote')}` : ''}
           </span>
           {onEdit ? (
-            <input
-              className="rounded-md border border-line bg-paper px-2 py-1 text-ink"
-              defaultValue={thought.text}
-              aria-label={thought.text}
-              onBlur={(event) => {
-                const value = event.target.value.trim()
-                if (value && value !== thought.text) onEdit(thought.id, value)
-              }}
-            />
+            <ThoughtInput key={thought.text} thought={thought} label={t('editThought')} onEdit={onEdit} />
           ) : (
             <span className="whitespace-pre-wrap break-words text-ink">{thought.text}</span>
           )}
@@ -42,7 +34,7 @@ export function ThoughtList({ thoughts, now, onEdit, onRemove }: ThoughtListProp
             <button
               type="button"
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-graphite hover:bg-white/50"
-              aria-label={t('deleteNoise')}
+              aria-label={t('removeThought')}
               onClick={() => onRemove(thought.id)}
             >
               <Trash2 size={14} />
@@ -51,5 +43,24 @@ export function ThoughtList({ thoughts, now, onEdit, onRemove }: ThoughtListProp
         </li>
       ))}
     </ul>
+  )
+}
+
+// Edits on blur; an empty or unchanged value reverts to the stored text (clearing never deletes).
+function ThoughtInput({ thought, label, onEdit }: { thought: Thought; label: string; onEdit: (id: string, text: string) => void }) {
+  const [value, setValue] = useState(thought.text)
+
+  return (
+    <input
+      className="rounded-md border border-line bg-paper px-2 py-1 text-ink"
+      value={value}
+      aria-label={label}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => {
+        const trimmed = value.trim()
+        if (trimmed && trimmed !== thought.text) onEdit(thought.id, trimmed)
+        else setValue(thought.text)
+      }}
+    />
   )
 }

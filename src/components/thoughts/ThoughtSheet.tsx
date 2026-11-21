@@ -5,7 +5,7 @@ import { ThoughtList } from './ThoughtList'
 
 interface ThoughtSheetProps {
   thoughts: Thought[]
-  onSave: (text: string) => void
+  onSave: (text: string) => void | Promise<void>
   onClose: () => void
 }
 
@@ -13,8 +13,27 @@ interface ThoughtSheetProps {
 export function ThoughtSheet({ thoughts, onSave, onClose }: ThoughtSheetProps) {
   const { t } = useI18n()
   const [text, setText] = useState('')
+  const [saving, setSaving] = useState(false)
   const sorted = [...thoughts].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  const canSave = text.trim().length > 0
+  const canSave = text.trim().length > 0 && !saving
+
+  // Captured during the first render, before autoFocus moves focus into the sheet.
+  const [previouslyFocused] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null))
+
+  // Restore focus to whatever opened the sheet once it closes.
+  useEffect(() => () => previouslyFocused?.focus(), [previouslyFocused])
+
+  async function submit() {
+    if (!canSave) return
+    setSaving(true)
+    try {
+      await onSave(text.trim())
+    } catch {
+      // The caller reports failures; the sheet just keeps the text and re-enables saving.
+    } finally {
+      setSaving(false)
+    }
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -28,12 +47,13 @@ export function ThoughtSheet({ thoughts, onSave, onClose }: ThoughtSheetProps) {
     <div className="fixed inset-0 z-50 flex items-end bg-ink/15 p-3 backdrop-blur-[2px] sm:items-center sm:justify-center" onClick={onClose}>
       <form
         role="dialog"
+        aria-modal="true"
         aria-label={t('thoughtsTitle')}
         className="grid max-h-[85dvh] w-full gap-3 overflow-y-auto rounded-md border border-line bg-paper p-4 shadow-[0_24px_80px_rgba(31,30,28,0.2)] sm:max-w-md"
         onClick={(event) => event.stopPropagation()}
         onSubmit={(event) => {
           event.preventDefault()
-          if (canSave) onSave(text.trim())
+          void submit()
         }}
       >
         <h2 className="font-serif text-2xl">{t('thoughtsTitle')}</h2>

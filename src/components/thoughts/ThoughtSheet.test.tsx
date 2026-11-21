@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { translations } from '../../i18n/translations'
 import { renderWithProviders } from '../../test/render'
@@ -64,5 +64,39 @@ describe('ThoughtSheet', () => {
 
     // Assert
     expect(onClose).toHaveBeenCalledTimes(3)
+  })
+  it('ignores further saves while onSave is pending', async () => {
+    // Arrange
+    let resolve: () => void = () => {}
+    const onSave = vi.fn(() => new Promise<void>((done) => (resolve = done)))
+    renderWithProviders(<ThoughtSheet thoughts={[]} onSave={onSave} onClose={vi.fn()} />)
+    fireEvent.change(screen.getByPlaceholderText(en.thoughtPlaceholder), { target: { value: 'Gedanke' } })
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    fireEvent.submit(screen.getByRole('dialog'))
+
+    // Assert
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: en.save })).toBeDisabled()
+    await act(async () => resolve())
+    expect(screen.getByRole('button', { name: en.save })).toBeEnabled()
+  })
+
+  it('is modal and restores focus to the previously focused element on close', () => {
+    // Arrange
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    opener.focus()
+
+    // Act
+    const { unmount } = renderWithProviders(<ThoughtSheet thoughts={[]} onSave={vi.fn()} onClose={vi.fn()} />)
+    const modal = screen.getByRole('dialog').getAttribute('aria-modal')
+    unmount()
+
+    // Assert
+    expect(modal).toBe('true')
+    expect(opener).toHaveFocus()
+    opener.remove()
   })
 })
