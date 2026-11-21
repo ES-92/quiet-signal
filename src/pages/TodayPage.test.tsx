@@ -744,4 +744,135 @@ describe('TodayPage', () => {
       expect(screen.queryByRole('button', { name: en.gestureRest })).not.toBeInTheDocument()
     })
   })
+  describe('Stöbern', () => {
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+
+    async function seedNotDue() {
+      await upsertQuotes([
+        makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 }),
+        makeQuote({ id: 't-2', text: 'Zwei', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })
+      ])
+    }
+
+    it('bietet im Leerzustand Trotzdem stöbern an und zeigt danach Karten mit Hinweis', async () => {
+      // Arrange
+      await seedNotDue()
+      await renderToday()
+      await screen.findByText(en.nothingDueToday)
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.browseAnyway }))
+
+      // Assert
+      await screen.findByRole('blockquote')
+      expect(screen.getByText(en.browsingLabel)).toBeInTheDocument()
+      expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    })
+
+    it('bietet ohne Signale kein Stöbern an', async () => {
+      // Arrange / Act
+      await renderToday()
+      await screen.findByText(en.nothingDueToday)
+
+      // Assert
+      expect(screen.queryByRole('button', { name: en.browseAnyway })).not.toBeInTheDocument()
+    })
+
+    it('erhöht beim Stöbern per Wisch nach rechts nur die Likes und zeigt keinen Toast', async () => {
+      // Arrange
+      await seedNotDue()
+      await renderToday()
+      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
+      await screen.findByRole('blockquote')
+      const first = currentId()
+
+      // Act
+      swipe(160)
+
+      // Assert
+      await waitFor(() => expect(screen.getByText('2 of 2')).toBeInTheDocument(), SLOW)
+      await expectKeptCount(1)
+      await act(async () => {
+        await useQuoteStore.getState().loadQuotes()
+      })
+      const stored = await getQuote(first)
+      expect(stored?.likes).toBe(1)
+      expect(stored?.reviewIntervalDays).toBe(5)
+      expect(stored?.nextReviewAt).toBe(future)
+      expect(stored?.reviewCount).toBe(2)
+      expect(stored?.lastReviewedAt).toBeUndefined()
+      expect(useToastStore.getState().toast).toBeNull()
+    })
+
+    it('geht beim Stöbern per Wisch nach links nur weiter und ändert nichts', async () => {
+      // Arrange
+      await seedNotDue()
+      await renderToday()
+      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
+      await screen.findByRole('blockquote')
+      const first = currentId()
+
+      // Act
+      swipe(-160)
+
+      // Assert
+      await waitFor(() => expect(screen.getByText('2 of 2')).toBeInTheDocument(), SLOW)
+      const stored = await getQuote(first)
+      expect(stored?.likes ?? 0).toBe(0)
+      expect(stored?.reviewIntervalDays).toBe(5)
+      expect(stored?.nextReviewAt).toBe(future)
+      expect(useToastStore.getState().toast).toBeNull()
+    })
+
+    it('führt Fertig zurück zur Ruheansicht', async () => {
+      // Arrange
+      await seedNotDue()
+      await renderToday()
+      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.stopBrowsing }))
+
+      // Assert
+      expect(await screen.findByText(en.nothingDueToday)).toBeInTheDocument()
+      expect(screen.queryByText(en.browsingLabel)).not.toBeInTheDocument()
+    })
+
+    it('bietet nach dem Durcharbeiten des Tagesstapels Stöbern an', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins' })])
+      await renderToday()
+      await screen.findByRole('blockquote')
+      swipe(-160)
+      await screen.findByText(en.doneForToday, undefined, SLOW)
+      await waitFor(() => expect(useQuoteStore.getState().quotes[0]?.reviewIntervalDays).toBe(14), SLOW)
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.browseAnyway }))
+
+      // Assert
+      expect(await screen.findByRole('blockquote', undefined, SLOW)).toBeInTheDocument()
+      expect(screen.getByText(en.browsingLabel)).toBeInTheDocument()
+    })
+
+    it('bietet nach einem durchgesehenen Stöberstapel erneut Stöbern an', async () => {
+      // Arrange
+      await seedNotDue()
+      await renderToday()
+      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
+      await screen.findByRole('blockquote')
+      swipe(-160)
+      await waitFor(() => expect(screen.getByText('2 of 2')).toBeInTheDocument(), SLOW)
+      swipe(-160)
+
+      // Act
+      const again = await screen.findByRole('button', { name: en.browseAnyway }, SLOW)
+      fireEvent.click(again)
+
+      // Assert
+      expect(await screen.findByRole('blockquote')).toBeInTheDocument()
+      expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    })
+  })
 })

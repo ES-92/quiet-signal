@@ -26,6 +26,7 @@ export function TodayPage() {
   const actions = useTodayActions({
     currentQuote,
     currentBook,
+    browsing: session.browsing,
     advanceIndex: session.advanceIndex,
     hideQuote: session.hideQuote,
     showQuote: session.showQuote
@@ -62,7 +63,11 @@ export function TodayPage() {
       up: actions.openThought,
       longPress: actions.openContext
     },
-    { enabled: Boolean(currentQuote) && !actions.contextOpen && !actions.thoughtOpen && !coachVisible, distance: 76, exitMs: 620 }
+    {
+      enabled: Boolean(currentQuote) && !actions.contextOpen && !actions.thoughtOpen && !coachVisible,
+      distance: 76,
+      exitMs: 620
+    }
   )
 
   return (
@@ -74,27 +79,41 @@ export function TodayPage() {
           {t('loadingLibrary')}
         </div>
       ) : currentQuote ? (
-        <TodayDeckStack
-          quote={currentQuote}
-          nextQuote={session.nextQuote}
-          thirdQuote={session.thirdQuote}
-          position={currentIndex + 1}
-          total={dailyQuotes.length}
-          deck={deck}
-        >
-          {actions.contextOpen && (
-            <TodayContextMenu
-              favorite={currentQuote.favorite}
-              hasBook={Boolean(currentBook)}
-              onClose={actions.closeContext}
-              onFavorite={() => void actions.handleFavoriteToggle()}
-              onOpenDetails={actions.handleOpenDetails}
-              onEditBook={actions.openBookEditor}
-              onDiscard={actions.handleContextDiscard}
-            />
+        <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+          {session.browsing && (
+            <div className="flex items-center justify-center gap-3 text-xs text-graphite">
+              <span>{t('browsingLabel')}</span>
+              <button
+                type="button"
+                className="quiet-touch rounded-full border border-line bg-paper/82 px-3 py-1 text-ink transition active:scale-[0.98]"
+                onClick={session.stopBrowsing}
+              >
+                {t('stopBrowsing')}
+              </button>
+            </div>
           )}
-          {coachVisible && <GestureCoach deck="today" onDismiss={dismissCoach} />}
-        </TodayDeckStack>
+          <TodayDeckStack
+            quote={currentQuote}
+            nextQuote={session.nextQuote}
+            thirdQuote={session.thirdQuote}
+            position={currentIndex + 1}
+            total={dailyQuotes.length}
+            deck={deck}
+          >
+            {actions.contextOpen && (
+              <TodayContextMenu
+                favorite={currentQuote.favorite}
+                hasBook={Boolean(currentBook)}
+                onClose={actions.closeContext}
+                onFavorite={() => void actions.handleFavoriteToggle()}
+                onOpenDetails={actions.handleOpenDetails}
+                onEditBook={actions.openBookEditor}
+                onDiscard={actions.handleContextDiscard}
+              />
+            )}
+            {coachVisible && <GestureCoach deck="today" onDismiss={dismissCoach} />}
+          </TodayDeckStack>
+        </div>
       ) : (
         <DailyRestState
           title={session.stackCompleted ? t('doneForToday') : t('nothingDueToday')}
@@ -103,10 +122,15 @@ export function TodayPage() {
           onOpenReflections={() => navigate('/reflections')}
           inboxCount={session.inboxCount}
           onOpenInbox={() => navigate('/inbox')}
+          onBrowse={session.hasSignals ? session.startBrowsing : undefined}
         />
       )}
       {actions.thoughtOpen && currentQuote && (
-        <ThoughtSheet thoughts={thoughtsNewestFirst(currentQuote)} onSave={(text) => void saveThought(text)} onClose={actions.closeThought} />
+        <ThoughtSheet
+          thoughts={thoughtsNewestFirst(currentQuote)}
+          onSave={(text) => void saveThought(text)}
+          onClose={actions.closeThought}
+        />
       )}
       {actions.bookEditorOpen && currentBook && (
         <TodayBookEditor

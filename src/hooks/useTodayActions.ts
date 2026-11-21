@@ -11,16 +11,17 @@ import { useToastStore } from '../store/useToastStore'
 interface TodayActionsInput {
   currentQuote: Quote | undefined
   currentBook: Book | undefined
+  browsing: boolean
   advanceIndex: () => void
   hideQuote: (id: string) => void
   showQuote: (id: string) => void
 }
 
 // Card actions of the daily deck (more/less often, rest with undo, thought, discard with undo, context menu, inline book editor).
-export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQuote, showQuote }: TodayActionsInput) {
+export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, hideQuote, showQuote }: TodayActionsInput) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, moreOften, lessOften, restQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, likeQuote, moreOften, lessOften, restQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { saveBook } = useBookStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
@@ -52,12 +53,26 @@ export function useTodayActions({ currentQuote, currentBook, advanceIndex, hideQ
     }
   }
 
+  // Browsing never touches the intervals: → only likes the card, ← only moves on, neither shows a toast.
+  async function likeWhileBrowsing() {
+    if (!currentQuote) return
+    const id = currentQuote.id
+    advanceIndex()
+    try {
+      await likeQuote(id)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
+  }
+
   function handleMoreOften() {
-    return reviewWithInterval(moreOften)
+    return browsing ? likeWhileBrowsing() : reviewWithInterval(moreOften)
   }
 
   function handleLessOften() {
-    return reviewWithInterval(lessOften)
+    if (!browsing) return reviewWithInterval(lessOften)
+    if (currentQuote) advanceIndex()
+    return Promise.resolve()
   }
 
   // Hides the card at once and rests it in the background; undo restores the previous snooze, a failure brings the card back.

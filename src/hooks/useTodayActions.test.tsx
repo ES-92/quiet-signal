@@ -29,7 +29,7 @@ function setup(props: Props) {
   const callbacks = { advanceIndex: vi.fn(), hideQuote: vi.fn(), showQuote: vi.fn() }
   const hook = renderHook(
     (current: Props) => ({
-      actions: useTodayActions({ currentQuote: current.quote, currentBook: current.book, ...callbacks }),
+      actions: useTodayActions({ currentQuote: current.quote, currentBook: current.book, browsing: false, ...callbacks }),
       path: useLocation().pathname
     }),
     { wrapper, initialProps: props }

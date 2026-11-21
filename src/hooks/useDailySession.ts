@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildReflection } from '../services/reflections'
-import { selectDailyStack, type BookWeightMap } from '../services/review'
+import { selectBrowseStack, selectDailyStack, type BookWeightMap } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
 import { quoteStatus, type Quote } from '../types/quote'
+import { localDateKey } from '../utils/date'
 
 // Loads the library and owns the deck of this visit: stable card order, discarded cards and the current position.
 export function useDailySession() {
@@ -15,6 +16,11 @@ export function useDailySession() {
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
   // Discarded cards vanish from the deck at once, before the store has finished persisting and reloading.
   const [discardedIds, setDiscardedIds] = useState<string[]>([])
+  // Browse mode: a fixed list of signals picked once per start, independent of due dates and reloads.
+  const [browseIds, setBrowseIds] = useState<string[] | null>(null)
+  const [browseRound, setBrowseRound] = useState(0)
+  // Position in the daily deck while browsing, so "done" returns to where the visit was.
+  const dailyIndexBeforeBrowse = useRef(0)
 
   // Original deck position of each hidden card, so undo can put it back after the reload dropped its id.
   const hiddenPositions = useRef(new Map<string, number>())
@@ -44,15 +50,27 @@ export function useDailySession() {
 
   const dailyQuotes = useMemo(() => {
     const quoteById = new Map(quotes.map((quote) => [quote.id, quote]))
+    if (browseIds) {
+      // Rested or removed cards drop out of the browse list; their ids stay so an undo puts them back in place.
+      return browseIds
+        .map((id) => quoteById.get(id))
+        .filter((quote) => quote !== undefined)
+        .filter((quote) => quoteStatus(quote) === 'signal' && !discardedIds.includes(quote.id))
+    }
     const stack =
       sessionQuoteIds.length === 0
         ? selectedDailyQuotes
         : sessionQuoteIds.map((id) => quoteById.get(id)).filter((quote) => quote !== undefined)
     return stack.filter((quote) => !discardedIds.includes(quote.id))
-  }, [discardedIds, quotes, selectedDailyQuotes, sessionQuoteIds])
+  }, [browseIds, discardedIds, quotes, selectedDailyQuotes, sessionQuoteIds])
   const weeklyReflection = useMemo(() => buildReflection(quotes, books, 'week'), [books, quotes])
   const inboxCount = useMemo(
     () => quotes.filter((quote) => quoteStatus(quote) === 'inbox' && !quote.deletedAt).length,
+    [quotes]
+  )
+
+  const hasSignals = useMemo(
+    () => quotes.some((quote) => quoteStatus(quote) === 'signal' && !quote.deletedAt),
     [quotes]
   )
 
@@ -74,16 +92,33 @@ export function useDailySession() {
     reflectionCount: weeklyReflection.entries.length,
     showReflectionNudge: weeklyReflection.entries.length >= 3,
     inboxCount,
+    hasSignals,
+    browsing: browseIds !== null,
+    startBrowsing: () => {
+      const round = browseRound + 1
+      if (browseIds === null) dailyIndexBeforeBrowse.current = index
+      setBrowseRound(round)
+      setBrowseIds(
+        selectBrowseStack(quotes, { limit: dailyCount, seed: `${localDateKey(new Date())}:browse:${round}` }).map(
+          (quote) => quote.id
+        )
+      )
+      setIndex(0)
+    },
+    stopBrowsing: () => {
+      setBrowseIds(null)
+      setIndex(dailyIndexBeforeBrowse.current)
+    },
     advanceIndex: () => setIndex((value) => Math.min(value + 1, dailyQuotes.length)),
     hideQuote: (id: string) => {
       const position = sessionQuoteIds.indexOf(id)
-      if (position >= 0) hiddenPositions.current.set(id, position)
+      if (!browseIds && position >= 0) hiddenPositions.current.set(id, position)
       setDiscardedIds((ids) => [...ids, id])
     },
     showQuote: (id: string) => {
       const position = hiddenPositions.current.get(id)
       hiddenPositions.current.delete(id)
-      if (position !== undefined) {
+      if (position !== undefined && !browseIds) {
         setSessionQuoteIds((ids) => (ids.includes(id) ? ids : [...ids.slice(0, position), id, ...ids.slice(position)]))
       }
       setDiscardedIds((ids) => ids.filter((item) => item !== id))

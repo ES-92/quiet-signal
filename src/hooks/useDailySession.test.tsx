@@ -173,4 +173,41 @@ describe('useDailySession', () => {
     expect(result.current.showReflectionNudge).toBe(true)
     expect(result.current.inboxCount).toBe(1)
   })
+  it('stöbert über alle Signale, auch wenn nichts fällig ist, und kehrt mit Fertig zum Tagesstapel zurück', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future }), makeQuote({ id: 't-2', nextReviewAt: future })])
+    const { result } = await renderSession()
+    expect(result.current.dailyQuotes).toHaveLength(0)
+
+    // Act
+    act(() => result.current.startBrowsing())
+    const browseOrder = ids(result.current.dailyQuotes)
+    act(() => result.current.advanceIndex())
+    act(() => result.current.stopBrowsing())
+
+    // Assert
+    expect(browseOrder.sort()).toEqual(['t-1', 't-2'])
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.dailyQuotes).toHaveLength(0)
+    expect(result.current.currentIndex).toBe(0)
+  })
+
+  it('hält den Stöberstapel stabil, während sich die Bibliothek neu lädt', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future }), makeQuote({ id: 't-2', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    const order = ids(result.current.dailyQuotes)
+
+    // Act
+    await act(async () => {
+      await useQuoteStore.getState().loadQuotes()
+    })
+
+    // Assert
+    expect(ids(result.current.dailyQuotes)).toEqual(order)
+    expect(result.current.browsing).toBe(true)
+  })
 })

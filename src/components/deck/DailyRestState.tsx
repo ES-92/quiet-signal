@@ -1,4 +1,4 @@
-import { Camera, Feather, Inbox, Mic, PenLine } from 'lucide-react'
+import { BookOpen, Camera, Feather, Inbox, Mic, PenLine } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { useI18n } from '../../i18n/useI18n'
 import { openCapture } from '../../services/captureEvents'
@@ -10,7 +10,8 @@ export function DailyRestState({
   showReflection,
   onOpenReflections,
   inboxCount,
-  onOpenInbox
+  onOpenInbox,
+  onBrowse
 }: {
   title: string
   body: string
@@ -18,6 +19,8 @@ export function DailyRestState({
   onOpenReflections: () => void
   inboxCount: number
   onOpenInbox: () => void
+  // Only passed when there is at least one signal to browse.
+  onBrowse?: () => void
 }) {
   const { t } = useI18n()
 
@@ -33,6 +36,19 @@ export function DailyRestState({
           <h2 className="font-serif text-3xl leading-tight sm:text-4xl">{title}</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-graphite">{body}</p>
         </div>
+        {onBrowse && (
+          <button
+            type="button"
+            className="quiet-touch relative mx-auto inline-flex items-center gap-2 rounded-full border border-line bg-paper/82 px-4 py-2 text-sm text-ink transition active:scale-[0.98]"
+            onClick={() => {
+              tapHaptic(8)
+              onBrowse()
+            }}
+          >
+            <BookOpen size={16} />
+            <span>{t('browseAnyway')}</span>
+          </button>
+        )}
         {inboxCount > 0 && (
           <button
             type="button"
