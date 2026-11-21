@@ -167,25 +167,35 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
 }
 
 function validReviewInterval(value: unknown) {
+  if (typeof value !== 'number' && typeof value !== 'string') return undefined
   const days = optionalNumber(value)
-  return days !== undefined && days > 0 && days <= 365 ? days : undefined
+  return days !== undefined && Number.isInteger(days) && days >= 1 && days <= 365 ? days : undefined
 }
+
+const maxThoughtTextChars = 10_000
+const maxThoughtsPerQuote = 500
 
 function normalizeThoughts(value: unknown): Thought[] | undefined {
   if (!Array.isArray(value)) return undefined
   const thoughts: Thought[] = []
+  const seenIds = new Set<string>()
   for (const item of value) {
     if (!item || typeof item !== 'object') continue
     const { id, text, createdAt, fromNote } = item as Record<string, unknown>
     if (typeof text !== 'string' || typeof createdAt !== 'string') continue
+    if (!text.trim() || Number.isNaN(Date.parse(createdAt))) continue
+    let thoughtId = safeImportedId(id) ?? crypto.randomUUID()
+    if (seenIds.has(thoughtId)) thoughtId = crypto.randomUUID()
+    seenIds.add(thoughtId)
     thoughts.push({
-      id: safeImportedId(id) ?? crypto.randomUUID(),
-      text,
+      id: thoughtId,
+      text: text.slice(0, maxThoughtTextChars),
       createdAt,
       ...(fromNote === true ? { fromNote: true } : {})
     })
   }
-  return thoughts
+  if (thoughts.length <= maxThoughtsPerQuote) return thoughts
+  return [...thoughts].sort((x, y) => Date.parse(y.createdAt) - Date.parse(x.createdAt)).slice(0, maxThoughtsPerQuote)
 }
 
 function normalizeImportedBook(row: BookImportRow): Book {

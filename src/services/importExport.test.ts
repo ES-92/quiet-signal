@@ -55,7 +55,7 @@ describe('Stille und Gedanken im Import/Export', () => {
     expect(result.status).toBe('signal')
   })
 
-  it.each([0, -3, Number.NaN, 366, 'abc'])('lässt ungültiges reviewIntervalDays %s weg', (value) => {
+  it.each([0, -3, Number.NaN, 366, 2.5, 'abc', true, [7]])('lässt ungültiges reviewIntervalDays %s weg', (value) => {
     // Arrange
     const content = JSON.stringify([{ text: 'x', reviewIntervalDays: value }])
 
@@ -89,6 +89,47 @@ describe('Stille und Gedanken im Import/Export', () => {
     expect(result.thoughts?.[0]).toEqual({ id: 'ok-1', text: 'Gültig', createdAt: '2026-01-05T09:00:00.000Z' })
     expect(result.thoughts?.[1].id).toMatch(uuidPattern)
     expect(result.thoughts?.[1]).toMatchObject({ text: 'Ohne ID', fromNote: true })
+  })
+
+  it('verwirft leere Texte und unparsbare Daten, kürzt Texte und vergibt doppelte IDs neu', () => {
+    // Arrange
+    const content = JSON.stringify([
+      {
+        text: 'x',
+        thoughts: [
+          { id: 'dup', text: '   ', createdAt: '2026-01-05T09:00:00.000Z' },
+          { id: 'a', text: 'Kein Datum', createdAt: 'gestern' },
+          { id: 'dup', text: 'L'.repeat(10_050), createdAt: '2026-01-06T09:00:00.000Z' },
+          { id: 'dup', text: 'Zweiter', createdAt: '2026-01-07T09:00:00.000Z' }
+        ]
+      }
+    ])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts).toHaveLength(2)
+    expect(result.thoughts?.[0].id).toBe('dup')
+    expect(result.thoughts?.[0].text).toHaveLength(10_000)
+    expect(result.thoughts?.[1].id).toMatch(uuidPattern)
+  })
+
+  it('behält höchstens die 500 neuesten Gedanken', () => {
+    // Arrange
+    const thoughts = Array.from({ length: 502 }, (_, index) => ({
+      id: `t-${index}`,
+      text: `Gedanke ${index}`,
+      createdAt: new Date(Date.UTC(2026, 0, 1) + index * 60_000).toISOString()
+    }))
+
+    // Act
+    const [result] = parseJsonImport(JSON.stringify([{ text: 'x', thoughts }]))
+
+    // Assert
+    expect(result.thoughts).toHaveLength(500)
+    expect(result.thoughts?.some((thought) => thought.id === 't-0' || thought.id === 't-1')).toBe(false)
+    expect(result.thoughts?.some((thought) => thought.id === 't-501')).toBe(true)
   })
 
   it('lässt thoughts weg, wenn kein Array geliefert wird', () => {
