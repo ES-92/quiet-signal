@@ -58,6 +58,7 @@ describe('ErrorBoundary', () => {
 
     // Assert
     expect(screen.getByText(translations.de.errorBoundaryTitle)).toBeInTheDocument()
+    expect(screen.getByText('Deine Einträge liegen lokal auf diesem Gerät. Lade die App neu.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: translations.de.errorBoundaryAction })).toBeInTheDocument()
     localStorage.removeItem('quiet-signal-language')
   })

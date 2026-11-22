@@ -426,6 +426,6 @@ export const de: Record<keyof typeof en, string> = {
   gestureMenu: 'Oben rechts öffnet die Werkzeuge (am Rechner auch ⌘K).',
   gestureLongPress: 'Lange auf eine Karte drücken öffnet die Aktionen.',
   errorBoundaryTitle: 'Etwas ist schiefgelaufen.',
-  errorBoundaryBody: 'Deine Einträge sind sicher gespeichert. Lade die App neu.',
+  errorBoundaryBody: 'Deine Einträge liegen lokal auf diesem Gerät. Lade die App neu.',
   errorBoundaryAction: 'Neu laden'
 }

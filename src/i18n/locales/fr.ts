@@ -426,6 +426,6 @@ export const fr: Record<keyof typeof en, string> = {
   gestureMenu: 'En haut à droite s’ouvrent les outils (sur ordinateur aussi ⌘K).',
   gestureLongPress: 'Appui long sur une carte pour ouvrir ses actions.',
   errorBoundaryTitle: 'Un problème est survenu.',
-  errorBoundaryBody: 'Tes entrées sont enregistrées en toute sécurité. Recharge l’app.',
+  errorBoundaryBody: 'Tes entrées restent sur cet appareil. Recharge l’app.',
   errorBoundaryAction: 'Recharger'
 }

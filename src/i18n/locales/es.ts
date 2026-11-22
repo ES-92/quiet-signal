@@ -426,6 +426,6 @@ export const es: Record<keyof typeof en, string> = {
   gestureMenu: 'Arriba a la derecha se abren las herramientas (en el ordenador también ⌘K).',
   gestureLongPress: 'Mantén pulsada una tarjeta para abrir sus acciones.',
   errorBoundaryTitle: 'Algo salió mal.',
-  errorBoundaryBody: 'Tus entradas están guardadas de forma segura. Recarga la app.',
+  errorBoundaryBody: 'Tus entradas siguen en este dispositivo. Recarga la app.',
   errorBoundaryAction: 'Recargar'
 }

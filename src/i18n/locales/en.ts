@@ -424,6 +424,6 @@ export const en = {
   gestureMenu: 'Top right opens the tools (on a computer also ⌘K).',
   gestureLongPress: 'Long-press a card to open its actions.',
   errorBoundaryTitle: 'Something went wrong.',
-  errorBoundaryBody: 'Your entries are safely stored. Reload the app.',
+  errorBoundaryBody: 'Your entries stay on this device. Reload the app.',
   errorBoundaryAction: 'Reload'
 }
