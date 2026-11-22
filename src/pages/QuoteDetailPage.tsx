@@ -1,5 +1,5 @@
 import { BookMarked, Heart, Pencil, Sun, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
 import { ConfirmSheet } from '../components/ConfirmSheet'
@@ -25,11 +25,24 @@ export function QuoteDetailPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [thoughtSheetOpen, setThoughtSheetOpen] = useState(false)
   const [editing, setEditing] = useState(false)
+  const editButtonRef = useRef<HTMLButtonElement>(null)
+  const editFormRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     void loadQuotes()
     void loadBooks()
   }, [loadQuotes, loadBooks])
+
+  // Opening the form moves focus to its first field.
+  useEffect(() => {
+    if (editing) editFormRef.current?.querySelector<HTMLElement>('textarea, input, select')?.focus()
+  }, [editing])
+
+  // Collapsing the form (toggle or saved) puts focus back on the button that opened it, so it is not lost with the removed form.
+  function closeEditing() {
+    setEditing(false)
+    editButtonRef.current?.focus()
+  }
 
   const quote = quotes.find((item) => item.id === id)
   const book = quote?.bookId ? books.find((item) => item.id === quote.bookId) : undefined
@@ -52,7 +65,7 @@ export function QuoteDetailPage() {
     const previous = useQuoteStore.getState().quotes.find((item) => item.id === id)
     const patch = changes.status && previous ? statusChangePatch(quoteStatus(previous), changes.status) : {}
     // The form keeps its values and stays open on failure; the toast tells the user the save did not happen. A saved form collapses.
-    if (await attempt(() => saveQuote(id, { ...changes, ...patch }))) setEditing(false)
+    if (await attempt(() => saveQuote(id, { ...changes, ...patch }))) closeEditing()
   }
 
   // Runs a store action and reports failure with a toast instead of an unhandled rejection.
@@ -193,15 +206,16 @@ export function QuoteDetailPage() {
           <button
             className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
             aria-expanded={editing}
-            aria-controls="quote-edit-form"
-            onClick={() => setEditing((open) => !open)}
+            aria-controls={editing ? 'quote-edit-form' : undefined}
+            ref={editButtonRef}
+            onClick={() => (editing ? closeEditing() : setEditing(true))}
           >
             <Pencil size={16} /> {t('edit')}
           </button>
         </div>
       </section>
       {editing && (
-        <section id="quote-edit-form" className="rounded-md border border-line bg-white/30 p-5">
+        <section id="quote-edit-form" ref={editFormRef} className="rounded-md border border-line bg-white/30 p-5">
           <QuoteForm quote={quote} submitLabel={t('saveChanges')} onSubmit={handleSubmit} />
         </section>
       )}

@@ -233,6 +233,83 @@ describe('QuoteDetailPage', () => {
       expect(screen.getByRole('button', { name: en.edit })).toHaveAttribute('aria-expanded', 'true')
     })
 
+    it('moves focus to the first field when the form opens', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.edit }))
+
+      // Assert
+      expect(screen.getByLabelText(en.text)).toHaveFocus()
+    })
+
+    it('only references the form with aria-controls while it is rendered', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail()
+      const toggle = screen.getByRole('button', { name: en.edit })
+      expect(toggle).not.toHaveAttribute('aria-controls')
+
+      // Act
+      fireEvent.click(toggle)
+
+      // Assert
+      const controlled = toggle.getAttribute('aria-controls') as string
+      expect(document.getElementById(controlled)).toBeInTheDocument()
+
+      // Act
+      fireEvent.click(toggle)
+
+      // Assert
+      expect(toggle).not.toHaveAttribute('aria-controls')
+    })
+
+    it('returns focus to the Edit button after a successful save', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail('q-1', { editing: true })
+      fireEvent.change(screen.getByLabelText(en.tags), { target: { value: 'neu' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
+
+      // Assert
+      await waitFor(() => expect(screen.queryByLabelText(en.tags)).not.toBeInTheDocument(), SLOW)
+      expect(screen.getByRole('button', { name: en.edit })).toHaveFocus()
+    })
+
+    it('returns focus to the Edit button when the form is collapsed with it', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail('q-1', { editing: true })
+      expect(screen.getByLabelText(en.text)).toHaveFocus()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.edit }))
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.edit })).toHaveFocus()
+    })
+
+    it('keeps focus in the form when saving fails', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail('q-1', { editing: true })
+      const originalSave = useQuoteStore.getState().saveQuote
+      useQuoteStore.setState({ saveQuote: vi.fn().mockRejectedValue(new Error('boom')) })
+      fireEvent.change(screen.getByLabelText(en.tags), { target: { value: 'neu' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
+
+      // Assert
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed), SLOW)
+      useQuoteStore.setState({ saveQuote: originalSave })
+      expect(screen.getByRole('button', { name: en.edit })).not.toHaveFocus()
+    })
+
     it('collapses again after a successful save', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1' })])
