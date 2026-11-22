@@ -44,7 +44,6 @@ export const de: Record<keyof typeof en, string> = {
   quietModeHelp: 'Blendet Hinweise aus und lässt den Daily-Stapel fast allein stehen.',
   contextActions: 'Kartenaktionen',
   longPressHint: 'Lange drücken für Aktionen',
-  editBookInline: 'Buch bearbeiten',
   openDetails: 'Details öffnen',
   inboxCount: '{count} im Rauschen',
   shareImporting: 'Geteilten Inhalt speichern...',

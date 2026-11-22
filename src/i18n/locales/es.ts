@@ -44,7 +44,6 @@ export const es: Record<keyof typeof en, string> = {
   quietModeHelp: 'Oculta ayudas y deja casi solo la pila diaria.',
   contextActions: 'Acciones de tarjeta',
   longPressHint: 'Mantener pulsado para acciones',
-  editBookInline: 'Editar libro',
   openDetails: 'Abrir detalles',
   inboxCount: '{count} en ruido',
   shareImporting: 'Guardando contenido compartido...',

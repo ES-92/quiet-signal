@@ -4,7 +4,6 @@ import { DailyRestState } from '../components/deck/DailyRestState'
 import { QuickCaptureDock } from '../components/deck/QuickCaptureDock'
 import { GestureCoach } from '../components/GestureCoach'
 import { TodayActionBar } from '../components/today/TodayActionBar'
-import { TodayBookEditor } from '../components/today/TodayBookEditor'
 import { TodayContextMenu } from '../components/today/TodayContextMenu'
 import { TodayDeckStack } from '../components/today/TodayDeckStack'
 import { TodayHeader } from '../components/today/TodayHeader'
@@ -22,10 +21,9 @@ export function TodayPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const session = useDailySession()
-  const { currentQuote, currentBook, currentIndex, dailyQuotes } = session
+  const { currentQuote, currentIndex, dailyQuotes } = session
   const actions = useTodayActions({
     currentQuote,
-    currentBook,
     browsing: session.browsing,
     advanceIndex: session.advanceIndex,
     rewindTo: session.rewindTo,
@@ -109,11 +107,9 @@ export function TodayPage() {
             {actions.contextOpen && (
               <TodayContextMenu
                 favorite={currentQuote.favorite}
-                hasBook={Boolean(currentBook)}
                 onClose={actions.closeContext}
                 onFavorite={() => void actions.handleFavoriteToggle()}
                 onOpenDetails={actions.handleOpenDetails}
-                onEditBook={actions.openBookEditor}
                 onDiscard={actions.handleContextDiscard}
               />
             )}
@@ -136,16 +132,6 @@ export function TodayPage() {
           thoughts={thoughtsNewestFirst(currentQuote)}
           onSave={saveThought}
           onClose={actions.closeThought}
-        />
-      )}
-      {actions.bookEditorOpen && currentBook && (
-        <TodayBookEditor
-          title={actions.bookTitle}
-          author={actions.bookAuthor}
-          onTitleChange={actions.setBookTitle}
-          onAuthorChange={actions.setBookAuthor}
-          onClose={actions.closeBookEditor}
-          onSave={() => void actions.handleSaveBook()}
         />
       )}
       <footer className="flex shrink-0 flex-col items-center gap-2 pb-1">

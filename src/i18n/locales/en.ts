@@ -42,7 +42,6 @@ export const en = {
   quietModeHelp: 'Hides hints and lets the Daily stack stand almost alone.',
   contextActions: 'Card actions',
   longPressHint: 'Long-press for actions',
-  editBookInline: 'Edit book',
   openDetails: 'Open details',
   inboxCount: '{count} in noise',
   shareImporting: 'Saving shared content...',

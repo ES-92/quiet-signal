@@ -1,24 +1,20 @@
-import { BookOpen, ExternalLink, Heart, Trash2, X } from 'lucide-react'
+import { ExternalLink, Heart, Trash2, X } from 'lucide-react'
 import { useI18n } from '../../i18n/useI18n'
 
 interface TodayContextMenuProps {
   favorite: boolean
-  hasBook: boolean
   onClose: () => void
   onFavorite: () => void
   onOpenDetails: () => void
-  onEditBook: () => void
   onDiscard: () => void
 }
 
 // Popup with the secondary card actions, opened by long-pressing the top card or via the action bar.
 export function TodayContextMenu({
   favorite,
-  hasBook,
   onClose,
   onFavorite,
   onOpenDetails,
-  onEditBook,
   onDiscard
 }: TodayContextMenuProps) {
   const { t } = useI18n()
@@ -44,12 +40,6 @@ export function TodayContextMenu({
           <ExternalLink size={17} className="text-graphite" />
           {t('openDetails')}
         </button>
-        {hasBook && (
-          <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={onEditBook}>
-            <BookOpen size={17} className="text-graphite" />
-            {t('editBookInline')}
-          </button>
-        )}
         <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-graphite hover:bg-white/50" onClick={onDiscard}>
           <Trash2 size={17} className="text-graphite" />
           {t('deleteEntry')}

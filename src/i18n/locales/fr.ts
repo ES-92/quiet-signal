@@ -44,7 +44,6 @@ export const fr: Record<keyof typeof en, string> = {
   quietModeHelp: 'Masque les indices et laisse presque seule la pile quotidienne.',
   contextActions: 'Actions de carte',
   longPressHint: 'Appui long pour les actions',
-  editBookInline: 'Modifier le livre',
   openDetails: 'Ouvrir les détails',
   inboxCount: '{count} dans le bruit',
   shareImporting: 'Enregistrement du contenu partagé...',
