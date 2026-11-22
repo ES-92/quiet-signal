@@ -48,6 +48,8 @@ export const es: Record<keyof typeof en, string> = {
   inboxCount: '{count} en ruido',
   shareImporting: 'Guardando contenido compartido...',
   shareImported: 'El contenido compartido se guardó en ruido.',
+  shareFailed: 'No se pudo guardar el contenido compartido.',
+  shareRetry: 'Reintentar',
   today: 'Hoy',
   library: 'Colección',
   add: 'Capturar',

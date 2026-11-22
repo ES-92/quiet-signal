@@ -48,6 +48,8 @@ export const de: Record<keyof typeof en, string> = {
   inboxCount: '{count} im Rauschen',
   shareImporting: 'Geteilten Inhalt speichern...',
   shareImported: 'Geteilter Inhalt wurde ins Rauschen gelegt.',
+  shareFailed: 'Der geteilte Inhalt konnte nicht gespeichert werden.',
+  shareRetry: 'Erneut versuchen',
   today: 'Heute',
   library: 'Sammlung',
   add: 'Erfassen',

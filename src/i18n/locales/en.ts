@@ -46,6 +46,8 @@ export const en = {
   inboxCount: '{count} in noise',
   shareImporting: 'Saving shared content...',
   shareImported: 'Shared content was saved to noise.',
+  shareFailed: 'Could not save the shared content.',
+  shareRetry: 'Try again',
   today: 'Today',
   library: 'Collection',
   add: 'Capture',

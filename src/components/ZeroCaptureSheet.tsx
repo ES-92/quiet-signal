@@ -1,9 +1,10 @@
 import { Camera, ChevronDown, Mic, PenLine, SlidersHorizontal, X } from 'lucide-react'
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useI18n } from '../i18n/useI18n'
 import type { CaptureMode } from '../services/captureEvents'
 import { tapHaptic } from '../services/haptics'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { AudioRecorder } from './AudioRecorder'
 import { PhotoCapture } from './PhotoCapture'
 
@@ -23,6 +24,10 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
   const { t } = useI18n()
   const titleId = useId()
   const { addQuote } = useQuoteStore()
+  const showToast = useToastStore((state) => state.showToast)
+  // The ref blocks a second tap synchronously (before the re-render); the state disables the button.
+  const savingRef = useRef(false)
+  const [saving, setSaving] = useState(false)
   const [mode, setMode] = useState<CaptureMode>(initialMode)
   const [text, setText] = useState('')
   const [tags, setTags] = useState('')
@@ -52,19 +57,30 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!canSave) return
-    await addQuote({
-      text: mode === 'text' ? text.trim() : '',
-      tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-      favorite: false,
-      status: 'inbox',
-      people: [],
-      imageDataUrl: mode === 'photo' ? imageDataUrl : undefined,
-      imageMimeType: mode === 'photo' ? imageMimeType : undefined,
-      audioDataUrl: mode === 'audio' ? audioDataUrl : undefined,
-      audioMimeType: mode === 'audio' ? audioMimeType : undefined,
-      audioDurationMs: mode === 'audio' ? audioDurationMs : undefined
-    })
+    if (!canSave || savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    try {
+      await addQuote({
+        text: mode === 'text' ? text.trim() : '',
+        tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        favorite: false,
+        status: 'inbox',
+        people: [],
+        imageDataUrl: mode === 'photo' ? imageDataUrl : undefined,
+        imageMimeType: mode === 'photo' ? imageMimeType : undefined,
+        audioDataUrl: mode === 'audio' ? audioDataUrl : undefined,
+        audioMimeType: mode === 'audio' ? audioMimeType : undefined,
+        audioDurationMs: mode === 'audio' ? audioDurationMs : undefined
+      })
+    } catch (error) {
+      // Keep the draft (text, photo, audio) so nothing is lost; the user can try again.
+      console.error('Quiet Signal: capture could not be saved', error)
+      showToast({ message: t('saveFailed') })
+      savingRef.current = false
+      setSaving(false)
+      return
+    }
     setText('')
     setTags('')
     setDetailsOpen(false)
@@ -163,7 +179,7 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
         )}
 
         <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-line bg-paper/95 p-4 backdrop-blur sm:-mx-5 sm:-mb-5 sm:p-5">
-          <button disabled={!canSave} className="min-h-[52px] w-full rounded-md bg-ink px-4 py-3 text-sm text-paper shadow-[0_14px_34px_rgba(31,30,28,0.16)] transition hover:bg-[#171615] disabled:opacity-50">
+          <button disabled={!canSave || saving} aria-busy={saving} className="min-h-[52px] w-full rounded-md bg-ink px-4 py-3 text-sm text-paper shadow-[0_14px_34px_rgba(31,30,28,0.16)] transition hover:bg-[#171615] disabled:opacity-50">
             {t('captureNoise')}
           </button>
         </div>
