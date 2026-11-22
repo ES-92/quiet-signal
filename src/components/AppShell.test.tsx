@@ -55,6 +55,15 @@ describe('AppShell', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('beschriftet den Drawer-Knopf als Menü', async () => {
+    // Arrange / Act
+    renderShell('/today')
+
+    // Assert
+    await screen.findByTestId('location')
+    expect(screen.getByRole('button', { name: 'Open menu' })).toBe(screen.getByRole('button', { name: en.openCommandMenu }))
+  })
+
   it('öffnet das Capture-Sheet im Foto-Modus über ?capture=photo und bereinigt die URL', async () => {
     // Arrange / Act
     renderShell('/today?capture=photo')

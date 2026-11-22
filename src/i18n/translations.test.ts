@@ -63,6 +63,25 @@ describe('Übersetzungen', () => {
     })
   })
 
+  it('nennt die Seite Klären und den Drawer Menü in allen Sprachen, das Rauschen bleibt als Status', () => {
+    // Arrange
+    const pick = (code: (typeof languages)[number]['code']) => {
+      const table = translations[code] as Record<string, string>
+      return [table.clarifyPageTitle, table.hiddenTools, table.noiseInbox]
+    }
+
+    // Act
+    const names = Object.fromEntries(languages.map(({ code }) => [code, pick(code)]))
+
+    // Assert
+    expect(names).toEqual({
+      de: ['Klären', 'Menü', 'Rauschen'],
+      en: ['Clarify', 'Menu', 'Noise'],
+      es: ['Aclarar', 'Menú', 'Ruido'],
+      fr: ['Clarifier', 'Menu', 'Bruit']
+    })
+  })
+
   it('hat eine Standardsprache, die in der Sprachliste vorkommt', () => {
     // Arrange
     const codes = languages.map((language) => language.code)

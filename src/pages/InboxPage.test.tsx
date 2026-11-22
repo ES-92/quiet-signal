@@ -91,7 +91,7 @@ describe('InboxPage', () => {
       const card = await screen.findByRole('blockquote')
 
       // Assert
-      const title = screen.getByRole('heading', { level: 1, name: en.noiseInboxTitle })
+      const title = screen.getByRole('heading', { level: 1, name: 'Clarify' })
       const question = screen.getByText(en.clarifyQuestion)
       expect(title.previousElementSibling).toBeNull()
       expect(title.compareDocumentPosition(question)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)

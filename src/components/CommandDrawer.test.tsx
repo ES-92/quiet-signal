@@ -37,6 +37,17 @@ describe('CommandDrawer', () => {
     expect(screen.getByRole('link', { name: en.today })).toBeInTheDocument()
   })
 
+  it('nennt die Seite der ungeklärten Einträge Klären und den Drawer Menü', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Clarify' })).toHaveAttribute('href', '/inbox')
+    expect(screen.queryByRole('link', { name: en.noiseInbox })).not.toBeInTheDocument()
+    expect(screen.getByText('Menu')).toBeInTheDocument()
+    expect(screen.queryByText('Tools')).not.toBeInTheDocument()
+  })
+
   it('hat einen Favoriten-Eintrag, der die Bibliothek auf dem Favoriten-Tab öffnet', () => {
     // Arrange / Act
     renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)

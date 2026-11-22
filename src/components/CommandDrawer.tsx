@@ -9,7 +9,7 @@ import { quoteStatus } from '../types/quote'
 
 const commandItems = [
   { to: '/today', labelKey: 'today', icon: Sparkles },
-  { to: '/inbox', labelKey: 'noiseInbox', icon: Inbox },
+  { to: '/inbox', labelKey: 'clarifyPageTitle', icon: Inbox },
   { to: '/library?view=favorites', labelKey: 'favorites', icon: Heart },
   { to: '/library', labelKey: 'library', icon: Library },
   { to: '/reflections', labelKey: 'reflections', icon: Feather },
