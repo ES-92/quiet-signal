@@ -128,9 +128,8 @@ export function QuoteDetailPage() {
     <div className="grid max-w-3xl gap-6 pt-3 sm:gap-8 sm:pt-10">
       <section className="grid min-w-0 gap-5 sm:gap-6">
         <div className="min-w-0">
-          <p className="text-sm uppercase tracking-[0.2em] text-graphite">{quote.imageDataUrl && !quote.text ? t('photoNote') : quote.audioDataUrl && !quote.text ? t('voiceNote') : t('quote')}</p>
           {quote.imageDataUrl && (
-            <div className="mt-4 max-w-3xl">
+            <div className="max-w-3xl">
               <PhotoPreview src={quote.imageDataUrl} />
             </div>
           )}

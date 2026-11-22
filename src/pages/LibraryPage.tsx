@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { QuoteCard } from '../components/QuoteCard'
+import { TrySamplesButton } from '../components/TrySamplesButton'
 import { useI18n } from '../i18n/useI18n'
 import { filterQuotes, getFilterOptions } from '../services/search'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -67,8 +68,7 @@ export function LibraryPage() {
     <div className="grid gap-5 sm:gap-7">
       <section className="flex min-w-0 flex-col gap-3 pt-3 sm:flex-row sm:items-end sm:justify-between sm:pt-10">
         <div className="min-w-0">
-          <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('archive')}</p>
-          <h1 className="mt-2 truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
+          <h1 className="truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
         </div>
         {viewQuotes.length > 0 && (
           <p className="text-sm text-graphite">{tCount('countOfQuotes', viewQuotes.length, { shown: results.length, total: viewQuotes.length })}</p>
@@ -155,7 +155,9 @@ export function LibraryPage() {
         // Cold load: the empty state would claim there is nothing yet while the library is still being read.
         <p className="py-10 text-center text-graphite">{t('loadingLibrary')}</p>
       ) : viewQuotes.length === 0 ? (
-        <EmptyState title={emptyTitle}>{emptyBody}</EmptyState>
+        <EmptyState title={emptyTitle} action={quotes.length === 0 && (view === 'signal' || view === 'all') ? <TrySamplesButton /> : undefined}>
+          {emptyBody}
+        </EmptyState>
       ) : (
         <EmptyState title={t('noMatches')}>
           {t('noMatchesBody')}

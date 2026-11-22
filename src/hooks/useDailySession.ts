@@ -97,6 +97,7 @@ export function useDailySession() {
     showReflectionNudge: weeklyReflection.entries.length >= 3,
     inboxCount,
     hasSignals,
+    libraryEmpty: quotes.length === 0,
     browsing: browseIds !== null && Boolean(currentQuote),
     startBrowsing: () => {
       dismissUndoToast()

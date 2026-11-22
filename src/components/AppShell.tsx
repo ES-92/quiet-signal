@@ -1,4 +1,4 @@
-import { Heart, Loader2, Menu } from 'lucide-react'
+import { Loader2, Menu } from 'lucide-react'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
@@ -110,19 +110,6 @@ export function AppShell() {
           </span>
         </NavLink>
         <div className="flex items-center gap-2">
-          {!isToday && (
-            <button
-              type="button"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper/70 text-graphite transition hover:border-ink/40 hover:text-ink"
-              onClick={() => {
-                tapHaptic(8)
-                setSupportOpen(true)
-              }}
-              aria-label={t('supportAriaLabel')}
-            >
-              <Heart size={18} />
-            </button>
-          )}
           <button
             type="button"
             className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper/70 text-graphite transition hover:border-ink/40 hover:text-ink"
@@ -155,7 +142,7 @@ export function AppShell() {
           <Outlet />
         </Suspense>
       </main>
-      <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onSupport={() => setSupportOpen(true)} />
       <ZeroCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} initialMode={captureMode} />
       <Onboarding />
       <Toast />

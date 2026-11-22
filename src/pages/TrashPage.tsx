@@ -44,8 +44,7 @@ export function TrashPage() {
     <div className="grid gap-5 pt-3 sm:gap-8 sm:pt-10">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('trash')}</p>
-          <h1 className="mt-2 font-serif text-4xl leading-tight sm:text-5xl">{t('trash')}</h1>
+          <h1 className="font-serif text-4xl leading-tight sm:text-5xl">{t('trash')}</h1>
           <p className="mt-4 max-w-xl leading-7 text-graphite">{t('trashIntro')}</p>
         </div>
         {trashed.length > 0 && (

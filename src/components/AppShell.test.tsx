@@ -87,6 +87,30 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: en.voiceNote })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it.each(['/today', '/inbox'])('zeigt auf %s keinen Unterstützen-Button im Kopf', async (route) => {
+    // Arrange / Act
+    renderShell(route)
+
+    // Assert
+    await screen.findByTestId('location')
+    expect(screen.queryByRole('button', { name: 'Support' })).not.toBeInTheDocument()
+  })
+
+  it('öffnet über das Command-Menü das Unterstützungs-Sheet mit Ko-fi und PayPal', async () => {
+    // Arrange
+    renderShell('/inbox')
+    await screen.findByTestId('location')
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.openCommandMenu }))
+
+    fireEvent.click(screen.getByRole('button', { name: en.supportProjectAction }))
+
+    // Assert
+    expect(screen.getByRole('link', { name: /PayPal/ })).toHaveAttribute('href', 'https://paypal.me/ErikSchroeder92')
+    expect(screen.getByRole('link', { name: /Ko-fi/ })).toBeInTheDocument()
+  })
+
   it('öffnet das Command-Menü per Button und per Strg+K', async () => {
     // Arrange
     renderShell('/inbox')

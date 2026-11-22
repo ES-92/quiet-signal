@@ -71,6 +71,48 @@ afterEach(() => {
 })
 
 describe('InboxPage', () => {
+  describe('Kopf', () => {
+    it('zeigt Titel, Klär-Frage und dann direkt den Stapel', async () => {
+      // Arrange
+      await seedInbox()
+
+      // Act
+      await renderInbox()
+      const card = await screen.findByRole('blockquote')
+
+      // Assert
+      const title = screen.getByRole('heading', { level: 1, name: en.noiseInboxTitle })
+      const question = screen.getByText(en.clarifyQuestion)
+      expect(title.previousElementSibling).toBeNull()
+      expect(title.compareDocumentPosition(question)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+      expect(question.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('hat keine doppelte Überschrift und keine Erklärtexte mehr', async () => {
+      // Arrange
+      await seedInbox()
+
+      // Act
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      expect(screen.getAllByRole('heading')).toHaveLength(1)
+      expect(screen.queryByText('Clarify noise')).not.toBeInTheDocument()
+      expect(screen.queryByText('Clarifying stack')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Capture raw thoughts, photos/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Work through raw moments one by one/)).not.toBeInTheDocument()
+    })
+
+    it('behält die Aktion „Rauschen erfassen“', async () => {
+      // Arrange / Act
+      await renderInbox()
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.openCapture })).toBeInTheDocument()
+    })
+  })
+
   it('zeigt die Klär-Frage im Kopf der Klären-Seite', async () => {
     // Arrange / Act
     await renderInbox()
@@ -251,7 +293,7 @@ describe('InboxPage', () => {
     await renderInbox()
     await screen.findByRole('blockquote')
     fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
-    fireEvent.change(await screen.findByLabelText(en.note), { target: { value: 'Mein Entwurf' } })
+    fireEvent.change(await screen.findByLabelText(en.firstThoughtLabel), { target: { value: 'Mein Entwurf' } })
 
     // Act
     await act(async () => {
@@ -259,7 +301,7 @@ describe('InboxPage', () => {
     })
 
     // Assert
-    expect(screen.getByLabelText(en.note)).toHaveValue('Mein Entwurf')
+    expect(screen.getByLabelText(en.firstThoughtLabel)).toHaveValue('Mein Entwurf')
   })
 
   it('schließt die Details und setzt den Entwurf zurück, wenn ein anderer Eintrag oben liegt', async () => {
@@ -427,18 +469,25 @@ describe('InboxPage', () => {
       expect(screen.queryByLabelText(en.text)).not.toBeInTheDocument()
     })
 
-    it('zeigt Kontextfelder immer und Buchfelder nur mit Buchdaten oder vorhandenen Büchern', async () => {
-      // Arrange
+    it('zeigt Text, Autor, Tags und Ersten Gedanken sofort und versteckt die seltenen Felder', async () => {
+      // Arrange / Act
       await openDetails()
 
-      // Assert (Notiz ohne Buchdaten, keine Bücher)
-      expect(screen.getByText(en.contextDetails)).toBeInTheDocument()
-      expect(screen.queryByText(en.bookDetails)).not.toBeInTheDocument()
+      // Assert
+      expect(screen.getByLabelText(en.text)).toBeInTheDocument()
+      expect(screen.getByLabelText(en.author)).toBeInTheDocument()
+      expect(screen.getByLabelText(en.tags)).toBeInTheDocument()
+      expect(screen.getByLabelText(en.firstThoughtLabel)).toBeInTheDocument()
+      for (const label of [en.people, en.occurredAt, en.work, en.year, en.note, en.source]) {
+        expect(screen.queryByLabelText(label)).not.toBeInTheDocument()
+      }
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
     })
 
-    it('zeigt Buchfelder, wenn der Eintrag bereits Buchdaten trägt', async () => {
+    it('zeigt das Buch-Feld sofort, sobald Bücher vorhanden sind', async () => {
       // Arrange
-      await upsertQuotes([makeQuote({ id: 'w-1', text: 'Zitat', status: 'inbox', work: 'Walden' })])
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel', author: 'Die Autorin' })])
       await renderInbox()
       await screen.findByRole('blockquote')
 
@@ -446,8 +495,43 @@ describe('InboxPage', () => {
       fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
 
       // Assert
-      expect(await screen.findByText(en.bookDetails)).toBeInTheDocument()
-      expect(screen.getByLabelText(en.work)).toHaveValue('Walden')
+      expect(await screen.findByLabelText(en.book)).toBeInTheDocument()
+    })
+
+    it('blendet die seltenen Felder über „Mehr Details“ ein und wieder aus', async () => {
+      // Arrange
+      await openDetails()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+
+      // Assert
+      for (const label of [en.people, en.occurredAt, en.work, en.year, en.note]) {
+        expect(screen.getByLabelText(label)).toBeInTheDocument()
+      }
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+      expect(screen.queryByLabelText(en.people)).not.toBeInTheDocument()
+    })
+
+    it.each([
+      ['Werk', { work: 'Walden' }, () => en.work, 'Walden'],
+      ['Jahr', { year: '1854' }, () => en.year, '1854'],
+      ['Beschreibung', { note: 'Etwas dazu' }, () => en.note, 'Etwas dazu'],
+      ['Personen', { people: ['Anna'] }, () => en.people, 'Anna'],
+      ['Datum', { occurredAt: '2026-03-04T09:30:00.000Z' }, () => en.occurredAt, '2026-03-04T10:30'],
+      ['Quelle', { source: 'Brief' }, () => en.source, 'Brief']
+    ])('öffnet „Mehr Details“ automatisch, wenn %s schon einen Wert hat', async (_name, fields, label, value) => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'w-1', text: 'Zitat', status: 'inbox', ...fields })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+
+      // Assert
+      expect(await screen.findByLabelText(label())).toHaveValue(value)
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'true')
     })
 
     it('bietet in den Details weder Art, Signalstärke noch Ort an', async () => {
@@ -473,9 +557,59 @@ describe('InboxPage', () => {
       fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
 
       // Assert
-      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
       expect(screen.getByLabelText(en.author)).toHaveValue('Die Autorin')
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
       expect(screen.getByRole('option', { name: 'Der Titel - Die Autorin' })).toBeInTheDocument()
+    })
+
+    it('lässt „Mehr Details“ zu, wenn die Buchwahl nur Werk mit dem Buchtitel füllt', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
+
+      // Act
+      fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.getByLabelText(en.author)).toBeInTheDocument()
+    })
+
+    it('behält die Überschriften-Reihenfolge h1, h2 auch mit geöffneten Details', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+
+      // Assert
+      const levels = screen.getAllByRole('heading').map((heading) => heading.tagName)
+      expect(levels).toEqual(['H1', 'H2'])
+    })
+
+    it('klappt „Mehr Details“ nach der Buchwahl per Klick ein und aus', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+      fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
     })
 
     it('speichert den bereinigten Entwurf beim Abschluss als Signal', async () => {
@@ -498,6 +632,7 @@ describe('InboxPage', () => {
       fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
       fireEvent.change(await screen.findByLabelText(en.text), { target: { value: '  Fertig  ' } })
       fireEvent.change(screen.getByLabelText(en.tags), { target: { value: 'Gross, KLEIN' } })
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
       fireEvent.change(screen.getByLabelText(en.people), { target: { value: 'Anna,  Bob ' } })
       fireEvent.change(screen.getByLabelText(en.note), { target: { value: '   ' } })
       fireEvent.change(screen.getByLabelText(en.occurredAt), { target: { value: '2026-03-04T10:30' } })
@@ -536,6 +671,7 @@ describe('InboxPage', () => {
       await renderInbox()
       await screen.findByRole('blockquote')
       fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.click(await screen.findByRole('button', { name: en.moreDetails }))
       fireEvent.change(await screen.findByLabelText(en.note), { target: { value: 'Notiz dazu' } })
 
       // Act

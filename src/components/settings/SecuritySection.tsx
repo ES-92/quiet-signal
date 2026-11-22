@@ -6,7 +6,14 @@ import { useSecurityStatus } from '../../hooks/useSecurityStatus'
 import { lockAppNow, lockEncryption } from '../../services/security'
 import { Panel } from './Panel'
 
-export function SecuritySection() {
+export const securityPanelId = 'settings-security'
+
+interface SecuritySectionProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function SecuritySection({ open, onOpenChange }: SecuritySectionProps) {
   const { t } = useI18n()
   const { pinEnabled, encryptionEnabled, encryptionUnlocked } = useSecurityStatus()
   const [message, setMessage] = useState('')
@@ -14,7 +21,7 @@ export function SecuritySection() {
   const encryption = useEncryptionSettings(setMessage)
 
   return (
-    <Panel title={t('security')}>
+    <Panel id={securityPanelId} title={t('security')} open={open} onOpenChange={onOpenChange}>
       <p className="text-sm leading-6 text-graphite">{t('securityHelp')}</p>
       <div className="mt-4 grid gap-2">
         <input

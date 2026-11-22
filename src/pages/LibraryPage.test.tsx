@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getQuote, upsertQuotes } from '../db/database'
+import { db, getQuote, listBooks, listQuotes, upsertQuotes } from '../db/database'
+import { sampleSeed } from '../services/sampleData'
 import { translations } from '../i18n/translations'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
@@ -155,6 +156,59 @@ describe('LibraryPage', () => {
     expect(await screen.findByText(en.emptyCollectionTitle)).toBeInTheDocument()
     expect(screen.queryByText(en.noMatches)).not.toBeInTheDocument()
     expect(screen.queryByText(/0 of 0/)).not.toBeInTheDocument()
+  })
+
+  it('bietet in der leeren Sammlung „Mit Beispielen ausprobieren“ an und lädt die Beispieldaten', async () => {
+    // Arrange
+    await db.quotes.clear()
+    await renderLibrary()
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: en.trySamples }))
+
+    // Assert
+    await waitFor(async () => expect((await listQuotes()).length).toBeGreaterThan(0), SLOW)
+    expect((await listBooks()).length).toBeGreaterThan(0)
+  })
+
+  it.each([['favorites', en.emptyFavoritesTitle], ['rest', en.emptyRestTitle]])('bietet in der leeren Ansicht %s keine Beispiele an', async (view, title) => {
+    // Arrange
+    await db.quotes.clear()
+
+    // Act
+    renderWithProviders(<LibraryPage />, { route: `/library?view=${view}` })
+    await screen.findByText(title)
+
+    // Assert
+    expect(screen.queryByRole('button', { name: en.trySamples })).not.toBeInTheDocument()
+  })
+
+  it('sperrt die Schaltfläche beim Laden und importiert die Beispiele nur einmal', async () => {
+    // Arrange
+    await db.quotes.clear()
+    await renderLibrary()
+    const button = await screen.findByRole('button', { name: en.trySamples })
+
+    // Act
+    fireEvent.click(button)
+    fireEvent.click(button)
+
+    // Assert
+    expect(button).toBeDisabled()
+    await waitFor(async () => expect((await listQuotes()).length).toBeGreaterThan(0), SLOW)
+    expect((await listQuotes()).length).toBe(sampleSeed().quotes.length)
+  })
+
+  it('bietet die Beispiele nicht an, wenn die Bibliothek Einträge enthält', async () => {
+    // Arrange
+    await db.quotes.update('l-1', { status: 'rest' })
+    await renderLibrary()
+
+    // Act
+    await screen.findByText(en.emptyCollectionTitle)
+
+    // Assert
+    expect(screen.queryByRole('button', { name: en.trySamples })).not.toBeInTheDocument()
   })
 
   it('zeigt in der leeren Stille-Ansicht die Stille-Meldung', async () => {

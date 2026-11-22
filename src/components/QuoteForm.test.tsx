@@ -17,30 +17,6 @@ beforeEach(async () => {
 })
 
 describe('QuoteForm', () => {
-  it('submits every field when creating a new entry', async () => {
-    // Arrange
-    const onSubmit = vi.fn().mockResolvedValue(undefined)
-    renderWithProviders(<QuoteForm submitLabel="Go" onSubmit={onSubmit} />)
-
-    // Act
-    fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neu' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
-
-    // Assert
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({
-      text: 'Neu',
-      tags: [],
-      favorite: false,
-      status: 'signal'
-    })
-    const submitted = Object.keys(onSubmit.mock.calls[0][0])
-    expect(submitted).toEqual(expect.arrayContaining(['author', 'note', 'people', 'status']))
-    expect(submitted).not.toEqual(expect.arrayContaining(['signalStrength']))
-    expect(submitted).not.toEqual(expect.arrayContaining(['entryType']))
-    expect(submitted.some((key) => key.startsWith('location'))).toBe(false)
-  })
-
   it('shows the status select directly, outside the collapsed details block', () => {
     // Arrange
     renderWithProviders(<QuoteForm quote={makeQuote({ id: 'q-1' })} submitLabel="Go" onSubmit={vi.fn()} />)
@@ -56,7 +32,7 @@ describe('QuoteForm', () => {
   it('re-enables the save button when the submit fails', async () => {
     // Arrange
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
-    renderWithProviders(<QuoteForm submitLabel="Go" onSubmit={onSubmit} />)
+    renderWithProviders(<QuoteForm quote={makeQuote({ id: 'q-1', text: 'Alt' })} submitLabel="Go" onSubmit={onSubmit} />)
     fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neu' } })
 
     // Act

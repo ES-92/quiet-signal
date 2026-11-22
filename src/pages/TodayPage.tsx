@@ -125,6 +125,7 @@ export function TodayPage() {
           inboxCount={session.inboxCount}
           onOpenInbox={() => navigate('/inbox')}
           onBrowse={session.hasSignals ? session.startBrowsing : undefined}
+          offerSamples={session.libraryEmpty}
         />
       )}
       {actions.thoughtOpen && currentQuote && (
