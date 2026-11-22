@@ -12,7 +12,7 @@ interface BackupSectionProps {
 }
 
 export function BackupSection({ state, lastBackupAt, age, message, onBackup }: BackupSectionProps) {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
 
   return (
     <Panel title={t('backupSafety')} defaultOpen>
@@ -25,7 +25,9 @@ export function BackupSection({ state, lastBackupAt, age, message, onBackup }: B
             {state === 'empty'
               ? t('backupEmpty')
               : lastBackupAt
-                ? t('backupStatus', { age: age ?? 0 })
+                ? (age ?? 0) === 0
+                  ? t('backupToday')
+                  : tCount('backupStatus', age ?? 0)
                 : t('backupMissing')}
           </p>
           <button className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper" onClick={onBackup}>

@@ -93,4 +93,21 @@ describe('tCount', () => {
     rerender(<I18nProvider><CountProbe count={2} /></I18nProvider>)
     expect(screen.getByTestId('count')).toHaveTextContent('2 von 2 Einträgen')
   })
+
+  it('setzt Mehrfach-Zahlen aus vorab gebeugten Teilen zusammen', () => {
+    // Arrange
+    localStorage.setItem('quiet-signal-language', 'de')
+    function Multi({ entries, books }: { entries: number; books: number }) {
+      const { t, tCount } = useI18n()
+      return <p data-testid="multi">{t('migrationSuccess', { entries: tCount('entriesCount', entries), books: tCount('dataBooksValue', books) })}</p>
+    }
+
+    // Act
+    const { rerender } = render(<I18nProvider><Multi entries={1} books={1} /></I18nProvider>)
+
+    // Assert
+    expect(screen.getByTestId('multi')).toHaveTextContent('Übernommen: 1 Eintrag und 1 Buch.')
+    rerender(<I18nProvider><Multi entries={12} books={3} /></I18nProvider>)
+    expect(screen.getByTestId('multi')).toHaveTextContent('Übernommen: 12 Einträge und 3 Bücher.')
+  })
 })

@@ -129,7 +129,7 @@ export function BooksPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{suggestion.primary.title}</p>
                   <p className="mt-1 text-sm text-graphite">
-                    {t('bookMergeSuggestion', { books: suggestion.books.length, quotes: suggestion.quoteCount })}
+                    {tCount('bookMergeSuggestion', suggestion.quoteCount, { books: suggestion.books.length })}
                   </p>
                 </div>
                 <button className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper" onClick={() => void handleMerge(suggestion)}>

@@ -21,7 +21,7 @@ interface TodayActionsInput {
 
 // Card actions of the daily deck (more/less often, rest with undo, thought, discard with undo, context menu, inline book editor).
 export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const navigate = useNavigate()
   const { saveQuote, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { saveBook } = useBookStore()
@@ -74,7 +74,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
       // A newer deck action owns the toast slot by now; a late "comes back" toast would wipe its toast.
       if (typeof days !== 'number' || seq !== actionSeq.current) return
       showToast({
-        message: t('comesBackInDays', { days }),
+        message: tCount('comesBackInDays', days),
         ...(previous && {
           actionLabel: t('undo'),
           onAction: () => {

@@ -18,7 +18,7 @@ interface MigrationMessage {
 }
 
 export function DomainMigrationPanel() {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const importBooks = useBookStore((state) => state.importBooks)
   const importQuotes = useQuoteStore((state) => state.importQuotes)
   const [message, setMessage] = useState('')
@@ -39,7 +39,7 @@ export function DomainMigrationPanel() {
       }
       if (books.length) await importBooks(books)
       if (quotes.length) await importQuotes(quotes)
-      setMessage(t('migrationSuccess', { quotes: quotes.length, books: books.length }))
+      setMessage(t('migrationSuccess', { entries: tCount('entriesCount', quotes.length), books: tCount('dataBooksValue', books.length) }))
     }
 
     window.addEventListener('message', receive)

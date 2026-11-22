@@ -124,7 +124,7 @@ describe('SettingsPage: Statusband und Bibliothek', () => {
     renderWithProviders(<SettingsPage />)
 
     // Assert
-    expect(await screen.findByText(en.dataSignalsValue.replace('{signals}', '2').replace('{rest}', '1').replace('{noise}', '1'))).toBeInTheDocument()
+    expect(await screen.findByText('2 signals, 1 at rest, 1 noise')).toBeInTheDocument()
     expect(screen.getByText(en.dataBooksValue_one.replace('{count}', '1'))).toBeInTheDocument()
     expect(screen.getByText(en.storedLocally.replace('{count}', '4'))).toBeInTheDocument()
     expect(screen.getByText(en.dataProtectionOpen)).toBeInTheDocument()
@@ -133,6 +133,33 @@ describe('SettingsPage: Statusband und Bibliothek', () => {
 })
 
 describe('SettingsPage: Backup', () => {
+  it.each([
+    [0, en.backupToday],
+    [1, 'Last backup 1 day ago.'],
+    [3, 'Last backup 3 days ago.']
+  ])('nennt das Alter des letzten Backups nach %i Tag(en) in der richtigen Zahlform', async (days, expected) => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    localStorage.setItem('quiet-signal-last-backup-at', new Date(Date.now() - days * 86_400_000 - 60_000).toISOString())
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+
+    // Assert
+    expect(await screen.findByText(expected)).toBeInTheDocument()
+  })
+
+  it('zeigt im Statusband ein einzelnes Signal in der Einzahl', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ status: 'signal' })])
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+
+    // Assert
+    expect(await screen.findByText('1 signal, 0 at rest, 0 noise')).toBeInTheDocument()
+  })
+
   it('meldet ein leeres Archiv ohne Backup-Hinweis', () => {
     // Arrange / Act
     renderWithProviders(<SettingsPage />)
@@ -156,7 +183,7 @@ describe('SettingsPage: Backup', () => {
     expect(getLastBackupAt()).toBeDefined()
     expect(screen.getByText(/^Backup created:/)).toBeInTheDocument()
     expect(screen.getByText(en.dataBackupFresh)).toBeInTheDocument()
-    expect(screen.getByText(en.backupStatus.replace('{age}', '0'))).toBeInTheDocument()
+    expect(screen.getByText(en.backupToday)).toBeInTheDocument()
   })
 })
 

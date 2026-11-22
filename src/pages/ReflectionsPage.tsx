@@ -189,9 +189,9 @@ function composeLetter(
 
   const lines = [
     t('reflectionLetterIntro', {
-      entries: summary.entries.length,
-      signals: summary.signals.length,
-      noise: summary.noise.length
+      entries: tCount('entriesCount', summary.entries.length),
+      signals: tCount('signalsCount', summary.signals.length),
+      noise: tCount('noiseCount', summary.noise.length)
     })
   ]
 
