@@ -16,7 +16,8 @@ export function reloadOnceForChunkError(error: unknown, now = Date.now()): boole
   if (!isChunkLoadError(error)) return false
   try {
     const last = Number(sessionStorage.getItem(chunkReloadStorageKey))
-    if (Number.isFinite(last) && last > 0 && now - last < chunkReloadWindowMs) return false
+    // A stamp in the future (clock moved back) counts as expired, so it cannot block reloads for long.
+    if (Number.isFinite(last) && last > 0 && last <= now && now - last < chunkReloadWindowMs) return false
     sessionStorage.setItem(chunkReloadStorageKey, String(now))
   } catch {
     // Without sessionStorage there is no loop guard, so do not reload automatically.

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { translations } from '../i18n/translations'
 import { renderWithProviders } from '../test/render'
-import { chunkReloadStorageKey, isChunkLoadError } from '../services/chunkReload'
+import { chunkReloadStorageKey, isChunkLoadError, reloadOnceForChunkError } from '../services/chunkReload'
 import { ErrorBoundary } from './ErrorBoundary'
 
 const en = translations.en
@@ -117,5 +117,30 @@ describe('ErrorBoundary', () => {
     ['Invalid time value', false]
   ])('erkennt Chunk-Ladefehler: %s → %s', (message, expected) => {
     expect(isChunkLoadError(new Error(message))).toBe(expected)
+  })
+})
+
+describe('reloadOnceForChunkError', () => {
+  const chunkError = new TypeError('Failed to fetch dynamically imported module: /a.js')
+
+  it('behandelt einen Zeitstempel in der Zukunft (Uhr verstellt) als abgelaufen', () => {
+    // Arrange
+    const now = 1_000_000_000_000
+    sessionStorage.setItem(chunkReloadStorageKey, String(now + 5 * 60_000))
+
+    // Act
+    const reloaded = reloadOnceForChunkError(chunkError, now)
+
+    // Assert
+    expect(reloaded).toBe(true)
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(sessionStorage.getItem(chunkReloadStorageKey)).toBe(String(now))
+  })
+
+  it('lädt innerhalb des Fensters nach einem Neuladen nicht erneut', () => {
+    const now = 1_000_000_000_000
+    sessionStorage.setItem(chunkReloadStorageKey, String(now - 1000))
+    expect(reloadOnceForChunkError(chunkError, now)).toBe(false)
+    expect(reload).not.toHaveBeenCalled()
   })
 })
