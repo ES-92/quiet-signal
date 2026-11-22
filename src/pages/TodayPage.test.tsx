@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getQuote, upsertBooks, upsertQuotes } from '../db/database'
+import { db, getQuote, listBooks, listQuotes, upsertBooks, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
 import { coachKey } from '../services/coach'
 import { useBookStore } from '../store/useBookStore'
@@ -115,6 +115,31 @@ describe('TodayPage', () => {
     // Assert
     expect(await screen.findByText(en.nothingDueBody)).toBeInTheDocument()
     expect(screen.queryByText(en.nothingDueBodyWithSignals)).not.toBeInTheDocument()
+  })
+
+  it('bietet bei völlig leerer Bibliothek „Mit Beispielen ausprobieren“ an und lädt die Beispieldaten', async () => {
+    // Arrange
+    await renderToday()
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: en.trySamples }))
+
+    // Assert
+    await waitFor(async () => expect((await listQuotes()).length).toBeGreaterThan(0), SLOW)
+    expect((await listBooks()).length).toBeGreaterThan(0)
+  })
+
+  it('bietet die Beispiele nicht an, sobald die Bibliothek etwas enthält', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })])
+
+    // Act
+    await renderToday()
+
+    // Assert
+    await screen.findByText(en.nothingDueBodyWithSignals)
+    expect(screen.queryByRole('button', { name: en.trySamples })).not.toBeInTheDocument()
   })
 
   it('verweist bei vorhandenen Signalen nicht auf Beispieldaten, wenn heute nichts fällig ist', async () => {

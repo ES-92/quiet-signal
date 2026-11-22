@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { QuoteCard } from '../components/QuoteCard'
+import { TrySamplesButton } from '../components/TrySamplesButton'
 import { useI18n } from '../i18n/useI18n'
 import { filterQuotes, getFilterOptions } from '../services/search'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -155,7 +156,9 @@ export function LibraryPage() {
         // Cold load: the empty state would claim there is nothing yet while the library is still being read.
         <p className="py-10 text-center text-graphite">{t('loadingLibrary')}</p>
       ) : viewQuotes.length === 0 ? (
-        <EmptyState title={emptyTitle}>{emptyBody}</EmptyState>
+        <EmptyState title={emptyTitle} action={quotes.length === 0 ? <TrySamplesButton /> : undefined}>
+          {emptyBody}
+        </EmptyState>
       ) : (
         <EmptyState title={t('noMatches')}>
           {t('noMatchesBody')}

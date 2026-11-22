@@ -3,6 +3,7 @@ import { type ReactNode } from 'react'
 import { useI18n } from '../../i18n/useI18n'
 import { openCapture } from '../../services/captureEvents'
 import { tapHaptic } from '../../services/haptics'
+import { TrySamplesButton } from '../TrySamplesButton'
 
 export function DailyRestState({
   title,
@@ -11,7 +12,8 @@ export function DailyRestState({
   onOpenReflections,
   inboxCount,
   onOpenInbox,
-  onBrowse
+  onBrowse,
+  offerSamples = false
 }: {
   title: string
   body: string
@@ -21,6 +23,8 @@ export function DailyRestState({
   onOpenInbox: () => void
   // Only passed when there is at least one signal to browse.
   onBrowse?: () => void
+  // True while the whole library is empty: offers the sample entries.
+  offerSamples?: boolean
 }) {
   const { t } = useI18n()
 
@@ -36,6 +40,11 @@ export function DailyRestState({
           <h2 className="font-serif text-3xl leading-tight sm:text-4xl">{title}</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-graphite">{body}</p>
         </div>
+        {offerSamples && (
+          <div className="relative flex justify-center">
+            <TrySamplesButton />
+          </div>
+        )}
         {onBrowse && (
           <button
             type="button"
