@@ -419,5 +419,8 @@ export const en = {
   gestureCapture: 'Swipe down from the top edge to capture new noise.',
   gestureInbox: 'Swipe from the left edge to open Clarify (inbox).',
   gestureMenu: 'Top right opens the tools (on a computer also ⌘K).',
-  gestureLongPress: 'Long-press a card to open its actions.'
+  gestureLongPress: 'Long-press a card to open its actions.',
+  errorBoundaryTitle: 'Something went wrong.',
+  errorBoundaryBody: 'Your entries are safely stored. Reload the app.',
+  errorBoundaryAction: 'Reload'
 }

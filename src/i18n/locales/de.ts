@@ -421,5 +421,8 @@ export const de: Record<keyof typeof en, string> = {
   gestureCapture: 'Am oberen Rand nach unten wischen erfasst neues Rauschen.',
   gestureInbox: 'Vom linken Rand wischen öffnet das Klären (Inbox).',
   gestureMenu: 'Oben rechts öffnet die Werkzeuge (am Rechner auch ⌘K).',
-  gestureLongPress: 'Lange auf eine Karte drücken öffnet die Aktionen.'
+  gestureLongPress: 'Lange auf eine Karte drücken öffnet die Aktionen.',
+  errorBoundaryTitle: 'Etwas ist schiefgelaufen.',
+  errorBoundaryBody: 'Deine Einträge sind sicher gespeichert. Lade die App neu.',
+  errorBoundaryAction: 'Neu laden'
 }

@@ -421,5 +421,8 @@ export const es: Record<keyof typeof en, string> = {
   gestureCapture: 'Desliza hacia abajo desde el borde superior para capturar ruido nuevo.',
   gestureInbox: 'Desliza desde el borde izquierdo para abrir Aclarar (bandeja).',
   gestureMenu: 'Arriba a la derecha se abren las herramientas (en el ordenador también ⌘K).',
-  gestureLongPress: 'Mantén pulsada una tarjeta para abrir sus acciones.'
+  gestureLongPress: 'Mantén pulsada una tarjeta para abrir sus acciones.',
+  errorBoundaryTitle: 'Algo salió mal.',
+  errorBoundaryBody: 'Tus entradas están guardadas de forma segura. Recarga la app.',
+  errorBoundaryAction: 'Recargar'
 }

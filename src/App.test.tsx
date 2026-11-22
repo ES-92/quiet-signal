@@ -9,6 +9,18 @@ import { onboardingKey } from './services/onboarding'
 
 const en = translations.en
 
+const todayFailure = vi.hoisted(() => ({ error: null as Error | null }))
+
+vi.mock('./pages/TodayPage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./pages/TodayPage')>()
+  return {
+    TodayPage: () => {
+      if (todayFailure.error) throw todayFailure.error
+      return <actual.TodayPage />
+    }
+  }
+})
+
 function renderApp(route: string) {
   return render(
     <MemoryRouter initialEntries={[route]}>
@@ -22,6 +34,7 @@ function renderApp(route: string) {
 beforeEach(async () => {
   await db.delete()
   await db.open()
+  todayFailure.error = null
   localStorage.setItem(onboardingKey, 'true')
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
 })
@@ -33,5 +46,20 @@ describe('App routes', () => {
 
     // Assert
     expect(await screen.findByRole('button', { name: en.text })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('fängt einen Renderfehler der Seite ab und lässt die App-Hülle stehen', async () => {
+    // Arrange
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    todayFailure.error = new RangeError('Invalid time value')
+
+    // Act
+    renderApp('/today')
+
+    // Assert
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.errorBoundaryTitle)
+    expect(screen.getByRole('button', { name: en.errorBoundaryAction })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.openCommandMenu })).toBeInTheDocument()
+    vi.restoreAllMocks()
   })
 })

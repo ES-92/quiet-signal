@@ -421,5 +421,8 @@ export const fr: Record<keyof typeof en, string> = {
   gestureCapture: 'Balaye vers le bas depuis le bord supérieur pour capturer du bruit.',
   gestureInbox: 'Balaye depuis le bord gauche pour ouvrir Clarifier (boîte).',
   gestureMenu: 'En haut à droite s’ouvrent les outils (sur ordinateur aussi ⌘K).',
-  gestureLongPress: 'Appui long sur une carte pour ouvrir ses actions.'
+  gestureLongPress: 'Appui long sur une carte pour ouvrir ses actions.',
+  errorBoundaryTitle: 'Un problème est survenu.',
+  errorBoundaryBody: 'Tes entrées sont enregistrées en toute sécurité. Recharge l’app.',
+  errorBoundaryAction: 'Recharger'
 }
