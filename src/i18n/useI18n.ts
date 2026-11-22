@@ -5,6 +5,8 @@ export interface I18nContextValue {
   language: LanguageCode
   setLanguage: (language: LanguageCode) => void
   t: (key: TranslationKey, values?: Record<string, string | number>) => string
+  tCount: (key: TranslationKey, count: number, values?: Record<string, string | number>) => string
+  locale: string
 }
 
 export const I18nContext = createContext<I18nContextValue | null>(null)

@@ -18,7 +18,7 @@ export function LocalStatusRibbon({
   backupStateValue: BackupState
   protectionStatus: string
 }) {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const backupText = {
     empty: t('dataBackupEmpty'),
     fresh: t('dataBackupFresh'),
@@ -35,7 +35,7 @@ export function LocalStatusRibbon({
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <StatusMetric icon={<Sparkles size={16} />} label={t('dataSignalsLabel')} value={t('dataSignalsValue', { signals: signalCount, rest: restCount, noise: noiseCount })} />
-          <StatusMetric icon={<FileText size={16} />} label={t('dataBooksLabel')} value={t('dataBooksValue', { count: bookCount })} />
+          <StatusMetric icon={<FileText size={16} />} label={t('dataBooksLabel')} value={tCount('dataBooksValue', bookCount)} />
           <StatusMetric icon={<DatabaseBackup size={16} />} label={t('dataBackupLabel')} value={backupText} tone={backupStateValue === 'fresh' || backupStateValue === 'empty' ? 'calm' : 'warn'} />
           <StatusMetric icon={<ShieldCheck size={16} />} label={t('dataProtectionLabel')} value={protectionStatus} />
         </div>

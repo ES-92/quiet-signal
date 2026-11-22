@@ -74,3 +74,23 @@ describe('I18nProvider', () => {
     expect(spy).toThrow('useI18n must be used inside I18nProvider')
   })
 })
+
+describe('tCount', () => {
+  function CountProbe({ count }: { count: number }) {
+    const { tCount } = useI18n()
+    return <p data-testid="count">{tCount('countOfQuotes', count, { shown: count, total: count })}</p>
+  }
+
+  it('nutzt die Einzahl bei 1 und die Mehrzahl sonst', () => {
+    // Arrange
+    localStorage.setItem('quiet-signal-language', 'de')
+
+    // Act
+    const { rerender } = render(<I18nProvider><CountProbe count={1} /></I18nProvider>)
+
+    // Assert
+    expect(screen.getByTestId('count')).toHaveTextContent('1 von 1 Eintrag')
+    rerender(<I18nProvider><CountProbe count={2} /></I18nProvider>)
+    expect(screen.getByTestId('count')).toHaveTextContent('2 von 2 Einträgen')
+  })
+})

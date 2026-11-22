@@ -1,6 +1,6 @@
 import type { TranslationKey } from '../i18n/translations'
 
-export const APP_VERSION = '0.3.0'
+export const APP_VERSION = __APP_VERSION__
 
 const versionKey = 'quiet-signal-last-seen-version'
 

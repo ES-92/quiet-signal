@@ -19,6 +19,7 @@ import { useSettingsStore } from '../store/useSettingsStore'
 import { useToastStore } from '../store/useToastStore'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import { renderWithProviders } from '../test/render'
+import pkg from '../../package.json'
 import { SettingsPage } from './SettingsPage'
 
 const reminder = vi.hoisted(() => ({
@@ -124,7 +125,7 @@ describe('SettingsPage: Statusband und Bibliothek', () => {
 
     // Assert
     expect(await screen.findByText(en.dataSignalsValue.replace('{signals}', '2').replace('{rest}', '1').replace('{noise}', '1'))).toBeInTheDocument()
-    expect(screen.getByText(en.dataBooksValue.replace('{count}', '1'))).toBeInTheDocument()
+    expect(screen.getByText(en.dataBooksValue_one.replace('{count}', '1'))).toBeInTheDocument()
     expect(screen.getByText(en.storedLocally.replace('{count}', '4'))).toBeInTheDocument()
     expect(screen.getByText(en.dataProtectionOpen)).toBeInTheDocument()
     expect(screen.getByText(en.dataBackupStale)).toBeInTheDocument()
@@ -562,7 +563,7 @@ describe('SettingsPage: Daten, Onboarding, Support', () => {
     await upsertQuotes([makeQuote()])
     await upsertBooks([makeBook()])
     renderWithProviders(<SettingsPage />)
-    await screen.findByText(en.storedLocally.replace('{count}', '1'))
+    await screen.findByText(en.storedLocally_one.replace('{count}', '1'))
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: en.deleteAllLocalData }))
@@ -617,5 +618,19 @@ describe('SettingsPage: Daten, Onboarding, Support', () => {
       'href',
       'https://paypal.me/ErikSchroeder92'
     )
+  })
+})
+
+describe('SettingsPage: Release-Status', () => {
+  it('zeigt die Version aus package.json statt eines festen Textes', async () => {
+    // Arrange
+    renderWithProviders(<SettingsPage />)
+
+    // Act
+    const label = await screen.findByText(en.releaseVersionLabel)
+
+    // Assert
+    expect(label.parentElement).toHaveTextContent(pkg.version)
+    expect(screen.queryByText(/Daily Build/)).not.toBeInTheDocument()
   })
 })

@@ -1,7 +1,7 @@
 import { BookOpen, CalendarDays, Clock3, Download, Inbox, MapPin, Save, Sparkles, Tags } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '../components/EmptyState'
-import { useI18n } from '../i18n/useI18n'
+import { useI18n, type I18nContextValue } from '../i18n/useI18n'
 import { downloadText } from '../services/importExport'
 import { buildReflection, reflectionMarkdown, type ReflectionMetric, type ReflectionPeriod, type ReflectionSummary } from '../services/reflections'
 import { tapHaptic } from '../services/haptics'
@@ -10,7 +10,7 @@ import { useQuoteStore } from '../store/useQuoteStore'
 import type { TranslationKey } from '../i18n/translations'
 
 export function ReflectionsPage() {
-  const { language, t } = useI18n()
+  const { language, t, tCount } = useI18n()
   const { quotes, loadQuotes, addQuote } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
   const [period, setPeriod] = useState<ReflectionPeriod>('week')
@@ -22,7 +22,7 @@ export function ReflectionsPage() {
   }, [loadBooks, loadQuotes])
 
   const summary = useMemo(() => buildReflection(quotes, books, period), [books, period, quotes])
-  const letter = useMemo(() => composeLetter(summary, t), [summary, t])
+  const letter = useMemo(() => composeLetter(summary, t, tCount), [summary, t, tCount])
   const markdown = useMemo(() => reflectionMarkdown(summary, letter), [letter, summary])
   const hasReflection = summary.entries.length > 0
 
@@ -180,7 +180,11 @@ function MetricGroup({ icon, title, metrics }: { icon: React.ReactNode; title: s
   )
 }
 
-function composeLetter(summary: ReflectionSummary, t: (key: TranslationKey, values?: Record<string, string | number>) => string) {
+function composeLetter(
+  summary: ReflectionSummary,
+  t: I18nContextValue['t'],
+  tCount: I18nContextValue['tCount']
+) {
   if (!summary.entries.length) return t('reflectionEmptyBody')
 
   const lines = [
@@ -195,7 +199,7 @@ function composeLetter(summary: ReflectionSummary, t: (key: TranslationKey, valu
   if (summary.topBooks[0]) lines.push(t('reflectionLetterBook', { book: summary.topBooks[0].label }))
   if (summary.topPlaces[0]) lines.push(t('reflectionLetterPlace', { place: summary.topPlaces[0].label }))
   if (summary.topTime) lines.push(t('reflectionLetterTime', { time: translateMetric(summary.topTime, t) }))
-  if (summary.noise.length) lines.push(t('reflectionLetterNoise', { count: summary.noise.length }))
+  if (summary.noise.length) lines.push(tCount('reflectionLetterNoise', summary.noise.length))
   if (summary.topSignal) lines.push(t('reflectionLetterClose'))
 
   return lines.join('\n\n')

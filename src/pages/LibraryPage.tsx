@@ -11,7 +11,7 @@ import { quoteStatus } from '../types/quote'
 type LibraryView = 'signal' | 'rest' | 'all'
 
 export function LibraryPage() {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const { quotes, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [view, setView] = useState<LibraryView>('signal')
@@ -49,7 +49,7 @@ export function LibraryPage() {
           <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('archive')}</p>
           <h1 className="mt-2 truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
         </div>
-        <p className="text-sm text-graphite">{t('countOfQuotes', { shown: results.length, total: viewQuotes.length })}</p>
+        <p className="text-sm text-graphite">{tCount('countOfQuotes', viewQuotes.length, { shown: results.length, total: viewQuotes.length })}</p>
       </section>
 
       <div className="flex gap-2" role="group" aria-label={t('library')}>

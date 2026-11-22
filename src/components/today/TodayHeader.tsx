@@ -10,9 +10,9 @@ interface TodayHeaderProps {
 
 // Date headline plus the weekly-reflection shortcut once there is enough to reflect on.
 export function TodayHeader({ showReflectionNudge, reflectionCount }: TodayHeaderProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const navigate = useNavigate()
-  const todayLabel = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long' }).format(new Date())
+  const todayLabel = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(new Date())
 
   return (
     <section className="flex min-w-0 items-end justify-between gap-4 pt-1 sm:pt-3">

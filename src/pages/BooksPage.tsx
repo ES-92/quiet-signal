@@ -11,7 +11,7 @@ import { useQuoteStore } from '../store/useQuoteStore'
 import type { BookWeight } from '../types/book'
 
 export function BooksPage() {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const { books, loadBooks, addBook, saveBook, removeBook } = useBookStore()
   const { quotes, loadQuotes, saveQuote } = useQuoteStore()
   const [adding, setAdding] = useState(false)
@@ -158,7 +158,7 @@ export function BooksPage() {
                 <div className="min-w-0">
                   <p className="truncate font-serif text-lg leading-tight text-ink">{book.title}</p>
                   <p className="mt-1 truncate text-sm text-graphite">
-                    {[book.author, count === 1 ? t('oneQuote') : t('quotesCount', { count })].filter(Boolean).join(' · ')}
+                    {[book.author, tCount('quotesCount', count)].filter(Boolean).join(' · ')}
                   </p>
                 </div>
               </Link>
