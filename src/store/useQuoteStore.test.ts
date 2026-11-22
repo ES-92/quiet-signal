@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, upsertQuotes } from '../db/database'
 import { disableEncryptionRecord, enableEncryption, lockEncryption } from '../services/security'
+import type { ReviewSnapshot } from '../services/lifecycle'
 import { makeQuote, resetFactories } from '../test/factories'
 import { useQuoteStore } from './useQuoteStore'
 
@@ -103,6 +104,29 @@ describe('lifecycle store actions', () => {
     // Assert
     expect(interval).toBe(28)
     expect(useQuoteStore.getState().quotes[0].reviewIntervalDays).toBe(28)
+  })
+
+  it('reports the previous review values of the changed row and restores them exactly', async () => {
+    // Arrange
+    await seedLegacyQuote({ likes: 3, lastReviewedAt: '2026-01-02T08:00:00.000Z', nextReviewAt: '2026-01-03T06:00:00.000Z' })
+    let previous: ReviewSnapshot | undefined
+    await useQuoteStore.getState().moreOften('legacy', (snapshot) => {
+      previous = snapshot
+    })
+
+    // Act
+    await useQuoteStore.getState().restoreReview('legacy', previous as ReviewSnapshot)
+
+    // Assert
+    expect(previous).toEqual({
+      reviewIntervalDays: undefined,
+      nextReviewAt: '2026-01-03T06:00:00.000Z',
+      reviewCount: 2,
+      lastReviewedAt: '2026-01-02T08:00:00.000Z',
+      likes: 3
+    })
+    expect(useQuoteStore.getState().quotes[0]).toMatchObject({ reviewCount: 2, likes: 3, nextReviewAt: '2026-01-03T06:00:00.000Z' })
+    expect(useQuoteStore.getState().quotes[0].reviewIntervalDays).toBeUndefined()
   })
 
   it('returns undefined and writes nothing for an unknown id', async () => {

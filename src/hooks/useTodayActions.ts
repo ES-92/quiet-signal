@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { tapHaptic } from '../services/haptics'
+import type { ReviewSnapshot } from '../services/lifecycle'
 import type { Book } from '../types/book'
 import type { Quote } from '../types/quote'
 import { useBookStore } from '../store/useBookStore'
@@ -13,15 +14,16 @@ interface TodayActionsInput {
   currentBook: Book | undefined
   browsing: boolean
   advanceIndex: () => void
+  rewindIndex: () => void
   hideQuote: (id: string) => void
   showQuote: (id: string) => void
 }
 
 // Card actions of the daily deck (more/less often, rest with undo, thought, discard with undo, context menu, inline book editor).
-export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, hideQuote, showQuote }: TodayActionsInput) {
+export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, rewindIndex, hideQuote, showQuote }: TodayActionsInput) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, likeQuote, moreOften, lessOften, restQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { saveBook } = useBookStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
@@ -47,14 +49,35 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   }
 
   // moreOften/lessOften already bump the review bookkeeping, so no separate like here.
-  async function reviewWithInterval(change: (id: string) => Promise<number | undefined>) {
+  async function reviewWithInterval(
+    change: (id: string, onPrevious: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
+  ) {
     if (!currentQuote) return
     const id = currentQuote.id
     dismissUndoToast()
     advanceIndex()
     try {
-      const days = await change(id)
-      if (typeof days === 'number') showToast({ message: t('comesBackInDays', { days }) })
+      // Captured from the row the change was applied to, so the undo restores exactly that state.
+      let previous: ReviewSnapshot | undefined
+      const days = await change(id, (snapshot) => {
+        previous = snapshot
+      })
+      if (typeof days !== 'number') return
+      showToast({
+        message: t('comesBackInDays', { days }),
+        ...(previous && {
+          actionLabel: t('undo'),
+          onAction: () => {
+            const restore = previous
+            if (!restore) return
+            rewindIndex()
+            restoreReview(id, restore).catch(() => {
+              advanceIndex()
+              showToast({ message: t('saveFailed') })
+            })
+          }
+        })
+      })
     } catch {
       showToast({ message: t('saveFailed') })
     }
