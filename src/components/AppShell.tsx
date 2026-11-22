@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/useI18n'
 import { captureEventName, isCaptureMode, type CaptureMode } from '../services/captureEvents'
 import { tapHaptic } from '../services/haptics'
 import { CommandDrawer } from './CommandDrawer'
+import { ErrorBoundary } from './ErrorBoundary'
 import { InstallPrompt } from './InstallPrompt'
 import { UpdateNotice } from './UpdateNotice'
 import { Onboarding } from './Onboarding'
@@ -140,9 +141,12 @@ export function AppShell() {
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
       >
-        <Suspense fallback={<PageLoader />}>
-          <Outlet />
-        </Suspense>
+        {/* Keyed by path: navigating away from a broken page gives the next page a fresh boundary. */}
+        <ErrorBoundary key={location.pathname}>
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </main>
       <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onSupport={() => setSupportOpen(true)} />
       <ZeroCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} initialMode={captureMode} />

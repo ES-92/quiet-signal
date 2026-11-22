@@ -15,7 +15,9 @@ function startOfLocalDay(date: Date): number {
 /** Relative day label ("heute", "gestern", "vor 3 Monaten") for an ISO timestamp, in the given UI language. */
 export function formatRelativeDay(iso: string, now: Date, language: string): string {
   const formatter = new Intl.RelativeTimeFormat(language, { numeric: 'auto' })
-  const days = Math.max(0, Math.round((startOfLocalDay(now) - startOfLocalDay(new Date(iso))) / MS_PER_DAY))
+  // An unparsable stored date reads as today instead of making Intl throw a RangeError during render.
+  const raw = Math.round((startOfLocalDay(now) - startOfLocalDay(new Date(iso))) / MS_PER_DAY)
+  const days = Number.isFinite(raw) ? Math.max(0, raw) : 0
   if (days < 30) return formatter.format(-days, 'day')
   if (days < 365) return formatter.format(-Math.floor(days / 30), 'month')
   return formatter.format(-Math.floor(days / 365), 'year')

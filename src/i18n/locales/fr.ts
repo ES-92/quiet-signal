@@ -48,6 +48,8 @@ export const fr: Record<keyof typeof en, string> = {
   inboxCount: '{count} dans le bruit',
   shareImporting: 'Enregistrement du contenu partagé...',
   shareImported: 'Le contenu partagé a été enregistré dans le bruit.',
+  shareFailed: 'Impossible d’enregistrer le contenu partagé.',
+  shareRetry: 'Réessayer',
   today: 'Aujourd’hui',
   library: 'Collection',
   add: 'Saisir',
@@ -383,6 +385,7 @@ export const fr: Record<keyof typeof en, string> = {
   likesCount_one: '{count} mention J’aime',
   restFailed: 'Impossible de le laisser reposer.',
   saveFailed: 'Impossible d’enregistrer la modification.',
+  captureSaveFailed: 'Impossible d’enregistrer. Ton texte est toujours là.',
   save: 'Enregistrer',
   thoughtsTitle: 'Pensées',
   removeThought: 'Supprimer la pensée',
@@ -421,5 +424,8 @@ export const fr: Record<keyof typeof en, string> = {
   gestureCapture: 'Balaye vers le bas depuis le bord supérieur pour capturer du bruit.',
   gestureInbox: 'Balaye depuis le bord gauche pour ouvrir Clarifier (boîte).',
   gestureMenu: 'En haut à droite s’ouvrent les outils (sur ordinateur aussi ⌘K).',
-  gestureLongPress: 'Appui long sur une carte pour ouvrir ses actions.'
+  gestureLongPress: 'Appui long sur une carte pour ouvrir ses actions.',
+  errorBoundaryTitle: 'Un problème est survenu.',
+  errorBoundaryBody: 'Tes entrées restent sur cet appareil. Recharge l’app.',
+  errorBoundaryAction: 'Recharger'
 }

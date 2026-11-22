@@ -46,6 +46,8 @@ export const en = {
   inboxCount: '{count} in noise',
   shareImporting: 'Saving shared content...',
   shareImported: 'Shared content was saved to noise.',
+  shareFailed: 'Could not save the shared content.',
+  shareRetry: 'Try again',
   today: 'Today',
   library: 'Collection',
   add: 'Capture',
@@ -381,6 +383,7 @@ export const en = {
   likesCount_one: '{count} like',
   restFailed: 'Could not let it rest.',
   saveFailed: 'Could not save the change.',
+  captureSaveFailed: 'Couldn’t save. Your text is still here.',
   save: 'Save',
   thoughtsTitle: 'Thoughts',
   removeThought: 'Delete thought',
@@ -419,5 +422,8 @@ export const en = {
   gestureCapture: 'Swipe down from the top edge to capture new noise.',
   gestureInbox: 'Swipe from the left edge to open Clarify (inbox).',
   gestureMenu: 'Top right opens the tools (on a computer also ⌘K).',
-  gestureLongPress: 'Long-press a card to open its actions.'
+  gestureLongPress: 'Long-press a card to open its actions.',
+  errorBoundaryTitle: 'Something went wrong.',
+  errorBoundaryBody: 'Your entries stay on this device. Reload the app.',
+  errorBoundaryAction: 'Reload'
 }

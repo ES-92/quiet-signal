@@ -359,12 +359,24 @@ function deriveBitsKey(secret: string) {
   return crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveBits'])
 }
 
-function bytesToBase64(bytes: Uint8Array) {
-  return btoa(String.fromCharCode(...bytes))
+// Spreading a large array into String.fromCharCode overflows the call stack (photos, voice notes),
+// so the bytes are converted in slices.
+const base64ChunkSize = 0x8000
+
+/** Exported for tests; converts in slices so large payloads do not overflow the call stack. */
+export function bytesToBase64(bytes: Uint8Array) {
+  let binary = ''
+  for (let offset = 0; offset < bytes.length; offset += base64ChunkSize) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(offset, offset + base64ChunkSize)))
+  }
+  return btoa(binary)
 }
 
-function base64ToBytes(value: string) {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0))
+export function base64ToBytes(value: string) {
+  const binary = atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes
 }
 
 function toArrayBuffer(bytes: Uint8Array) {

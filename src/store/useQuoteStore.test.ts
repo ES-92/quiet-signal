@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, upsertQuotes } from '../db/database'
+import { db, listQuotes, upsertQuotes } from '../db/database'
 import { disableEncryptionRecord, enableEncryption, lockEncryption } from '../services/security'
 import type { ReviewSnapshot } from '../services/lifecycle'
+import { resetPersistentStorageRequest } from '../services/persistentStorage'
 import { makeQuote, resetFactories } from '../test/factories'
 import { useQuoteStore } from './useQuoteStore'
 
@@ -413,5 +414,54 @@ describe('lifecycle store actions', () => {
     expect(capped?.reviewIntervalDays).toBe(30)
     expect(again?.reviewIntervalDays).toBe(90)
     expect(again?.nextReviewAt).toBe('2027-06-01T06:00:00.000Z')
+  })
+})
+
+describe('dauerhafter Speicher', () => {
+  afterEach(() => {
+    Object.defineProperty(navigator, 'storage', { value: undefined, configurable: true })
+  })
+
+  it('bittet nach dem ersten erfolgreichen Speichern um dauerhaften Speicher', async () => {
+    // Arrange
+    resetPersistentStorageRequest()
+    const persist = vi.fn().mockResolvedValue(true)
+    Object.defineProperty(navigator, 'storage', { value: { persist }, configurable: true })
+    await useQuoteStore.getState().loadQuotes()
+    expect(persist).not.toHaveBeenCalled()
+
+    // Act
+    await useQuoteStore.getState().addQuote({ text: 'Erster', tags: [], favorite: false, status: 'inbox' } as never)
+
+    // Assert
+    expect(persist).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('addQuote bei fehlschlagendem Neuladen', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('meldet Erfolg, wenn nur das Neuladen nach dem Speichern scheitert', async () => {
+    // Arrange
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const orderBy = vi.spyOn(db.quotes, 'orderBy').mockImplementationOnce(() => {
+      throw new Error('reload failed')
+    })
+
+    // Act
+    const created = await useQuoteStore.getState().addQuote({ text: 'Gespeichert', tags: [], favorite: false, status: 'inbox' } as never)
+
+    // Assert
+    expect(created.text).toBe('Gespeichert')
+    expect(orderBy).toHaveBeenCalled()
+    orderBy.mockRestore()
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Gespeichert'])
+  })
+
+  it('wirft weiterhin, wenn das Speichern selbst scheitert', async () => {
+    vi.spyOn(db.quotes, 'add').mockRejectedValueOnce(new Error('QuotaExceededError'))
+    await expect(
+      useQuoteStore.getState().addQuote({ text: 'x', tags: [], favorite: false, status: 'inbox' } as never)
+    ).rejects.toThrow('QuotaExceededError')
   })
 })

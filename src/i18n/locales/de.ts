@@ -48,6 +48,8 @@ export const de: Record<keyof typeof en, string> = {
   inboxCount: '{count} im Rauschen',
   shareImporting: 'Geteilten Inhalt speichern...',
   shareImported: 'Geteilter Inhalt wurde ins Rauschen gelegt.',
+  shareFailed: 'Der geteilte Inhalt konnte nicht gespeichert werden.',
+  shareRetry: 'Erneut versuchen',
   today: 'Heute',
   library: 'Sammlung',
   add: 'Erfassen',
@@ -383,6 +385,7 @@ export const de: Record<keyof typeof en, string> = {
   likesCount_one: '{count} Like',
   restFailed: 'Konnte nicht ruhen lassen.',
   saveFailed: 'Konnte nicht gespeichert werden.',
+  captureSaveFailed: 'Konnte nicht gespeichert werden. Dein Text ist noch da.',
   save: 'Speichern',
   thoughtsTitle: 'Gedanken',
   removeThought: 'Gedanken löschen',
@@ -421,5 +424,8 @@ export const de: Record<keyof typeof en, string> = {
   gestureCapture: 'Am oberen Rand nach unten wischen erfasst neues Rauschen.',
   gestureInbox: 'Vom linken Rand wischen öffnet das Klären (Inbox).',
   gestureMenu: 'Oben rechts öffnet die Werkzeuge (am Rechner auch ⌘K).',
-  gestureLongPress: 'Lange auf eine Karte drücken öffnet die Aktionen.'
+  gestureLongPress: 'Lange auf eine Karte drücken öffnet die Aktionen.',
+  errorBoundaryTitle: 'Etwas ist schiefgelaufen.',
+  errorBoundaryBody: 'Deine Einträge liegen lokal auf diesem Gerät. Lade die App neu.',
+  errorBoundaryAction: 'Neu laden'
 }

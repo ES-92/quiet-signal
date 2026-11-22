@@ -650,7 +650,7 @@ describe('unvalidierte Felder (Ist-Verhalten)', () => {
     expect(imported.locationLongitude).toBe(0)
   })
 
-  it('übernimmt createdAt ungeprüft als beliebigen String', () => {
+  it('ersetzt ein unlesbares createdAt durch den aktuellen Zeitpunkt', () => {
     // Arrange
     const content = JSON.stringify({ quotes: [{ id: 'q-a', text: 't', createdAt: 'gestern' }] })
 
@@ -658,8 +658,7 @@ describe('unvalidierte Felder (Ist-Verhalten)', () => {
     const { quotes } = parseJsonImportBundle(content)
 
     // Assert
-    // CHARACTERIZATION: vermutlich Bug, siehe Task 10
-    expect(quotes[0].createdAt).toBe('gestern')
+    expect(quotes[0].createdAt).toBe('2026-02-02T12:00:00.000Z')
   })
 })
 
@@ -805,5 +804,105 @@ describe('exportMarkdown', () => {
 
     // Assert
     expect(markdown).toBe('')
+  })
+})
+
+describe('Datumsfelder im Import', () => {
+  const now = '2026-02-02T12:00:00.000Z'
+  const invalidDates: unknown[] = ['foo', '', '   ', 12345, 0, null, true, {}, '2026-13-45', '+999999-01-01T00:00:00Z', 'Invalid Date']
+
+  it.each(invalidDates)('fällt bei ungültigem createdAt/updatedAt %j auf jetzt zurück', (value) => {
+    // Arrange
+    const content = JSON.stringify({ quotes: [{ id: 'q', text: 'x', createdAt: value, updatedAt: value }] })
+
+    // Act
+    const [quote] = parseJsonImportBundle(content).quotes
+
+    // Assert
+    expect(quote.createdAt).toBe(now)
+    expect(quote.updatedAt).toBe(now)
+  })
+
+  it.each(invalidDates)('verwirft ungültige optionale Review-Daten %j', (value) => {
+    // Arrange
+    const content = JSON.stringify({ quotes: [{ id: 'q', text: 'x', lastReviewedAt: value, nextReviewAt: value }] })
+
+    // Act
+    const [quote] = parseJsonImportBundle(content).quotes
+
+    // Assert
+    expect(quote.lastReviewedAt).toBeUndefined()
+    expect(quote.nextReviewAt).toBeUndefined()
+  })
+
+  it.each([...invalidDates, '+275760-09-13T00:00:00Z'])('verwirft ein ungültiges occurredAt %j', (value) => {
+    const content = JSON.stringify({ quotes: [{ id: 'q', text: 'x', occurredAt: value }] })
+    expect(parseJsonImportBundle(content).quotes[0].occurredAt).toBeUndefined()
+  })
+
+  it('normalisiert ein gültiges occurredAt auf ISO', () => {
+    const content = JSON.stringify({ quotes: [{ id: 'q', text: 'x', occurredAt: '2024-05-01T18:00:00+02:00' }] })
+    expect(parseJsonImportBundle(content).quotes[0].occurredAt).toBe('2024-05-01T16:00:00.000Z')
+  })
+
+  it('normalisiert gültige Daten auf ISO', () => {
+    // Arrange
+    const content = JSON.stringify({
+      quotes: [
+        {
+          id: 'q',
+          text: 'x',
+          createdAt: '2025-01-05T10:00:00+01:00',
+          updatedAt: '2025-01-06',
+          lastReviewedAt: ' 2025-01-07T08:00:00.000Z ',
+          nextReviewAt: '2025-02-01T05:00:00Z'
+        }
+      ]
+    })
+
+    // Act
+    const [quote] = parseJsonImportBundle(content).quotes
+
+    // Assert
+    expect(quote.createdAt).toBe('2025-01-05T09:00:00.000Z')
+    expect(quote.updatedAt).toBe('2025-01-06T00:00:00.000Z')
+    expect(quote.lastReviewedAt).toBe('2025-01-07T08:00:00.000Z')
+    expect(quote.nextReviewAt).toBe('2025-02-01T05:00:00.000Z')
+  })
+
+  it('übernimmt keine Papierkorb- oder Schlummer-Daten aus dem Import', () => {
+    // Arrange
+    const content = JSON.stringify({ quotes: [{ id: 'q', text: 'x', snoozedUntil: 'foo', deletedAt: 'foo' }] })
+
+    // Act
+    const [quote] = parseJsonImportBundle(content).quotes
+
+    // Assert
+    expect(quote.snoozedUntil).toBeUndefined()
+    expect(quote.deletedAt).toBeUndefined()
+  })
+
+  it('validiert Datumsfelder auch im CSV-Import', () => {
+    // Arrange
+    const content = 'text,createdAt,nextReviewAt\nHallo,foo,bar'
+
+    // Act
+    const [quote] = parseCsvImport(content)
+
+    // Assert
+    expect(quote.createdAt).toBe(now)
+    expect(quote.nextReviewAt).toBeUndefined()
+  })
+
+  it.each(invalidDates)('fällt bei Büchern mit ungültigem Datum %j auf jetzt zurück', (value) => {
+    // Arrange
+    const content = JSON.stringify({ quotes: [], books: [{ id: 'b', title: 'B', createdAt: value, updatedAt: value }] })
+
+    // Act
+    const [book] = parseJsonImportBundle(content).books
+
+    // Assert
+    expect(book.createdAt).toBe(now)
+    expect(book.updatedAt).toBe(now)
   })
 })

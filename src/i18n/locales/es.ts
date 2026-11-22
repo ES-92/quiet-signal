@@ -48,6 +48,8 @@ export const es: Record<keyof typeof en, string> = {
   inboxCount: '{count} en ruido',
   shareImporting: 'Guardando contenido compartido...',
   shareImported: 'El contenido compartido se guardó en ruido.',
+  shareFailed: 'No se pudo guardar el contenido compartido.',
+  shareRetry: 'Reintentar',
   today: 'Hoy',
   library: 'Colección',
   add: 'Capturar',
@@ -383,6 +385,7 @@ export const es: Record<keyof typeof en, string> = {
   likesCount_one: '{count} me gusta',
   restFailed: 'No se pudo dejar reposar.',
   saveFailed: 'No se pudo guardar el cambio.',
+  captureSaveFailed: 'No se pudo guardar. Tu texto sigue aquí.',
   save: 'Guardar',
   thoughtsTitle: 'Pensamientos',
   removeThought: 'Eliminar pensamiento',
@@ -421,5 +424,8 @@ export const es: Record<keyof typeof en, string> = {
   gestureCapture: 'Desliza hacia abajo desde el borde superior para capturar ruido nuevo.',
   gestureInbox: 'Desliza desde el borde izquierdo para abrir Aclarar (bandeja).',
   gestureMenu: 'Arriba a la derecha se abren las herramientas (en el ordenador también ⌘K).',
-  gestureLongPress: 'Mantén pulsada una tarjeta para abrir sus acciones.'
+  gestureLongPress: 'Mantén pulsada una tarjeta para abrir sus acciones.',
+  errorBoundaryTitle: 'Algo salió mal.',
+  errorBoundaryBody: 'Tus entradas siguen en este dispositivo. Recarga la app.',
+  errorBoundaryAction: 'Recargar'
 }

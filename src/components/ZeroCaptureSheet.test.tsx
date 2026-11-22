@@ -1,7 +1,9 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, listQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
+import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { renderWithProviders } from '../test/render'
 import { ZeroCaptureSheet } from './ZeroCaptureSheet'
 
@@ -10,6 +12,11 @@ const en = translations.en
 beforeEach(async () => {
   await db.delete()
   await db.open()
+  useToastStore.setState({ toast: null })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('ZeroCaptureSheet', () => {
@@ -87,5 +94,69 @@ describe('ZeroCaptureSheet', () => {
     const quotes = await listQuotes()
     expect(quotes).toHaveLength(1)
     expect(quotes[0]).toMatchObject({ text: 'Ein Gedanke', status: 'inbox' })
+  })
+})
+
+describe('ZeroCaptureSheet beim Speichern', () => {
+  it('speichert bei doppeltem Tippen nur einen Eintrag', async () => {
+    // Arrange
+    const onClose = vi.fn()
+    renderWithProviders(<ZeroCaptureSheet open onClose={onClose} initialMode="text" />)
+    fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: 'Einmal' } })
+    const save = screen.getByRole('button', { name: en.captureNoise })
+
+    // Act
+    await act(async () => {
+      fireEvent.click(save)
+      fireEvent.click(save)
+    })
+
+    // Assert
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(await listQuotes()).toHaveLength(1)
+  })
+
+  it('behält den Text und zeigt einen Hinweis, wenn das Speichern fehlschlägt', async () => {
+    // Arrange
+    const onClose = vi.fn()
+    const addQuote = vi.fn().mockRejectedValue(new Error('QuotaExceededError'))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const original = useQuoteStore.getState().addQuote
+    useQuoteStore.setState({ addQuote })
+    renderWithProviders(<ZeroCaptureSheet open onClose={onClose} initialMode="text" />)
+    fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: 'Nicht verlieren' } })
+
+    // Act
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.captureNoise }))
+    })
+
+    // Assert
+    expect(addQuote).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useToastStore.getState().toast?.message).toBe(en.captureSaveFailed)
+    expect(screen.getByPlaceholderText(en.noisePlaceholder)).toHaveValue('Nicht verlieren')
+    expect(screen.getByRole('button', { name: en.captureNoise })).toBeEnabled()
+    useQuoteStore.setState({ addQuote: original })
+  })
+
+  it('schließt ohne Fehlerhinweis, wenn nur das Neuladen nach dem Speichern scheitert', async () => {
+    // Arrange
+    const onClose = vi.fn()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(db.quotes, 'orderBy').mockImplementationOnce(() => {
+      throw new Error('reload failed')
+    })
+    renderWithProviders(<ZeroCaptureSheet open onClose={onClose} initialMode="text" />)
+    fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: 'Schon da' } })
+
+    // Act
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.captureNoise }))
+    })
+
+    // Assert
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(useToastStore.getState().toast).toBeNull()
   })
 })

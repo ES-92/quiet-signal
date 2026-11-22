@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { requestPersistentStorage } from '../services/persistentStorage'
 import {
   clearQuotes,
   createQuote,
@@ -86,11 +87,20 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   // `loading` stays true only until the first load has finished. Every action reloads afterwards, and flagging those reloads
   // as loading would swap the deck for the loading placeholder and back, remounting it under the user's hands.
   loadQuotes: async () => {
-    set({ quotes: await listQuotes(), loading: false, loadedAt: Date.now() })
+    const quotes = await listQuotes()
+    set({ quotes, loading: false, loadedAt: Date.now() })
+    // At startup with a non-empty library, and after the first write (every action reloads): keep the library from eviction.
+    if (quotes.length > 0) void requestPersistentStorage()
   },
+  // Only a failed write is a failed save. Once createQuote resolved the entry is stored, so a failing reload is
+  // reported here and must not make callers keep the draft (a retry would store a second copy).
   addQuote: async (input) => {
     const quote = await createQuote(input)
-    await get().loadQuotes()
+    try {
+      await get().loadQuotes()
+    } catch (error) {
+      console.error('Quiet Signal: entry saved, but reloading the library failed', error)
+    }
     return quote
   },
   saveQuote: async (id, patch) => {

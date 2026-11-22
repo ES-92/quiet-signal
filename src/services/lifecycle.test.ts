@@ -163,3 +163,26 @@ describe('effectiveDueAt', () => {
   })
   it('is undefined without a stored date', () => expect(effectiveDueAt(makeQuote({ favorite: true }))).toBeUndefined())
 })
+
+describe('invalid stored dates', () => {
+  it('reviewDateFromInterval falls back to today for an invalid base date', () => {
+    expect(() => reviewDateFromInterval(1, new Date('foo'))).not.toThrow()
+    expect(Number.isFinite(Date.parse(reviewDateFromInterval(1, new Date('foo'))))).toBe(true)
+  })
+  it('reviewDateFromInterval never throws for a non-finite interval', () => {
+    expect(() => reviewDateFromInterval(Number.NaN, now)).not.toThrow()
+    expect(() => reviewDateFromInterval(Number.POSITIVE_INFINITY, now)).not.toThrow()
+  })
+  it('effectiveDueAt treats an invalid nextReviewAt as due now (undefined)', () => {
+    expect(effectiveDueAt(makeQuote({ nextReviewAt: 'foo' }))).toBeUndefined()
+    expect(effectiveDueAt(makeQuote({ favorite: true, nextReviewAt: 'foo' }))).toBeUndefined()
+  })
+  it('effectiveDueAt does not throw for a favourite with invalid lastReviewedAt or createdAt', () => {
+    const far = new Date('2099-03-01T06:00:00+01:00').toISOString()
+    const quote = makeQuote({ favorite: true, lastReviewedAt: 'foo', createdAt: 'bar', nextReviewAt: far })
+    expect(() => effectiveDueAt(quote)).not.toThrow()
+    expect(Number.isFinite(Date.parse(effectiveDueAt(quote) as string))).toBe(true)
+  })
+  it('daysUnclarified is 0 for an invalid createdAt', () =>
+    expect(daysUnclarified({ createdAt: 'foo' }, now)).toBe(0))
+})

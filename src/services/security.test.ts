@@ -9,6 +9,8 @@ import {
   writeLegacyEncryptionRecord
 } from '../test/legacyVault'
 import {
+  base64ToBytes as base64ToBytesInternal,
+  bytesToBase64 as bytesToBase64Internal,
   clearPinLock,
   decryptBookFromStorage,
   decryptQuoteFromStorage,
@@ -173,6 +175,22 @@ describe('Verschlüsselung', () => {
     expect(JSON.stringify(stored)).not.toContain('Geheimer Gedanke')
     expect(restored).toEqual(quote)
     expect(restored).not.toHaveProperty('encrypted')
+  })
+
+  it('verschlüsselt und entschlüsselt ein Quote mit großem Bild und langer Sprachnotiz', async () => {
+    // Arrange: > 1 MB Bild-Data-URL und eine lange Audio-Data-URL
+    const imageDataUrl = `data:image/jpeg;base64,${'A'.repeat(1_200_000)}`
+    const audioDataUrl = `data:audio/webm;base64,${'B'.repeat(600_000)}`
+    const quote = makeQuote({ text: 'Foto', imageDataUrl, audioDataUrl, audioMimeType: 'audio/webm' })
+    await enableEncryption('pw')
+
+    // Act
+    const stored = await encryptQuoteForStorage(quote)
+    const restored = await decryptQuoteFromStorage(stored)
+
+    // Assert
+    expect(stored.encrypted).toBe(true)
+    expect(restored).toEqual(quote)
   })
 
   it('verschlüsselt und entschlüsselt ein Book im Roundtrip', async () => {
@@ -388,5 +406,23 @@ describe('Prüfdatensatz des Tresors', () => {
     expect(result).toBe(false)
     expect(isEncryptionUnlocked()).toBe(false)
     expect(localStorage.getItem(encryptionStorageKey)).toBe(raw)
+  })
+})
+
+describe('Base64-Kodierung', () => {
+  it.each([0, 1, 0x8000, 0x8000 + 1, 3 * 0x8000 + 7])('übersteht einen Roundtrip mit %i Bytes', (size) => {
+    // Arrange
+    const bytes = new Uint8Array(size)
+    for (let index = 0; index < size; index += 1) bytes[index] = (index * 31 + 7) % 256
+
+    // Act
+    const encoded = bytesToBase64Internal(bytes)
+    const decoded = base64ToBytesInternal(encoded)
+
+    // Assert
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    expect(encoded).toBe(btoa(binary))
+    expect(decoded).toEqual(bytes)
   })
 })
