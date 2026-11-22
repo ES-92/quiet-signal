@@ -17,7 +17,7 @@ const SLOW = { timeout: 3000 }
 
 const thought: Thought = { id: 'th-1', text: 'Erster Gedanke', createdAt: '2026-01-02T09:00:00.000Z' }
 
-async function renderDetail(id = 'q-1') {
+async function renderDetail(id = 'q-1', { editing = false } = {}) {
   const result = renderWithProviders(
     <Routes>
       <Route path="/quote/:id" element={<QuoteDetailPage />} />
@@ -28,7 +28,8 @@ async function renderDetail(id = 'q-1') {
     expect(useQuoteStore.getState().loading).toBe(false)
     expect(useBookStore.getState().loading).toBe(false)
   })
-  await screen.findByText(en.edit)
+  await screen.findByRole('button', { name: en.edit })
+  if (editing) fireEvent.click(screen.getByRole('button', { name: en.edit }))
   return result
 }
 
@@ -46,40 +47,208 @@ afterEach(() => {
 })
 
 describe('QuoteDetailPage', () => {
-  it('shows the like count only quietly as text, without a like control or metric tiles', async () => {
-    // Arrange
-    await upsertQuotes([makeQuote({ id: 'q-1', text: 'Geliebt', likes: 3, signalStrength: 'strong', entryType: 'idea', locationName: 'Eilenriede' })])
+  describe('info line', () => {
+    const now = new Date('2026-03-10T12:00:00')
 
-    // Act
-    const { container } = await renderDetail()
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(now)
+    })
 
-    // Assert
-    expect(await screen.findByText('♥ 3')).toBeInTheDocument()
-    expect(screen.queryByText(en.likesLabel)).not.toBeInTheDocument()
-    expect(container.textContent).not.toMatch(/Eilenriede|strong|idea/i)
+    afterEach(() => {
+      localStorage.removeItem('quiet-signal-language')
+    })
+
+    it('tells a signal when it comes back, how often it was met and its likes, without date year this year', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 6, likes: 12, nextReviewAt: '2026-12-04T05:00:00.000Z' })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Comes back on December 4 · Seen 6 times · ♥ 12')).toBeInTheDocument()
+    })
+
+    it('writes the date in the app language', async () => {
+      // Arrange
+      localStorage.setItem('quiet-signal-language', 'de')
+      await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 6, likes: 12, nextReviewAt: '2026-12-04T05:00:00.000Z' })])
+      renderWithProviders(
+        <Routes>
+          <Route path="/quote/:id" element={<QuoteDetailPage />} />
+        </Routes>,
+        { route: '/quote/q-1' }
+      )
+
+      // Act
+      const line = await screen.findByText(/Kommt am/)
+
+      // Assert
+      expect(line).toHaveTextContent('Kommt am 4. Dezember wieder · 6× begegnet · ♥ 12')
+    })
+
+    it('adds the year when the date lies in another year', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 2, nextReviewAt: '2027-01-15T05:00:00.000Z' })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Comes back on January 15, 2027 · Seen 2 times')).toBeInTheDocument()
+    })
+
+    it('uses the singular for one encounter and omits the heart without likes', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 1, likes: 0, nextReviewAt: '2026-04-01T05:00:00.000Z' })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Comes back on April 1 · Seen 1 time')).toBeInTheDocument()
+      expect(screen.queryByText(/♥/)).not.toBeInTheDocument()
+    })
+
+    it('omits the encounter count for a signal that was never reviewed', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 0, nextReviewAt: '2026-04-01T05:00:00.000Z' })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Comes back on April 1')).toBeInTheDocument()
+    })
+
+    it.each([
+      ['overdue', { nextReviewAt: '2026-03-01T05:00:00.000Z' }],
+      ['due later today', { nextReviewAt: '2026-03-10T20:00:00.000Z' }],
+      ['without a due date', { nextReviewAt: undefined }]
+    ])('says due today for a signal that is %s', async (_name, overrides) => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 3, likes: 2, ...overrides })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Due today · Seen 3 times · ♥ 2')).toBeInTheDocument()
+    })
+
+    it('uses the capped due date of a favourite, not the stored one', async () => {
+      // Arrange
+      await upsertQuotes([
+        makeQuote({
+          id: 'q-1',
+          favorite: true,
+          reviewCount: 4,
+          lastReviewedAt: '2026-03-01T09:00:00.000Z',
+          nextReviewAt: '2026-09-01T05:00:00.000Z'
+        })
+      ])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Comes back on March 31 · Seen 4 times')).toBeInTheDocument()
+    })
+
+    it('shows a resting entry as resting with its encounters, without a date or likes', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest', reviewCount: 6, likes: 5, nextReviewAt: '2026-12-04T05:00:00.000Z' })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Resting · Seen 6 times')).toBeInTheDocument()
+    })
+
+    it('shows noise as not yet sorted', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', status: 'inbox', reviewCount: 0 })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Not sorted yet')).toBeInTheDocument()
+    })
+
+    it('replaces the stat tiles', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', likes: 3 })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.queryByText(en.entryStatus)).not.toBeInTheDocument()
+      expect(screen.queryByText('♥ 3')).not.toBeInTheDocument()
+    })
   })
 
-  it('shows no like count for an entry without likes', async () => {
-    // Arrange
-    await upsertQuotes([makeQuote({ id: 'q-1', text: 'Ohne Likes', likes: 0 })])
+  describe('edit form', () => {
+    it('stays hidden until Edit is pressed', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', text: 'Zitat' })])
+      await renderDetail()
+      expect(screen.queryByLabelText(en.text)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: en.edit })).toHaveAttribute('aria-expanded', 'false')
 
-    // Act
-    await renderDetail()
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.edit }))
 
-    // Assert
-    expect(screen.queryByText(/♥/)).not.toBeInTheDocument()
-  })
+      // Assert
+      expect(screen.getByLabelText(en.text)).toHaveValue('Zitat')
+      expect(screen.getByRole('button', { name: en.edit })).toHaveAttribute('aria-expanded', 'true')
+    })
 
-  it('labels a resting entry with the rest status', async () => {
-    // Arrange
-    await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest' })])
+    it('collapses again after a successful save', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail('q-1', { editing: true })
+      fireEvent.change(screen.getByLabelText(en.tags), { target: { value: 'neu' } })
 
-    // Act
-    await renderDetail()
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
 
-    // Assert
-    const metric = screen.getAllByText(en.entryStatus).find((node) => node.tagName === 'P')?.parentElement as HTMLElement
-    expect(within(metric).getByText(en.entryStatus_rest)).toBeInTheDocument()
+      // Assert
+      await waitFor(async () => expect((await getQuote('q-1'))?.tags).toEqual(['neu']), SLOW)
+      await waitFor(() => expect(screen.queryByLabelText(en.tags)).not.toBeInTheDocument(), SLOW)
+    })
+
+    it('stays open with its values when saving fails', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail('q-1', { editing: true })
+      const originalSave = useQuoteStore.getState().saveQuote
+      useQuoteStore.setState({ saveQuote: vi.fn().mockRejectedValue(new Error('boom')) })
+      fireEvent.change(screen.getByLabelText(en.tags), { target: { value: 'neu' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
+
+      // Assert
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed), SLOW)
+      useQuoteStore.setState({ saveQuote: originalSave })
+      expect(screen.getByLabelText(en.tags)).toHaveValue('neu')
+    })
+
+    it('collapses without saving when Edit is pressed again', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1' })])
+      await renderDetail('q-1', { editing: true })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.edit }))
+
+      // Assert
+      expect(screen.queryByLabelText(en.text)).not.toBeInTheDocument()
+    })
   })
 
   it('shows the description label for the note', async () => {
@@ -267,7 +436,7 @@ describe('QuoteDetailPage', () => {
       await upsertQuotes([makeQuote({ id: 'q-1' })])
 
       // Act
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
 
       // Assert
       const select = screen.getByLabelText(en.entryStatus)
@@ -281,7 +450,7 @@ describe('QuoteDetailPage', () => {
     it('starts the interval at 1 when saving noise as a signal', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', status: 'inbox' })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
 
       // Act
       fireEvent.change(screen.getByLabelText(en.entryStatus), { target: { value: 'signal' } })
@@ -299,7 +468,7 @@ describe('QuoteDetailPage', () => {
     it('leaves the interval untouched when saving a signal again', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', reviewIntervalDays: 14, nextReviewAt: '2026-03-01T05:00:00.000Z' })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
 
       // Act
       fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neuer Text' } })
@@ -315,7 +484,7 @@ describe('QuoteDetailPage', () => {
     it('keeps the thoughts when the status changes', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', thoughts: [thought] })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
 
       // Act
       fireEvent.change(screen.getByLabelText(en.entryStatus), { target: { value: 'rest' } })
@@ -337,7 +506,7 @@ describe('QuoteDetailPage', () => {
     it('keeps a woken entry awake when only a tag is edited afterwards', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest', tags: ['alt'] })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
       fireEvent.click(screen.getByRole('button', { name: en.wake }))
       await waitFor(async () => expect((await getQuote('q-1'))?.status).toBe('signal'), SLOW)
 
@@ -353,7 +522,7 @@ describe('QuoteDetailPage', () => {
     it('keeps the note empty after adopting it when only a tag is edited afterwards', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', text: 'Text', note: 'Meine Beschreibung', tags: ['alt'] })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
       fireEvent.click(screen.getByRole('button', { name: en.adoptNote }))
       await waitFor(async () => expect((await getQuote('q-1'))?.note).toBeFalsy(), SLOW)
 
@@ -369,7 +538,7 @@ describe('QuoteDetailPage', () => {
     it('keeps the favorite toggled on the page when the form is saved afterwards', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', tags: ['alt'] })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
       fireEvent.click(screen.getByRole('button', { name: en.favorite }))
       await waitFor(async () => expect((await getQuote('q-1'))?.favorite).toBe(true), SLOW)
 
@@ -383,7 +552,7 @@ describe('QuoteDetailPage', () => {
     it('keeps an unsaved description when the favorite is toggled on the page', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', note: 'Alt' })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
       fireEvent.change(screen.getByLabelText(en.note), { target: { value: 'Neu getippt' } })
 
       // Act
@@ -397,7 +566,7 @@ describe('QuoteDetailPage', () => {
     it('empties an untouched description field when the note is adopted as a thought', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', text: 'Text', note: 'Meine Beschreibung' })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
       expect(screen.getByLabelText(en.note)).toHaveValue('Meine Beschreibung')
 
       // Act
@@ -410,7 +579,7 @@ describe('QuoteDetailPage', () => {
     it('keeps an unsaved status choice when the entry is woken on the page', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest' })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
       fireEvent.change(screen.getByLabelText(en.entryStatus), { target: { value: 'inbox' } })
 
       // Act
@@ -426,7 +595,7 @@ describe('QuoteDetailPage', () => {
       vi.useFakeTimers({ toFake: ['Date'] })
       vi.setSystemTime(new Date('2026-03-10T12:00:00'))
       await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest' })])
-      await renderDetail()
+      await renderDetail('q-1', { editing: true })
 
       // Act
       fireEvent.change(screen.getByLabelText(en.entryStatus), { target: { value: 'signal' } })
