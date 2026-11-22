@@ -18,7 +18,7 @@ export const useBookStore = create<BookStore>((set, get) => ({
   books: [],
   loading: true,
   loadBooks: async () => {
-    set({ loading: true })
+    // Like useQuoteStore: `loading` only covers the first load, reloads keep the current list visible.
     set({ books: await listBooks(), loading: false })
   },
   addBook: async (input) => {
