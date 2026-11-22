@@ -87,6 +87,27 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: en.voiceNote })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it.each(['/today', '/inbox'])('zeigt auf %s keinen Unterstützen-Button im Kopf', async (route) => {
+    // Arrange / Act
+    renderShell(route)
+
+    // Assert
+    await screen.findByTestId('location')
+    expect(screen.queryByRole('button', { name: 'Support' })).not.toBeInTheDocument()
+  })
+
+  it('hält die Unterstützung im Command-Menü bereit', async () => {
+    // Arrange
+    renderShell('/inbox')
+    await screen.findByTestId('location')
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.openCommandMenu }))
+
+    // Assert
+    expect(screen.getByRole('link', { name: en.supportProjectAction })).toBeInTheDocument()
+  })
+
   it('öffnet das Command-Menü per Button und per Strg+K', async () => {
     // Arrange
     renderShell('/inbox')

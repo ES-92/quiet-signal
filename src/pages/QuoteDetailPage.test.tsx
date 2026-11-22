@@ -47,6 +47,17 @@ afterEach(() => {
 })
 
 describe('QuoteDetailPage', () => {
+  it('starts with the entry itself, without a decorative line above it', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q-1', text: 'Nur der Eintrag' })])
+
+    // Act
+    await renderDetail()
+
+    // Assert
+    expect(screen.getByRole('blockquote').previousElementSibling).toBeNull()
+  })
+
   describe('info line', () => {
     const now = new Date('2026-03-10T12:00:00')
 

@@ -75,8 +75,7 @@ export function BooksPage() {
     <div className="grid gap-5 sm:gap-7">
       <section className="flex min-w-0 flex-col gap-3 pt-3 sm:flex-row sm:items-end sm:justify-between sm:pt-10">
         <div className="min-w-0">
-          <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('bookshelf')}</p>
-          <h1 className="mt-2 truncate font-serif text-4xl leading-tight sm:text-5xl">{t('books')}</h1>
+          <h1 className="truncate font-serif text-4xl leading-tight sm:text-5xl">{t('books')}</h1>
           <p className="mt-3 max-w-xl leading-7 text-graphite">{t('booksIntro')}</p>
         </div>
         <button

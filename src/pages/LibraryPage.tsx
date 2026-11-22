@@ -68,8 +68,7 @@ export function LibraryPage() {
     <div className="grid gap-5 sm:gap-7">
       <section className="flex min-w-0 flex-col gap-3 pt-3 sm:flex-row sm:items-end sm:justify-between sm:pt-10">
         <div className="min-w-0">
-          <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('archive')}</p>
-          <h1 className="mt-2 truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
+          <h1 className="truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
         </div>
         {viewQuotes.length > 0 && (
           <p className="text-sm text-graphite">{tCount('countOfQuotes', viewQuotes.length, { shown: results.length, total: viewQuotes.length })}</p>
