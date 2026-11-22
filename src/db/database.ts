@@ -16,6 +16,7 @@ import {
   stageEncryptionRecord,
   type VaultKeyMaterial
 } from '../services/security'
+import { reviewDateFromInterval } from '../services/lifecycle'
 import type { Book, BookInput } from '../types/book'
 import type { Quote, QuoteInput } from '../types/quote'
 
@@ -183,13 +184,18 @@ export function createQuote(input: QuoteInput) {
 
 async function insertQuote(input: QuoteInput) {
   const timestamp = now()
+  const status = input.status ?? 'signal'
+  // New signals start tomorrow at 06:00 (a 1-day interval), like signals from Klären, instead of being due at once.
+  const startsTomorrow =
+    status === 'signal' ? { reviewIntervalDays: input.reviewIntervalDays ?? 1, nextReviewAt: reviewDateFromInterval(input.reviewIntervalDays ?? 1) } : {}
   const quote: Quote = {
     ...input,
+    ...startsTomorrow,
     id: crypto.randomUUID(),
     tags: normalizeTags(input.tags),
     favorite: input.favorite ?? false,
     likes: 0,
-    status: input.status ?? 'signal',
+    status,
     signalStrength: input.signalStrength ?? 'normal',
     entryType: input.entryType ?? 'note',
     people: input.people ?? [],
