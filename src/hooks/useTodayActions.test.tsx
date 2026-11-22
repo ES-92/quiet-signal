@@ -250,7 +250,8 @@ describe('useTodayActions', () => {
   it('stellt eine ruhende Karte per Rückgängig mit dem früheren snoozedUntil wieder her', async () => {
     // Arrange
     const previous = '2030-01-01T06:00:00.000Z'
-    const quote = makeQuote({ id: 'q', status: 'signal', snoozedUntil: previous })
+    const older = { at: '2026-01-01T09:00:00.000Z', type: 'rest' as const }
+    const quote = makeQuote({ id: 'q', status: 'signal', snoozedUntil: previous, activity: [older] })
     await upsertQuotes([quote])
     await useQuoteStore.getState().loadQuotes()
     const { result, callbacks } = setup({ quote })
@@ -271,6 +272,7 @@ describe('useTodayActions', () => {
       const stored = await getQuote('q')
       expect(stored?.status).toBe('signal')
       expect(stored?.snoozedUntil).toBe(previous)
+      expect(stored?.activity).toEqual([older])
     })
   })
 
@@ -280,9 +282,9 @@ describe('useTodayActions', () => {
     await upsertQuotes([quote])
     await useQuoteStore.getState().loadQuotes()
     const { result, callbacks } = setup({ quote })
-    const { saveQuote } = useQuoteStore.getState()
+    const { undoRest } = useQuoteStore.getState()
     act(() => {
-      useQuoteStore.setState({ saveQuote: () => Promise.reject(new Error('boom')) })
+      useQuoteStore.setState({ undoRest: () => Promise.reject(new Error('boom')) })
     })
     await act(async () => {
       result.current.actions.handleRest()
@@ -297,7 +299,7 @@ describe('useTodayActions', () => {
 
     // Assert
     await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed))
-    useQuoteStore.setState({ saveQuote })
+    useQuoteStore.setState({ undoRest })
     expect(callbacks.hideQuote).toHaveBeenCalledTimes(2)
     expect(callbacks.hideQuote).toHaveBeenLastCalledWith('q')
   })

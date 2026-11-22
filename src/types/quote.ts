@@ -11,6 +11,14 @@ export interface Thought {
   fromNote?: boolean
 }
 
+export type ActivityType = 'more' | 'less' | 'rest' | 'wake' | 'thought'
+
+// One deck/detail action on an entry, for the Rückblick strip. Stored inside the quote, so the vault encrypts it with the rest.
+export interface ActivityEvent {
+  at: string
+  type: ActivityType
+}
+
 export interface Quote {
   id: string
   text: string
@@ -52,6 +60,8 @@ export interface Quote {
   snoozedUntil?: string
   reviewIntervalDays?: number
   thoughts?: Thought[]
+  // The last few actions (capped, oldest dropped first); missing on legacy entries.
+  activity?: ActivityEvent[]
   deletedAt?: string
 }
 

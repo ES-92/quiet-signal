@@ -27,6 +27,8 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
+      // We register the worker ourselves (src/services/appUpdate.ts) to tell users about new versions.
+      injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,ico,png}']
       },

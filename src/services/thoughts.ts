@@ -1,4 +1,5 @@
 import type { Quote, Thought } from '../types/quote'
+import { appendActivity } from './activity'
 
 export function addThoughtPatch(
   quote: Quote,
@@ -14,7 +15,12 @@ export function addThoughtPatch(
     createdAt: now.toISOString(),
     ...(options.fromNote ? { fromNote: true } : {})
   }
-  return { thoughts: [...(quote.thoughts ?? []), thought], updatedAt: now.toISOString() }
+  return {
+    thoughts: [...(quote.thoughts ?? []), thought],
+    // Adopting an old note is not a new thought, so only freshly written ones are logged.
+    ...(options.fromNote ? {} : { activity: appendActivity(quote.activity, 'thought', now) }),
+    updatedAt: now.toISOString()
+  }
 }
 
 export function editThoughtPatch(

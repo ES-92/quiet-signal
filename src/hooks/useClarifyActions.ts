@@ -15,8 +15,14 @@ export function useClarifyActions(
   const { saveQuote, addThought, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
 
+  // Returns false when the entry itself could not be saved (e.g. it was deleted elsewhere); the user gets a toast instead of an unhandled rejection.
   async function saveWithThought(id: string, status: QuoteStatus) {
-    await saveQuote(id, buildPatch(status))
+    try {
+      await saveQuote(id, buildPatch(status))
+    } catch {
+      showToast({ message: t('saveFailed') })
+      return false
+    }
     if (firstThought?.text.trim()) {
       // The entry itself is saved at this point; a failing thought keeps its draft text and only reports the failure.
       try {
@@ -26,18 +32,17 @@ export function useClarifyActions(
         showToast({ message: t('saveFailed') })
       }
     }
+    return true
   }
 
   async function finishSignal() {
     if (!quote) return
-    await saveWithThought(quote.id, 'signal')
-    onMessage(t('movedToSignals'))
+    if (await saveWithThought(quote.id, 'signal')) onMessage(t('movedToSignals'))
   }
 
   async function saveDetails() {
     if (!quote) return
-    await saveWithThought(quote.id, 'inbox')
-    onMessage(t('keptInNoise'))
+    if (await saveWithThought(quote.id, 'inbox')) onMessage(t('keptInNoise'))
   }
 
   async function snoozeCurrent() {

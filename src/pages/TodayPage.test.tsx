@@ -335,7 +335,7 @@ describe('TodayPage', () => {
     })
     const realRest = useQuoteStore.getState().restQuote
     act(() => {
-      useQuoteStore.setState({ restQuote: async (id) => { await gate; await realRest(id) } })
+      useQuoteStore.setState({ restQuote: async (id) => { await gate; return realRest(id) } })
     })
 
     // Act
@@ -563,13 +563,14 @@ describe('TodayPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(`/quote/${first}`)
   })
 
-  it('zeigt den Reflexions-Hinweis ab drei Einträgen dieser Woche und öffnet die Reflexionen', async () => {
+  it('zeigt den Reflexions-Hinweis ab drei Gedanken dieser Woche und öffnet die Reflexionen', async () => {
     // Arrange
     const now = new Date().toISOString()
+    const thought = (id: string) => ({ id, text: id, createdAt: now })
     await upsertQuotes([
-      makeQuote({ id: 't-1', text: 'Eins', createdAt: now, updatedAt: now }),
-      makeQuote({ id: 't-2', text: 'Zwei', createdAt: now, updatedAt: now }),
-      makeQuote({ id: 't-3', text: 'Drei', createdAt: now, updatedAt: now })
+      makeQuote({ id: 't-1', text: 'Eins', createdAt: now, updatedAt: now, thoughts: [thought('a')] }),
+      makeQuote({ id: 't-2', text: 'Zwei', createdAt: now, updatedAt: now, thoughts: [thought('b')] }),
+      makeQuote({ id: 't-3', text: 'Drei', createdAt: now, updatedAt: now, thoughts: [thought('c')] })
     ])
     await renderToday()
     await screen.findByRole('blockquote')
