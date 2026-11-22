@@ -55,7 +55,9 @@ describe('formatDueIn', () => {
     expect(formatDueIn(60, 'de-DE')).toBe('in 60 Tagen')
   })
 
-  it('switches to months beyond 60 days', () => {
+  it('switches to months beyond 60 days and never goes backwards at the boundary', () => {
+    expect(formatDueIn(61, 'de-DE')).toBe('in 2 Monaten')
+    expect(formatDueIn(89, 'de-DE')).toBe('in 2 Monaten')
     expect(formatDueIn(90, 'de-DE')).toBe('in 3 Monaten')
     expect(formatDueIn(365, 'en-US')).toBe('in 12 months')
   })

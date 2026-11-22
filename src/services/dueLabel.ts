@@ -18,9 +18,9 @@ export function dueInDays(quote: Quote, now = new Date()): number {
   return Math.max(0, days)
 }
 
-// "heute" / "morgen" / "in 12 Tagen"; beyond 60 days in months ("in 3 Monaten").
+// "heute" / "morgen" / "in 12 Tagen"; beyond 60 days in months ("in 3 Monaten"). At least 2 months, so 61 days never reads shorter than 60.
 export function formatDueIn(days: number, locale: string): string {
   const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
   if (days <= maxDaysShown) return formatter.format(days, 'day')
-  return formatter.format(Math.round(days / daysPerMonth), 'month')
+  return formatter.format(Math.max(2, Math.floor(days / daysPerMonth)), 'month')
 }
