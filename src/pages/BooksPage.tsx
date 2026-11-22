@@ -8,11 +8,10 @@ import { findBookMergeSuggestions, shouldUpdateSourceToBookTitle, type BookMerge
 import { tapHaptic } from '../services/haptics'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
-import type { BookWeight } from '../types/book'
 
 export function BooksPage() {
   const { t, tCount } = useI18n()
-  const { books, loadBooks, addBook, saveBook, removeBook } = useBookStore()
+  const { books, loadBooks, addBook, removeBook } = useBookStore()
   const { quotes, loadQuotes, saveQuote } = useQuoteStore()
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
@@ -37,7 +36,7 @@ export function BooksPage() {
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault()
     if (!title.trim()) return
-    await addBook({ title: title.trim(), author: author.trim() || undefined, weight: 'normal', source: 'manual' })
+    await addBook({ title: title.trim(), author: author.trim() || undefined, source: 'manual' })
     setTitle('')
     setAuthor('')
     setAdding(false)
@@ -45,11 +44,6 @@ export function BooksPage() {
 
   async function handleMerge(suggestion: BookMergeSuggestion) {
     tapHaptic([8, 24, 8])
-    const bestWeight = strongestWeight(suggestion.books.map((book) => book.weight))
-    if (bestWeight !== suggestion.primary.weight) {
-      await saveBook(suggestion.primary.id, { weight: bestWeight })
-    }
-
     for (const duplicate of suggestion.duplicates) {
       const duplicateQuotes = quotes.filter((quote) => quote.bookId === duplicate.id)
       for (const quote of duplicateQuotes) {
@@ -149,11 +143,6 @@ export function BooksPage() {
               <Link key={book.id} to={`/books/${book.id}`} className="group flex min-w-0 flex-col gap-3">
                 <div className="relative transition-transform duration-300 group-hover:-translate-y-1">
                   <BookCover title={book.title} author={book.author} />
-                  {book.weight !== 'normal' && (
-                    <span className="absolute right-2 top-2 rounded-full bg-paper/90 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.12em] text-ink shadow-sm">
-                      {book.weight === 'often' ? t('weightOften') : t('weightRare')}
-                    </span>
-                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate font-serif text-lg leading-tight text-ink">{book.title}</p>
@@ -170,10 +159,4 @@ export function BooksPage() {
       )}
     </div>
   )
-}
-
-function strongestWeight(weights: BookWeight[]): BookWeight {
-  if (weights.includes('often')) return 'often'
-  if (weights.includes('normal')) return 'normal'
-  return 'rare'
 }

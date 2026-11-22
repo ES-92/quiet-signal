@@ -56,6 +56,19 @@ describe('LibraryPage', () => {
     expect(screen.getByRole('button', { name: en.libraryViewSignal })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('shows no like counter on library cards, even for liked entries', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'l-9', text: 'Geliebt', likes: 5 })])
+
+    // Act
+    await renderLibrary()
+    const card = (await screen.findByText('"Geliebt"')).closest('article') as HTMLElement
+
+    // Assert
+    expect(card.textContent).not.toContain('5')
+    expect(card.querySelector('button[aria-label="Remove like"]')).toBeNull()
+  })
+
   it('shows only resting entries with badge and wake button in the rest view', async () => {
     // Arrange
     await renderLibrary()

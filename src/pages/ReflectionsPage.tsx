@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, Clock3, Download, Inbox, MapPin, Save, Sparkles, Tags } from 'lucide-react'
+import { BookOpen, Clock3, Download, Inbox, Save, Sparkles, Tags } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '../components/EmptyState'
 import { useI18n, type I18nContextValue } from '../i18n/useI18n'
@@ -37,8 +37,6 @@ export function ReflectionsPage() {
       work: period === 'week' ? t('weeklyReflection') : t('monthlyReflection'),
       note: markdown,
       status: 'signal',
-      signalStrength: 'strong',
-      entryType: 'note',
       people: []
     })
     setMessage(t('reflectionSaved'))
@@ -115,8 +113,6 @@ export function ReflectionsPage() {
         <aside className="grid gap-3">
           <MetricGroup icon={<Tags size={16} />} title={t('reflectionTags')} metrics={summary.topTags} />
           <MetricGroup icon={<BookOpen size={16} />} title={t('reflectionBooks')} metrics={summary.topBooks} />
-          <MetricGroup icon={<MapPin size={16} />} title={t('reflectionPlaces')} metrics={summary.topPlaces} />
-          <MetricGroup icon={<CalendarDays size={16} />} title={t('reflectionTypes')} metrics={summary.topTypes.map((metric) => ({ ...metric, label: translateMetric(metric, t) }))} />
         </aside>
       </section>
     </div>
@@ -197,7 +193,6 @@ function composeLetter(
 
   if (summary.topTags[0]) lines.push(t('reflectionLetterTag', { tag: summary.topTags[0].label }))
   if (summary.topBooks[0]) lines.push(t('reflectionLetterBook', { book: summary.topBooks[0].label }))
-  if (summary.topPlaces[0]) lines.push(t('reflectionLetterPlace', { place: summary.topPlaces[0].label }))
   if (summary.topTime) lines.push(t('reflectionLetterTime', { time: translateMetric(summary.topTime, t) }))
   if (summary.noise.length) lines.push(tCount('reflectionLetterNoise', summary.noise.length))
   if (summary.topSignal) lines.push(t('reflectionLetterClose'))
@@ -206,21 +201,13 @@ function composeLetter(
 }
 
 function translateMetric(metric: ReflectionMetric, t: (key: TranslationKey, values?: Record<string, string | number>) => string) {
-  const entryTypeKeys: Record<string, TranslationKey> = {
-    note: 'entryType_note',
-    memory: 'entryType_memory',
-    book_quote: 'entryType_book_quote',
-    idea: 'entryType_idea',
-    conversation: 'entryType_conversation',
-    observation: 'entryType_observation'
-  }
   const timeKeys: Record<string, TranslationKey> = {
     morning: 'reflectionTime_morning',
     afternoon: 'reflectionTime_afternoon',
     evening: 'reflectionTime_evening',
     night: 'reflectionTime_night'
   }
-  const key = entryTypeKeys[metric.key] ?? timeKeys[metric.key]
+  const key = timeKeys[metric.key]
   return key ? t(key) : metric.label
 }
 

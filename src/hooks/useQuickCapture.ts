@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { useI18n } from '../i18n/useI18n'
 import { useQuoteStore } from '../store/useQuoteStore'
-import type { SignalStrength } from '../types/quote'
 import { splitList } from '../utils/draftFields'
 
-// State and submit handler of the quick-capture form (text, photo, voice, tags, strength).
+// State and submit handler of the quick-capture form (text, photo, voice, tags).
 export function useQuickCapture(onSaved: (message: string) => void) {
   const { t } = useI18n()
   const { addQuote } = useQuoteStore()
@@ -15,7 +14,6 @@ export function useQuickCapture(onSaved: (message: string) => void) {
   const [audioDataUrl, setAudioDataUrl] = useState<string | undefined>()
   const [audioMimeType, setAudioMimeType] = useState<string | undefined>()
   const [audioDurationMs, setAudioDurationMs] = useState<number | undefined>()
-  const [signalStrength, setSignalStrength] = useState<SignalStrength>('quiet')
   const canSave = Boolean(text.trim() || imageDataUrl || audioDataUrl)
 
   function setImage(image?: { dataUrl: string; mimeType: string }) {
@@ -38,8 +36,6 @@ export function useQuickCapture(onSaved: (message: string) => void) {
       note: undefined,
       favorite: false,
       status: 'inbox',
-      signalStrength,
-      entryType: 'note',
       people: [],
       audioDataUrl,
       audioMimeType,
@@ -51,7 +47,6 @@ export function useQuickCapture(onSaved: (message: string) => void) {
     setTags('')
     setImage(undefined)
     setAudio(undefined)
-    setSignalStrength('quiet')
     onSaved(t('noiseSaved'))
   }
 
@@ -62,8 +57,6 @@ export function useQuickCapture(onSaved: (message: string) => void) {
     setTags,
     imageDataUrl,
     audioDataUrl,
-    signalStrength,
-    setSignalStrength,
     setImage,
     setAudio,
     canSave,

@@ -1,9 +1,7 @@
 import type { FormEvent } from 'react'
 import { useI18n } from '../../i18n/useI18n'
-import type { SignalStrength } from '../../types/quote'
 import { AudioRecorder } from '../AudioRecorder'
 import { PhotoCapture } from '../PhotoCapture'
-import { SignalStrengthControl } from '../SignalStrengthControl'
 
 interface InboxCaptureFormProps {
   text: string
@@ -14,8 +12,6 @@ interface InboxCaptureFormProps {
   onImageChange: (image?: { dataUrl: string; mimeType: string }) => void
   audioDataUrl?: string
   onAudioChange: (audio?: { dataUrl: string; mimeType: string; durationMs: number }) => void
-  signalStrength: SignalStrength
-  onSignalStrengthChange: (value: SignalStrength) => void
   canSave: boolean
   onSubmit: (event: FormEvent) => void
 }
@@ -41,7 +37,6 @@ export function InboxCaptureForm(props: InboxCaptureFormProps) {
         value={props.tags}
         onChange={(event) => props.onTagsChange(event.target.value)}
       />
-      <SignalStrengthControl value={props.signalStrength} onChange={props.onSignalStrengthChange} />
       <button disabled={!props.canSave} className="rounded-md bg-ink px-4 py-3 text-sm text-paper disabled:opacity-50">
         {t('captureNoise')}
       </button>

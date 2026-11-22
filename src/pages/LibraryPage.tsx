@@ -12,7 +12,7 @@ type LibraryView = 'signal' | 'rest' | 'all'
 
 export function LibraryPage() {
   const { t, tCount } = useI18n()
-  const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
+  const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, saveQuote, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [view, setView] = useState<LibraryView>('signal')
   const { showToast } = useToastStore()
@@ -126,8 +126,6 @@ export function LibraryPage() {
               quote={quote}
               compact
               onFavorite={(id) => void saveQuote(id, { favorite: !quote.favorite })}
-              onLike={(id) => void likeQuote(id)}
-              onDislike={(id) => void dislikeQuote(id)}
               onWake={quoteStatus(quote) === 'rest' ? (id) => void wakeEntry(id) : undefined}
             />
           ))}

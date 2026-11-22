@@ -2,20 +2,11 @@ import { ArrowRight, Clock3, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
 import { daysUnclarified } from '../../services/lifecycle'
-import { entryType, type Quote } from '../../types/quote'
+import type { Quote } from '../../types/quote'
 import { AudioPlayer } from '../AudioRecorder'
 import { GestureCoach } from '../GestureCoach'
 import { ClarifyPreviewCard } from './ClarifyPreviewCard'
 import { GestureStamp } from './GestureStamp'
-
-const typeLabels = {
-  note: 'entryType_note',
-  memory: 'entryType_memory',
-  book_quote: 'entryType_book_quote',
-  idea: 'entryType_idea',
-  conversation: 'entryType_conversation',
-  observation: 'entryType_observation'
-} as const
 
 interface ClarifyDeckStackProps {
   quote: Quote
@@ -88,9 +79,6 @@ export function ClarifyDeckStack({
 
         <div className="flex flex-wrap gap-2">
           <span className="rounded border border-line px-2 py-1 text-xs text-graphite">{t('entryStatus_inbox')}</span>
-          <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">
-            {t(typeLabels[entryType(quote)])}
-          </span>
         </div>
         {unclarifiedDays >= 7 && (
           <p className="mt-2 text-xs text-graphite">{t('unclarifiedSince', { days: unclarifiedDays })}</p>

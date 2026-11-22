@@ -1,9 +1,8 @@
-import { BookOpen, Clock, ExternalLink, Heart, MapPin, Sun, UserRound } from 'lucide-react'
+import { BookOpen, Clock, ExternalLink, Heart, Sun, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
-import { entryType, quoteStatus, signalStrength, type Quote } from '../types/quote'
+import { quoteStatus, type Quote } from '../types/quote'
 import { AudioPlayer } from './AudioRecorder'
-import { LikeControl } from './LikeControl'
 import { PhotoPreview } from './PhotoCapture'
 
 interface QuoteCardProps {
@@ -11,30 +10,14 @@ interface QuoteCardProps {
   onRead?: (id: string) => void
   onLater?: (id: string) => void
   onFavorite?: (id: string) => void
-  onLike?: (id: string) => void
-  onDislike?: (id: string) => void
   onWake?: (id: string) => void
   compact?: boolean
 }
 
-export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislike, onWake, compact = false }: QuoteCardProps) {
+export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact = false }: QuoteCardProps) {
   const { t } = useI18n()
   const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
-  const strength = signalStrength(quote)
   const status = quoteStatus(quote)
-  const strengthLabels = {
-    quiet: 'signalStrength_quiet',
-    normal: 'signalStrength_normal',
-    strong: 'signalStrength_strong'
-  } as const
-  const typeLabels = {
-    note: 'entryType_note',
-    memory: 'entryType_memory',
-    book_quote: 'entryType_book_quote',
-    idea: 'entryType_idea',
-    conversation: 'entryType_conversation',
-    observation: 'entryType_observation'
-  } as const
 
   return (
     <article className="classical-panel min-w-0 rounded-md p-4 sm:p-6">
@@ -65,15 +48,9 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislik
       )}
       {meta && <p className="mt-4 text-sm text-graphite">{meta}</p>}
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="rounded border border-line px-2 py-1 text-xs text-graphite">
-          {t(typeLabels[entryType(quote)])}
-        </span>
-        <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">
-          {status === 'inbox' ? t('entryStatus_inbox') : status === 'rest' ? t('entryStatus_rest') : t(strengthLabels[strength])}
-        </span>
-        {quote.locationName && (
-          <span className="inline-flex items-center gap-1 rounded border border-line px-2 py-1 text-xs text-graphite">
-            <MapPin size={12} /> {quote.locationName}
+        {status !== 'signal' && (
+          <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">
+            {status === 'inbox' ? t('entryStatus_inbox') : t('entryStatus_rest')}
           </span>
         )}
         {quote.people?.slice(0, 2).map((person) => (
@@ -117,15 +94,6 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislik
           >
             <Sun size={16} /> <span className={compact ? 'sr-only' : ''}>{t('wake')}</span>
           </button>
-        )}
-        {onLike && (
-          <LikeControl
-            likes={quote.likes}
-            onLike={() => onLike(quote.id)}
-            onDislike={() => onDislike?.(quote.id)}
-            compact={compact}
-            className={compact ? 'rounded-full' : undefined}
-          />
         )}
         {onFavorite && (
           <button

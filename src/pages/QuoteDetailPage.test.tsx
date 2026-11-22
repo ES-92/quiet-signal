@@ -46,6 +46,30 @@ afterEach(() => {
 })
 
 describe('QuoteDetailPage', () => {
+  it('shows the like count only quietly as text, without a like control or metric tiles', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q-1', text: 'Geliebt', likes: 3, signalStrength: 'strong', entryType: 'idea', locationName: 'Eilenriede' })])
+
+    // Act
+    const { container } = await renderDetail()
+
+    // Assert
+    expect(await screen.findByText('♥ 3')).toBeInTheDocument()
+    expect(screen.queryByText(en.likesLabel)).not.toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/Eilenriede|strong|idea/i)
+  })
+
+  it('shows no like count for an entry without likes', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q-1', text: 'Ohne Likes', likes: 0 })])
+
+    // Act
+    await renderDetail()
+
+    // Assert
+    expect(screen.queryByText(/♥/)).not.toBeInTheDocument()
+  })
+
   it('labels a resting entry with the rest status', async () => {
     // Arrange
     await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest' })])
