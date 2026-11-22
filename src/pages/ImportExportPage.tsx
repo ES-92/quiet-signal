@@ -49,7 +49,7 @@ export function ImportExportPage() {
       }
       if (plan.newBooks.length) await importBooks(plan.newBooks)
       if (plan.newQuotes.length) await importQuotes(plan.newQuotes)
-      const parts = [t('kindleImported', { quotes: tCount('quotesCount', plan.importedCount), books: tCount('dataBooksValue', plan.bookCount) })]
+      const parts = [t('kindleImported', { quotes: tCount('quotesCount', plan.importedCount), books: tCount('fromBooks', plan.bookCount) })]
       if (plan.skippedCount) parts.push(tCount('kindleSkipped', plan.skippedCount))
       setKindleMessage(parts.join(' '))
     } catch (error) {
@@ -69,7 +69,7 @@ export function ImportExportPage() {
       }
       if (plan.newBooks.length) await importBooks(plan.newBooks)
       if (plan.newQuotes.length) await importQuotes(plan.newQuotes)
-      const parts = [t('readwiseImported', { quotes: tCount('quotesCount', plan.importedCount), books: tCount('dataBooksValue', plan.bookCount) })]
+      const parts = [t('readwiseImported', { quotes: tCount('quotesCount', plan.importedCount), books: tCount('fromBooks', plan.bookCount) })]
       if (plan.skippedCount) parts.push(tCount('readwiseSkipped', plan.skippedCount))
       setReadwiseMessage(parts.join(' '))
     } catch (error) {
