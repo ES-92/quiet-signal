@@ -6,14 +6,12 @@ import type { Quote, QuoteInput } from '../types/quote'
 import { AudioRecorder } from './AudioRecorder'
 import { PhotoCapture } from './PhotoCapture'
 
-// Creating submits every field; editing submits only the fields the user changed, so edits never overwrite changes made elsewhere on the page.
-type QuoteFormProps = {
+// Edit form for the detail page. It submits only the fields the user changed, so edits never overwrite changes made elsewhere on the page.
+interface QuoteFormProps {
+  quote: Quote
   submitLabel: string
-  defaultStatus?: QuoteInput['status']
-} & (
-  | { quote?: undefined; onSubmit: (input: QuoteInput) => Promise<void> }
-  | { quote: Quote; onSubmit: (changes: Partial<QuoteInput>) => Promise<void> }
-)
+  onSubmit: (changes: Partial<QuoteInput>) => Promise<void>
+}
 
 interface FormValues {
   text: string
@@ -35,33 +33,33 @@ interface FormValues {
   people: string
 }
 
-function toFormValues(quote: Quote | undefined, defaultStatus: QuoteInput['status']): FormValues {
+function toFormValues(quote: Quote): FormValues {
   return {
-    text: quote?.text ?? '',
-    author: quote?.author ?? '',
-    work: quote?.work ?? '',
-    source: quote?.source ?? '',
-    year: quote?.year ?? '',
-    bookId: quote?.bookId ?? '',
-    tags: quote?.tags.join(', ') ?? '',
-    note: quote?.note ?? '',
-    audioDataUrl: quote?.audioDataUrl,
-    audioMimeType: quote?.audioMimeType,
-    audioDurationMs: quote?.audioDurationMs,
-    imageDataUrl: quote?.imageDataUrl,
-    imageMimeType: quote?.imageMimeType,
-    favorite: quote?.favorite ?? false,
-    status: quote?.status ?? defaultStatus,
-    occurredAt: toLocalDateTime(quote?.occurredAt),
-    people: quote?.people?.join(', ') ?? ''
+    text: quote.text ?? '',
+    author: quote.author ?? '',
+    work: quote.work ?? '',
+    source: quote.source ?? '',
+    year: quote.year ?? '',
+    bookId: quote.bookId ?? '',
+    tags: quote.tags.join(', ') ?? '',
+    note: quote.note ?? '',
+    audioDataUrl: quote.audioDataUrl,
+    audioMimeType: quote.audioMimeType,
+    audioDurationMs: quote.audioDurationMs,
+    imageDataUrl: quote.imageDataUrl,
+    imageMimeType: quote.imageMimeType,
+    favorite: quote.favorite ?? false,
+    status: quote.status,
+    occurredAt: toLocalDateTime(quote.occurredAt),
+    people: quote.people?.join(', ') ?? ''
   }
 }
 
-export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signal' }: QuoteFormProps) {
+export function QuoteForm({ quote, onSubmit, submitLabel }: QuoteFormProps) {
   const { t } = useI18n()
   const { books, loadBooks } = useBookStore()
   // Values the form started from (kept in step with status/note/favorite, which can change elsewhere on the page).
-  const [initial, setInitial] = useState(() => toFormValues(quote, defaultStatus))
+  const [initial, setInitial] = useState(() => toFormValues(quote))
   const [text, setText] = useState(initial.text)
   const [author, setAuthor] = useState(initial.author)
   const [work, setWork] = useState(initial.work)
@@ -84,23 +82,21 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
 
   // Status, note and favorite are also changed by actions beside the form (wake, adopt as thought, favorite).
   // Each follows its stored value independently, and only overwrites the local value if the user has not touched it (adjusting state while rendering).
-  if (quote) {
-    const latest = toFormValues(quote, defaultStatus)
-    let nextInitial = initial
-    if (latest.status !== initial.status) {
-      nextInitial = { ...nextInitial, status: latest.status }
-      if (status === initial.status) setStatus(latest.status)
-    }
-    if (latest.note !== initial.note) {
-      nextInitial = { ...nextInitial, note: latest.note }
-      if (note === initial.note) setNote(latest.note)
-    }
-    if (latest.favorite !== initial.favorite) {
-      nextInitial = { ...nextInitial, favorite: latest.favorite }
-      if (favorite === initial.favorite) setFavorite(latest.favorite)
-    }
-    if (nextInitial !== initial) setInitial(nextInitial)
+  const latest = toFormValues(quote)
+  let nextInitial = initial
+  if (latest.status !== initial.status) {
+    nextInitial = { ...nextInitial, status: latest.status }
+    if (status === initial.status) setStatus(latest.status)
   }
+  if (latest.note !== initial.note) {
+    nextInitial = { ...nextInitial, note: latest.note }
+    if (note === initial.note) setNote(latest.note)
+  }
+  if (latest.favorite !== initial.favorite) {
+    nextInitial = { ...nextInitial, favorite: latest.favorite }
+    if (favorite === initial.favorite) setFavorite(latest.favorite)
+  }
+  if (nextInitial !== initial) setInitial(nextInitial)
 
   useEffect(() => {
     void loadBooks()
@@ -146,15 +142,11 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
     }
     // Saving always ends, even when the caller's submit fails; the caller reports the failure and the form keeps its values.
     try {
-      if (quote) {
-        const current: FormValues = {
-          text, author, work, source, year, bookId, tags, note, audioDataUrl, audioMimeType, audioDurationMs, imageDataUrl,
-          imageMimeType, favorite, status, occurredAt, people
-        }
-        await onSubmit(changedFields(input, current, initial))
-      } else {
-        await onSubmit(input)
+      const current: FormValues = {
+        text, author, work, source, year, bookId, tags, note, audioDataUrl, audioMimeType, audioDurationMs, imageDataUrl,
+        imageMimeType, favorite, status, occurredAt, people
       }
+      await onSubmit(changedFields(input, current, initial))
     } catch {
       // reported by the caller
     } finally {

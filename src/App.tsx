@@ -10,7 +10,6 @@ const InboxPage = lazy(() => import('./pages/InboxPage').then((m) => ({ default:
 const BooksPage = lazy(() => import('./pages/BooksPage').then((m) => ({ default: m.BooksPage })))
 const BookDetailPage = lazy(() => import('./pages/BookDetailPage').then((m) => ({ default: m.BookDetailPage })))
 const QuoteDetailPage = lazy(() => import('./pages/QuoteDetailPage').then((m) => ({ default: m.QuoteDetailPage })))
-const AddQuotePage = lazy(() => import('./pages/AddQuotePage').then((m) => ({ default: m.AddQuotePage })))
 const ImportExportPage = lazy(() => import('./pages/ImportExportPage').then((m) => ({ default: m.ImportExportPage })))
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const MigrationPage = lazy(() => import('./pages/MigrationPage').then((m) => ({ default: m.MigrationPage })))
@@ -32,7 +31,8 @@ export default function App() {
           <Route path="/books" element={<BooksPage />} />
           <Route path="/books/:id" element={<BookDetailPage />} />
           <Route path="/quote/:id" element={<QuoteDetailPage />} />
-          <Route path="/add" element={<AddQuotePage />} />
+          {/* Old capture page: everything starts as noise now, so send people to the capture sheet. */}
+          <Route path="/add" element={<Navigate to="/today?capture=text" replace />} />
           <Route path="/import" element={<ImportExportPage />} />
           <Route path="/export" element={<Navigate to="/import" replace />} />
           <Route path="/share-target" element={<ShareTargetPage />} />
