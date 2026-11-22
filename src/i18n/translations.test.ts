@@ -45,6 +45,24 @@ describe('Übersetzungen', () => {
     expect(missing).toEqual([])
   })
 
+  it('hat die Kurzlabels der Heute-Aktionsleiste in allen Sprachen', () => {
+    // Arrange
+    const keys = ['actionShortMore', 'actionShortThought', 'actionShortLess', 'actionShortRest'] as const
+
+    // Act
+    const labels = Object.fromEntries(
+      languages.map(({ code }) => [code, keys.map((key) => (translations[code] as Record<string, string>)[key]).join(' · ')])
+    )
+
+    // Assert
+    expect(labels).toEqual({
+      de: 'Öfter · Gedanke · Seltener · Ruhen',
+      en: 'More · Thought · Less · Rest',
+      es: 'Más · Idea · Menos · Reposo',
+      fr: 'Plus · Pensée · Moins · Repos'
+    })
+  })
+
   it('hat eine Standardsprache, die in der Sprachliste vorkommt', () => {
     // Arrange
     const codes = languages.map((language) => language.code)

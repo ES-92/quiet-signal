@@ -6,6 +6,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Changed
+- Heute: Die Aktionsleiste zeigt unter den Symbolen kurze Beschriftungen (Öfter · Gedanke · Seltener · Ruhen · Aktionen).
 - Klären: Wischen nach unten löscht nicht mehr, sondern legt den Eintrag in die Stille (mit Rückgängig, zurück ins Rauschen); Löschen in den Papierkorb gibt es nur noch über die eigene Löschen-Taste.
 - README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
 

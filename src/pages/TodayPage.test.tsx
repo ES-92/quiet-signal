@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, listBooks, listQuotes, upsertBooks, upsertQuotes } from '../db/database'
@@ -624,6 +624,23 @@ describe('TodayPage', () => {
       const toolbar = screen.getByRole('toolbar', { name: en.cardActionBar })
       expect(toolbar).toContainElement(screen.getByRole('button', { name: en.gestureRest }))
       expect(screen.getByLabelText(en.quickNoise)).not.toContainElement(toolbar)
+    })
+
+    it('zeigt unter den Symbolen sichtbare Kurzlabels Öfter, Gedanke, Seltener, Ruhen', async () => {
+      // Arrange
+      await seedStack()
+
+      // Act
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      const toolbar = within(screen.getByRole('toolbar', { name: en.cardActionBar }))
+      expect(toolbar.getByRole('button', { name: en.gestureMoreOften })).toHaveTextContent(en.actionShortMore)
+      expect(toolbar.getByRole('button', { name: en.gestureThought })).toHaveTextContent(en.actionShortThought)
+      expect(toolbar.getByRole('button', { name: en.gestureLessOften })).toHaveTextContent(en.actionShortLess)
+      expect(toolbar.getByRole('button', { name: en.gestureRest })).toHaveTextContent(en.actionShortRest)
+      expect([en.actionShortMore, en.actionShortThought, en.actionShortLess, en.actionShortRest]).toEqual(['More', 'Thought', 'Less', 'Rest'])
     })
 
     it('macht gesperrte Schaltflächen sichtbar blasser', async () => {
