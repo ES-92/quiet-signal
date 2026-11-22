@@ -1,27 +1,42 @@
 import { useI18n } from '../i18n/useI18n'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
-import type { Quote, SignalStrength } from '../types/quote'
+import type { Quote, QuoteStatus, SignalStrength } from '../types/quote'
 
 // Handlers for the top card: move to signals, keep in the inbox with edits, snooze, discard (with undo).
 export function useClarifyActions(
   quote: Quote | undefined,
-  buildPatch: (status: Quote['status'], strength?: SignalStrength) => Partial<Quote>,
-  onMessage: (message: string) => void
+  buildPatch: (status: QuoteStatus, strength?: SignalStrength) => Partial<Quote>,
+  onMessage: (message: string) => void,
+  // The optional first thought is appended on the fresh row after the main save, then cleared so a second save cannot repeat it.
+  firstThought?: { text: string; onSaved: () => void }
 ) {
   const { t } = useI18n()
-  const { saveQuote, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, addThought, snoozeQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
+
+  async function saveWithThought(id: string, status: QuoteStatus, strength?: SignalStrength) {
+    await saveQuote(id, buildPatch(status, strength))
+    if (firstThought?.text.trim()) {
+      // The entry itself is saved at this point; a failing thought keeps its draft text and only reports the failure.
+      try {
+        await addThought(id, firstThought.text)
+        firstThought.onSaved()
+      } catch {
+        showToast({ message: t('saveFailed') })
+      }
+    }
+  }
 
   async function finishSignal(strength?: SignalStrength) {
     if (!quote) return
-    await saveQuote(quote.id, buildPatch('signal', strength))
+    await saveWithThought(quote.id, 'signal', strength)
     onMessage(t('movedToSignals'))
   }
 
   async function saveDetails() {
     if (!quote) return
-    await saveQuote(quote.id, buildPatch('inbox'))
+    await saveWithThought(quote.id, 'inbox')
     onMessage(t('keptInNoise'))
   }
 

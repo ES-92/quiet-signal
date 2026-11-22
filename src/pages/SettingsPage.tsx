@@ -38,7 +38,8 @@ export function SettingsPage() {
   }, [loadBooks, loadQuotes])
 
   const noiseCount = quotes.filter((quote) => quoteStatus(quote) === 'inbox').length
-  const signalCount = quotes.length - noiseCount
+  const signalCount = quotes.filter((quote) => quoteStatus(quote) === 'signal').length
+  const restCount = quotes.filter((quote) => quoteStatus(quote) === 'rest').length
   const protectionStatus =
     pinEnabled && encryptionEnabled
       ? t('dataProtectionStrong')
@@ -59,6 +60,7 @@ export function SettingsPage() {
 
       <LocalStatusRibbon
         signalCount={signalCount}
+        restCount={restCount}
         noiseCount={noiseCount}
         bookCount={books.length}
         backupStateValue={backup.state}

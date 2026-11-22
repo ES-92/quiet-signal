@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db, upsertBooks, upsertQuotes } from '../db/database'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import { nextSessionIds, useDailySession } from './useDailySession'
 
@@ -172,5 +173,159 @@ describe('useDailySession', () => {
     expect(result.current.reflectionCount).toBe(3)
     expect(result.current.showReflectionNudge).toBe(true)
     expect(result.current.inboxCount).toBe(1)
+  })
+  it('stöbert über alle Signale, auch wenn nichts fällig ist, und kehrt mit Fertig zum Tagesstapel zurück', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future }), makeQuote({ id: 't-2', nextReviewAt: future })])
+    const { result } = await renderSession()
+    expect(result.current.dailyQuotes).toHaveLength(0)
+
+    // Act
+    act(() => result.current.startBrowsing())
+    const browseOrder = ids(result.current.dailyQuotes)
+    act(() => result.current.advanceIndex())
+    act(() => result.current.stopBrowsing())
+
+    // Assert
+    expect(browseOrder.sort()).toEqual(['t-1', 't-2'])
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.dailyQuotes).toHaveLength(0)
+    expect(result.current.currentIndex).toBe(0)
+  })
+
+  it('verlässt den Stöbermodus, wenn der Stöberstapel durch ist, und zeigt den Abschluss mit neuer Runde', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future }), makeQuote({ id: 't-2', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    act(() => result.current.advanceIndex())
+    expect(result.current.browsing).toBe(true)
+
+    // Act
+    act(() => result.current.advanceIndex())
+
+    // Assert
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.currentQuote).toBeUndefined()
+    expect(result.current.stackCompleted).toBe(true)
+    expect(result.current.hasSignals).toBe(true)
+    act(() => result.current.startBrowsing())
+    expect(result.current.browsing).toBe(true)
+    expect(result.current.dailyQuotes).toHaveLength(2)
+    expect(result.current.currentIndex).toBe(0)
+  })
+
+  it('geht mit Fertig weiter in die Ruheansicht ohne Abschluss', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+
+    // Act
+    act(() => result.current.stopBrowsing())
+
+    // Assert
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.stackCompleted).toBe(false)
+  })
+
+  it('springt mit rewindTo zur Karte mit dieser id und ignoriert unbekannte ids', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1' }), makeQuote({ id: 't-2' }), makeQuote({ id: 't-3' })])
+    const { result } = await renderSession()
+    await waitFor(() => expect(result.current.dailyQuotes).toHaveLength(3))
+    const order = ids(result.current.dailyQuotes)
+    act(() => result.current.advanceIndex())
+    act(() => result.current.advanceIndex())
+    act(() => result.current.advanceIndex())
+    expect(result.current.currentQuote).toBeUndefined()
+
+    // Act
+    act(() => result.current.rewindTo(order[0]))
+    const first = result.current.currentQuote?.id
+    act(() => result.current.rewindTo('gibt-es-nicht'))
+
+    // Assert
+    expect(first).toBe(order[0])
+    expect(result.current.currentIndex).toBe(0)
+  })
+
+  it('bleibt im Stöbermodus, wenn die letzte Karte ruht, und holt sie per showQuote zurück', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    expect(result.current.browsing).toBe(true)
+
+    // Act
+    act(() => result.current.hideQuote('t-1'))
+    const finished = { browsing: result.current.browsing, completed: result.current.stackCompleted }
+    act(() => result.current.showQuote('t-1'))
+
+    // Assert
+    expect(finished).toEqual({ browsing: false, completed: true })
+    expect(result.current.browsing).toBe(true)
+    expect(result.current.currentQuote?.id).toBe('t-1')
+    expect(result.current.stackCompleted).toBe(false)
+  })
+
+  it('beendet mit Fertig auch einen aufgebrauchten Stöberstapel und startet danach eine neue Runde', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    act(() => result.current.advanceIndex())
+
+    // Act
+    act(() => result.current.stopBrowsing())
+
+    // Assert
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.stackCompleted).toBe(false)
+    act(() => result.current.startBrowsing())
+    expect(result.current.currentQuote?.id).toBe('t-1')
+  })
+
+  it('blendet einen Rückgängig-Hinweis aus, wenn der Stöbermodus beginnt oder endet', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+
+    // Act / Assert
+    useToastStore.getState().showToast({ message: 'Rückgängig?', actionLabel: 'Undo', onAction: () => {} })
+    act(() => result.current.startBrowsing())
+    expect(useToastStore.getState().toast).toBeNull()
+
+    useToastStore.getState().showToast({ message: 'Rückgängig?', actionLabel: 'Undo', onAction: () => {} })
+    act(() => result.current.stopBrowsing())
+    expect(useToastStore.getState().toast).toBeNull()
+
+    useToastStore.getState().showToast({ message: 'Nur Info' })
+    act(() => result.current.startBrowsing())
+    expect(useToastStore.getState().toast?.message).toBe('Nur Info')
+  })
+
+  it('hält den Stöberstapel stabil, während sich die Bibliothek neu lädt', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future }), makeQuote({ id: 't-2', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    const order = ids(result.current.dailyQuotes)
+
+    // Act
+    await act(async () => {
+      await useQuoteStore.getState().loadQuotes()
+    })
+
+    // Assert
+    expect(ids(result.current.dailyQuotes)).toEqual(order)
+    expect(result.current.browsing).toBe(true)
   })
 })

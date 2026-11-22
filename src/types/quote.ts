@@ -1,6 +1,13 @@
-export type QuoteStatus = 'inbox' | 'signal'
+export type QuoteStatus = 'inbox' | 'signal' | 'rest'
 export type SignalStrength = 'quiet' | 'normal' | 'strong'
 export type EntryType = 'note' | 'memory' | 'book_quote' | 'idea' | 'conversation' | 'observation'
+
+export interface Thought {
+  id: string
+  text: string
+  createdAt: string
+  fromNote?: boolean
+}
 
 export interface Quote {
   id: string
@@ -36,6 +43,8 @@ export interface Quote {
   lastReviewedAt?: string
   nextReviewAt?: string
   snoozedUntil?: string
+  reviewIntervalDays?: number
+  thoughts?: Thought[]
   deletedAt?: string
 }
 

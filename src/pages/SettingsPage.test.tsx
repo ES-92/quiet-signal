@@ -19,6 +19,7 @@ import { useSettingsStore } from '../store/useSettingsStore'
 import { useToastStore } from '../store/useToastStore'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import { renderWithProviders } from '../test/render'
+import pkg from '../../package.json'
 import { SettingsPage } from './SettingsPage'
 
 const reminder = vi.hoisted(() => ({
@@ -43,7 +44,6 @@ const en = translations.en
 function resetSettings() {
   useSettingsStore.setState({
     dailyCount: 5,
-    dailyMode: 'balanced',
     theme: 'light',
     reminderEnabled: false,
     reminderTime: '08:00'
@@ -100,39 +100,66 @@ describe('SettingsPage: Sprache, Darstellung, Tagesansicht', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('speichert Anzahl und Auswahlstil der Tageshighlights', () => {
+  it('speichert die Anzahl der Tageshighlights und bietet keinen Auswahlmodus mehr', () => {
     // Arrange
     renderWithProviders(<SettingsPage />)
 
     // Act
     fireEvent.change(screen.getByLabelText(en.highlightsPerDay), { target: { value: '10' } })
-    fireEvent.change(screen.getByLabelText(en.selectionStyle), { target: { value: 'random' } })
 
     // Assert
     expect(useSettingsStore.getState().dailyCount).toBe(10)
-    expect(useSettingsStore.getState().dailyMode).toBe('random')
+    expect(screen.queryByText('Selection style')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'More random' })).not.toBeInTheDocument()
   })
 })
 
 describe('SettingsPage: Statusband und Bibliothek', () => {
   it('zeigt Signal-, Rausch- und Buchzahlen sowie offenen Schutz', async () => {
     // Arrange
-    await upsertQuotes([makeQuote({ status: 'signal' }), makeQuote({ status: 'signal' }), makeQuote({ status: 'inbox' })])
+    await upsertQuotes([makeQuote({ status: 'signal' }), makeQuote({ status: 'signal' }), makeQuote({ status: 'rest' }), makeQuote({ status: 'inbox' })])
     await upsertBooks([makeBook()])
 
     // Act
     renderWithProviders(<SettingsPage />)
 
     // Assert
-    expect(await screen.findByText(en.dataSignalsValue.replace('{signals}', '2').replace('{noise}', '1'))).toBeInTheDocument()
-    expect(screen.getByText(en.dataBooksValue.replace('{count}', '1'))).toBeInTheDocument()
-    expect(screen.getByText(en.storedLocally.replace('{count}', '3'))).toBeInTheDocument()
+    expect(await screen.findByText('2 signals, 1 at rest, 1 noise')).toBeInTheDocument()
+    expect(screen.getByText(en.dataBooksValue_one.replace('{count}', '1'))).toBeInTheDocument()
+    expect(screen.getByText(en.storedLocally.replace('{count}', '4'))).toBeInTheDocument()
     expect(screen.getByText(en.dataProtectionOpen)).toBeInTheDocument()
     expect(screen.getByText(en.dataBackupStale)).toBeInTheDocument()
   })
 })
 
 describe('SettingsPage: Backup', () => {
+  it.each([
+    [0, en.backupToday],
+    [1, 'Last backup 1 day ago.'],
+    [3, 'Last backup 3 days ago.']
+  ])('nennt das Alter des letzten Backups nach %i Tag(en) in der richtigen Zahlform', async (days, expected) => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    localStorage.setItem('quiet-signal-last-backup-at', new Date(Date.now() - days * 86_400_000 - 60_000).toISOString())
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+
+    // Assert
+    expect(await screen.findByText(expected)).toBeInTheDocument()
+  })
+
+  it('zeigt im Statusband ein einzelnes Signal in der Einzahl', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ status: 'signal' })])
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+
+    // Assert
+    expect(await screen.findByText('1 signal, 0 at rest, 0 noise')).toBeInTheDocument()
+  })
+
   it('meldet ein leeres Archiv ohne Backup-Hinweis', () => {
     // Arrange / Act
     renderWithProviders(<SettingsPage />)
@@ -156,7 +183,7 @@ describe('SettingsPage: Backup', () => {
     expect(getLastBackupAt()).toBeDefined()
     expect(screen.getByText(/^Backup created:/)).toBeInTheDocument()
     expect(screen.getByText(en.dataBackupFresh)).toBeInTheDocument()
-    expect(screen.getByText(en.backupStatus.replace('{age}', '0'))).toBeInTheDocument()
+    expect(screen.getByText(en.backupToday)).toBeInTheDocument()
   })
 })
 
@@ -563,7 +590,7 @@ describe('SettingsPage: Daten, Onboarding, Support', () => {
     await upsertQuotes([makeQuote()])
     await upsertBooks([makeBook()])
     renderWithProviders(<SettingsPage />)
-    await screen.findByText(en.storedLocally.replace('{count}', '1'))
+    await screen.findByText(en.storedLocally_one.replace('{count}', '1'))
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: en.deleteAllLocalData }))
@@ -618,5 +645,19 @@ describe('SettingsPage: Daten, Onboarding, Support', () => {
       'href',
       'https://paypal.me/ErikSchroeder92'
     )
+  })
+})
+
+describe('SettingsPage: Release-Status', () => {
+  it('zeigt die Version aus package.json statt eines festen Textes', async () => {
+    // Arrange
+    renderWithProviders(<SettingsPage />)
+
+    // Act
+    const label = await screen.findByText(en.releaseVersionLabel)
+
+    // Assert
+    expect(label.parentElement).toHaveTextContent(pkg.version)
+    expect(screen.queryByText(/Daily Build/)).not.toBeInTheDocument()
   })
 })

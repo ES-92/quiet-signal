@@ -48,6 +48,10 @@ function lastButton(name: string) {
   return buttons[buttons.length - 1]
 }
 
+function daysAgo(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
 function currentCardText() {
   return screen.getByRole('blockquote').textContent
 }
@@ -67,6 +71,37 @@ afterEach(() => {
 })
 
 describe('InboxPage', () => {
+  it('zeigt die Klär-Frage im Kopf der Klären-Seite', async () => {
+    // Arrange / Act
+    await renderInbox()
+
+    // Assert
+    expect(screen.getByText(en.clarifyQuestion)).toBeInTheDocument()
+  })
+
+  it('zeigt bei einem 22 Tage alten Eintrag den Altershinweis', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'old', status: 'inbox', createdAt: daysAgo(22) })])
+
+    // Act
+    await renderInbox()
+
+    // Assert
+    expect(await screen.findByText('unclarified for 22 days')).toBeInTheDocument()
+  })
+
+  it('zeigt bei einem 6 Tage alten Eintrag keinen Altershinweis', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'young', status: 'inbox', createdAt: daysAgo(6) })])
+
+    // Act
+    await renderInbox()
+
+    // Assert
+    await screen.findByRole('blockquote')
+    expect(screen.queryByText(/unclarified for/)).not.toBeInTheDocument()
+  })
+
   it('zeigt den Leerzustand, wenn nichts im Eingang liegt', async () => {
     // Arrange / Act
     await renderInbox()
@@ -472,7 +507,8 @@ describe('InboxPage', () => {
         people: ['Anna', 'Bob']
       })
       expect(saved?.note).toBeUndefined()
-      expect(saved?.nextReviewAt).toBeUndefined()
+      expect(saved?.reviewIntervalDays).toBe(1)
+      expect(new Date(saved?.nextReviewAt ?? '').getHours()).toBe(6)
       expect(new Date(saved?.occurredAt ?? '').getTime()).toBe(new Date('2026-03-04T10:30').getTime())
     })
 
@@ -493,6 +529,25 @@ describe('InboxPage', () => {
       await screen.findByText(en.keptInNoise)
       const saved = await getQuote('k-1')
       expect(saved).toMatchObject({ status: 'inbox', note: 'Notiz dazu', nextReviewAt: '2026-02-01T09:00:00.000Z' })
+    })
+
+    it('speichert den ersten Gedanken bei zweimaligem Speichern nur einmal', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 't-1', text: 'Roh', status: 'inbox' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.change(await screen.findByLabelText(en.firstThoughtLabel), { target: { value: 'Mein Gedanke' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.saveDetails }))
+      await waitFor(async () => expect((await getQuote('t-1'))?.thoughts).toHaveLength(1))
+      await waitFor(() => expect(screen.getByLabelText(en.firstThoughtLabel)).toHaveValue(''))
+      fireEvent.click(screen.getByRole('button', { name: en.saveDetails }))
+
+      // Assert
+      await waitFor(async () => expect((await getQuote('t-1'))?.updatedAt).toBeTruthy())
+      expect((await getQuote('t-1'))?.thoughts?.map((thought) => thought.text)).toEqual(['Mein Gedanke'])
     })
   })
 })

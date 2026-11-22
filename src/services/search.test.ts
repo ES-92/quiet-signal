@@ -12,6 +12,18 @@ beforeEach(() => {
 })
 
 describe('filterQuotes', () => {
+  it('findet einen Eintrag über den Text eines Gedankens', () => {
+    // Arrange
+    const treffer = makeQuote({ thoughts: [{ id: 't-1', text: 'Später dazugedacht: Nebel', createdAt: '2026-02-01T09:00:00.000Z' }] })
+    const keiner = makeQuote({ text: 'Lärm' })
+
+    // Act
+    const result = filterQuotes([treffer, keiner], filters({ query: 'nebel' }))
+
+    // Assert
+    expect(result).toEqual([treffer])
+  })
+
   it('liefert alle Zitate bei leeren Filtern', () => {
     // Arrange
     const quotes = [makeQuote(), makeQuote()]

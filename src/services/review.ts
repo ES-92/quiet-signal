@@ -1,6 +1,5 @@
 import { quoteStatus, signalStrength, isSnoozed, type Quote, type SignalStrength } from '../types/quote'
 import { weightMultiplier, type BookWeight } from '../types/book'
-import type { DailyMode } from '../store/useSettingsStore'
 import { localDateKey } from '../utils/date'
 
 export type BookWeightMap = Record<string, BookWeight>
@@ -16,95 +15,29 @@ export function nextMorningISO(now = new Date()): string {
   return next.toISOString()
 }
 
-export type ReviewAction = 'read' | 'later'
-
-export function nextReviewDate(quote: Quote, action: ReviewAction) {
-  const now = new Date()
-
-  if (action === 'later') {
-    return new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString()
-  }
-
-  const strength = signalStrength(quote)
-
-  if (quote.reviewCount === 0) {
-    return new Date(now.getTime() + (strength === 'quiet' ? 2 : 1) * dayMs).toISOString()
-  }
-
-  if (quote.reviewCount === 1) {
-    const interval = strength === 'strong' ? 2 : strength === 'quiet' ? 5 : 3
-    return new Date(now.getTime() + interval * dayMs).toISOString()
-  }
-
-  const base = quote.favorite ? 5 : 7
-  const interval = strength === 'strong' ? Math.max(3, base - 2) : strength === 'quiet' ? base + 4 : base
-  return new Date(now.getTime() + interval * dayMs).toISOString()
-}
-
-export function applyReview(quote: Quote, action: ReviewAction): Partial<Quote> {
-  const timestamp = new Date().toISOString()
-
-  if (action === 'later') {
-    return {
-      nextReviewAt: nextReviewDate(quote, action),
-      updatedAt: timestamp
-    }
-  }
-
-  return {
-    reviewCount: quote.reviewCount + 1,
-    lastReviewedAt: timestamp,
-    nextReviewAt: nextReviewDate(quote, action),
-    updatedAt: timestamp
-  }
-}
-
-export function selectDailyQuotes(quotes: Quote[], limit = 5) {
-  return selectDailyStack(quotes, { limit, mode: 'balanced' })
-}
-
 export function selectDailyStack(
   quotes: Quote[],
-  options: { limit: number; mode: DailyMode; date?: Date; bookWeights?: BookWeightMap } = {
-    limit: 5,
-    mode: 'balanced'
-  }
+  options: { limit: number; date?: Date; bookWeights?: BookWeightMap } = { limit: 5 }
 ) {
   const now = Date.now()
   const baseDate = options.date ?? new Date()
   const weights = options.bookWeights ?? {}
   const dateKey = localDateKey(baseDate)
-  const random = seededRandom(`${dateKey}:${options.limit}:${options.mode}`)
+  const random = seededRandom(`${dateKey}:${options.limit}`)
 
-  const endOfToday = new Date(baseDate)
-  endOfToday.setHours(23, 59, 59, 999)
-  const endOfTodayMs = endOfToday.getTime()
-
-  // Items already read today drop out so the stack empties as you work through
-  // it (and so "read" entries don't immediately reappear via the backlog).
+  // Items already read today drop out so the stack empties as you work through it.
   const reviewedToday = (quote: Quote) =>
     Boolean(quote.lastReviewedAt) && localDateKey(new Date(quote.lastReviewedAt as string)) === dateKey
 
-  const scored = quotes
+  // Only due signals: the stack is never padded from the backlog, so it can be empty.
+  const ordered = quotes
     .filter((quote) => quoteStatus(quote) === 'signal')
     .filter((quote) => !quote.deletedAt)
     .filter((quote) => !isSnoozed(quote, now))
     .filter((quote) => !reviewedToday(quote))
-    .map((quote) => ({
-      quote,
-      due: !quote.nextReviewAt || new Date(quote.nextReviewAt).getTime() <= now,
-      score: stackScore(quote, now, options.mode, random, weights)
-    }))
-
-  const due = scored.filter((item) => item.due).sort((a, b) => b.score - a.score)
-  // Backlog keeps the daily stack from ever running dry: entries that aren't due
-  // until a later day (today's snoozed items are excluded — they return on their
-  // own) surface as a refresher when too few are strictly due.
-  const backlog = scored
-    .filter((item) => !item.due && new Date(item.quote.nextReviewAt as string).getTime() > endOfTodayMs)
+    .filter((quote) => !quote.nextReviewAt || new Date(quote.nextReviewAt).getTime() <= now)
+    .map((quote) => ({ quote, score: stackScore(quote, now, random, weights) }))
     .sort((a, b) => b.score - a.score)
-
-  const ordered = [...due, ...backlog]
 
   const selected: Quote[] = []
   const usedAuthors = new Set<string>()
@@ -133,12 +66,24 @@ export function selectDailyStack(
   return selected
 }
 
-function stackScore(quote: Quote, today: number, mode: DailyMode, random: () => number, weights: BookWeightMap) {
+function stackScore(quote: Quote, today: number, random: () => number, weights: BookWeightMap) {
   const reviewScore = scoreQuote(quote, today)
   const likeBonus = Math.min(quote.likes ?? 0, 8) * 35
   const weighted = (reviewScore + likeBonus) * weightMultiplier(weights[quote.bookId ?? '']) * signalMultiplier(signalStrength(quote))
-  const randomScore = random() * (mode === 'random' ? 1200 : 180)
+  const randomScore = random() * 180
   return weighted + randomScore
+}
+
+// Browsing shuffles every live signal, independent of due date, snooze and today's reviews.
+export function selectBrowseStack(quotes: Quote[], options: { limit: number; seed: string }): Quote[] {
+  const random = seededRandom(options.seed)
+  const pool = quotes.filter((quote) => quoteStatus(quote) === 'signal' && !quote.deletedAt)
+  // Fisher-Yates with the seeded generator keeps the order stable per seed.
+  for (let index = pool.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1))
+    ;[pool[index], pool[swap]] = [pool[swap], pool[index]]
+  }
+  return pool.slice(0, options.limit)
 }
 
 function signalMultiplier(strength: SignalStrength) {

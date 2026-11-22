@@ -35,7 +35,7 @@ export function buildReflection(quotes: Quote[], books: Book[], period: Reflecti
       return date >= start.getTime() && date <= end.getTime()
     })
     .sort((a, b) => entryDate(b) - entryDate(a))
-  const signals = entries.filter((quote) => quoteStatus(quote) === 'signal')
+  const signals = entries.filter((quote) => quoteStatus(quote) !== 'inbox')
   const noise = entries.filter((quote) => quoteStatus(quote) === 'inbox')
 
   return {

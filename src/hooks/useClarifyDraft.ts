@@ -1,12 +1,21 @@
 import { useState } from 'react'
 import type { Book } from '../types/book'
-import { entryType, type EntryType, type Quote, type SignalStrength } from '../types/quote'
+import { statusChangePatch } from '../services/lifecycle'
+import {
+  entryType,
+  quoteStatus,
+  type EntryType,
+  type Quote,
+  type QuoteStatus,
+  type SignalStrength
+} from '../types/quote'
 import { clean, fromLocalDateTime, splitList, toLocalDateTime } from '../utils/draftFields'
 
 export interface ClarifyDraft {
   text: string
   tags: string
   note: string
+  firstThought: string
   entryType: EntryType
   strength: SignalStrength
   author: string
@@ -25,6 +34,7 @@ const emptyDraft: ClarifyDraft = {
   text: '',
   tags: '',
   note: '',
+  firstThought: '',
   entryType: 'note',
   strength: 'normal',
   author: '',
@@ -41,6 +51,7 @@ function draftFromQuote(quote: Quote): ClarifyDraft {
     text: quote.text ?? '',
     tags: quote.tags.join(', '),
     note: quote.note ?? '',
+    firstThought: '',
     entryType: entryType(quote),
     strength: quote.signalStrength ?? 'normal',
     author: quote.author ?? '',
@@ -84,7 +95,7 @@ export function useClarifyDraft(quote: Quote | undefined, books: Book[]) {
     }))
   }
 
-  function buildPatch(status: Quote['status'], strength = draft.strength): Partial<Quote> {
+  function buildPatch(status: QuoteStatus, strength = draft.strength): Partial<Quote> {
     return {
       text: draft.text.trim(),
       tags: splitList(draft.tags).map((tag) => tag.toLowerCase()),
@@ -102,7 +113,7 @@ export function useClarifyDraft(quote: Quote | undefined, books: Book[]) {
       locationName: clean(draft.locationName),
       locationLatitude: draft.locationLatitude,
       locationLongitude: draft.locationLongitude,
-      nextReviewAt: status === 'signal' ? undefined : quote?.nextReviewAt
+      ...statusChangePatch(quote ? quoteStatus(quote) : 'inbox', status)
     }
   }
 

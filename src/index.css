@@ -64,6 +64,18 @@ input,
 textarea,
 select {
   color: rgb(var(--color-ink));
+  /* Never wider than their container: a long <option> must not stretch a grid column past a narrow phone screen. */
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* iOS Safari zooms into fields below 16px on focus and stays zoomed, which forces sideways panning. */
+@media (max-width: 639px) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
 }
 
 button:focus-visible,

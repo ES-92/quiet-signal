@@ -1,4 +1,4 @@
-import { BookOpen, Clock, ExternalLink, Heart, MapPin, UserRound } from 'lucide-react'
+import { BookOpen, Clock, ExternalLink, Heart, MapPin, Sun, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { entryType, quoteStatus, signalStrength, type Quote } from '../types/quote'
@@ -13,10 +13,11 @@ interface QuoteCardProps {
   onFavorite?: (id: string) => void
   onLike?: (id: string) => void
   onDislike?: (id: string) => void
+  onWake?: (id: string) => void
   compact?: boolean
 }
 
-export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislike, compact = false }: QuoteCardProps) {
+export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislike, onWake, compact = false }: QuoteCardProps) {
   const { t } = useI18n()
   const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
   const strength = signalStrength(quote)
@@ -68,7 +69,7 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislik
           {t(typeLabels[entryType(quote)])}
         </span>
         <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">
-          {status === 'inbox' ? t('entryStatus_inbox') : t(strengthLabels[strength])}
+          {status === 'inbox' ? t('entryStatus_inbox') : status === 'rest' ? t('entryStatus_rest') : t(strengthLabels[strength])}
         </span>
         {quote.locationName && (
           <span className="inline-flex items-center gap-1 rounded border border-line px-2 py-1 text-xs text-graphite">
@@ -105,6 +106,16 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislik
             title={t('later')}
           >
             <Clock size={16} /> <span className={compact ? 'sr-only' : ''}>{t('later')}</span>
+          </button>
+        )}
+        {onWake && (
+          <button
+            className={compact ? 'quiet-touch inline-flex h-10 w-10 items-center justify-center rounded-full border border-clay text-clay' : 'inline-flex min-h-[44px] items-center gap-2 rounded-md border border-clay px-3 py-2 text-sm text-clay'}
+            onClick={() => onWake(quote.id)}
+            aria-label={t('wake')}
+            title={t('wake')}
+          >
+            <Sun size={16} /> <span className={compact ? 'sr-only' : ''}>{t('wake')}</span>
           </button>
         )}
         {onLike && (

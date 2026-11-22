@@ -31,7 +31,8 @@ export function filterQuotes(quotes: Quote[], filters: QuoteFilters) {
       quote.occurredAt,
       quote.people?.join(' '),
       quote.locationName,
-      quote.tags.join(' ')
+      quote.tags.join(' '),
+      quote.thoughts?.map((thought) => thought.text).join(' ')
     ]
       .filter(Boolean)
       .join(' ')

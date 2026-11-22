@@ -27,7 +27,8 @@ export function InboxPage() {
   const { finishSignal, saveDetails, snoozeCurrent, discardCurrent } = useClarifyActions(
     currentQuote,
     buildPatch,
-    setMessage
+    setMessage,
+    { text: draft.firstThought, onSaved: () => updateDraft({ firstThought: '' }) }
   )
 
   // The coach is shown once per device; whether it was seen is read once when the page mounts.
@@ -55,6 +56,7 @@ export function InboxPage() {
         <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('noiseInbox')}</p>
         <h1 className="mt-2 font-serif text-4xl leading-tight sm:text-5xl">{t('noiseInboxTitle')}</h1>
         <p className="mt-4 max-w-xl leading-7 text-graphite">{t('noiseInboxIntro')}</p>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-graphite">{t('clarifyQuestion')}</p>
         <button
           className="mt-5 min-h-[46px] w-full rounded-md bg-ink px-4 py-3 text-sm text-paper shadow-[0_14px_34px_rgba(31,30,28,0.14)] sm:hidden"
           onClick={() => openCapture('text')}

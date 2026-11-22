@@ -17,3 +17,9 @@ export const useToastStore = create<ToastStore>((set) => ({
   showToast: (payload) => set({ toast: { ...payload, id: Date.now() } }),
   hideToast: () => set({ toast: null })
 }))
+
+// An undo toast of an earlier action would act on a card that is no longer where it was; the next deck action dismisses it.
+export function dismissUndoToast() {
+  const { toast, hideToast } = useToastStore.getState()
+  if (toast?.onAction) hideToast()
+}

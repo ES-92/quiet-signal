@@ -1,10 +1,10 @@
 import { useI18n } from '../../i18n/useI18n'
-import { useSettingsStore, type DailyMode } from '../../store/useSettingsStore'
+import { useSettingsStore } from '../../store/useSettingsStore'
 import { Panel } from './Panel'
 
 export function DailyReviewSection() {
   const { t } = useI18n()
-  const { dailyCount, dailyMode, setDailyCount, setDailyMode } = useSettingsStore()
+  const { dailyCount, setDailyCount } = useSettingsStore()
 
   return (
     <Panel title={t('dailyReview')}>
@@ -21,17 +21,6 @@ export function DailyReviewSection() {
               {count}
             </option>
           ))}
-        </select>
-      </label>
-      <label className="mt-4 grid gap-2 text-sm text-graphite">
-        <span>{t('selectionStyle')}</span>
-        <select
-          className="rounded-md border border-line bg-paper px-3 py-2"
-          value={dailyMode}
-          onChange={(event) => setDailyMode(event.target.value as DailyMode)}
-        >
-          <option value="balanced">{t('balancedSelection')}</option>
-          <option value="random">{t('randomSelection')}</option>
         </select>
       </label>
     </Panel>

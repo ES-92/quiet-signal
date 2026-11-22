@@ -32,14 +32,24 @@ Quiet Signal is built around a simple metaphor: capture the **noise**, keep the 
 ## Features
 
 - **Capture anything** — text, photos, and voice notes, in seconds.
-- **Triage flow** — new captures land in *Rauschen* (noise); a calm swipe deck lets you keep, snooze, or discard them into *Signal*.
-- **Daily review** — a spaced-repetition deck resurfaces your signals over time (weighted by how much they matter to you).
+- **Triage flow** — new captures land in *Rauschen* (noise); in Clarify you keep what touches you as *Signal*, snooze it for later, or discard it.
+- **Daily review** — a calm deck shows only the signals that are due. Swipe → to see one more often, ← less often, ↑ to add a dated thought, ↓ to let it rest; "Browse anyway" shuffles through everything without changing any schedule.
 - **Books & sources** — group quotes by book, tune how often a book resurfaces.
 - **Reflections** — a quiet weekly/monthly letter built from your own signals.
 - **Import & export** — import **Kindle** clippings and **Readwise CSV**; export everything as **JSON, CSV, or Markdown**. Your data is always yours.
 - **Private by design** — no account, no cloud, no tracking. Optional **PIN lock** (a view lock) and **AES-GCM vault encryption** for your entries; see the [security model](docs/ARCHITECTURE.md#security-model).
 - **Installable PWA** — works offline, "Add to Home Screen", share-target support.
 - **Multilingual** — German, English, Spanish, French.
+
+## Noise, Signal, Rest
+
+> Collect the noise. Keep what signals. Let the rest go quiet.
+
+- **Noise** (*Rauschen*) — everything that caught your attention before you decided whether it means anything to you. It never returns on its own; it waits to be clarified. Guiding question: *"Did I notice this?"*
+- **Signal** — what you consciously kept while clarifying, because it concerns you. Only signals return in the daily stack, as often as you set with → and ←, and you collect dated thoughts on each one. Guiding question: *"Do I want to meet this again?"*
+- **Rest** (*Stille*) — a signal that has had its time. It leaves the stack but keeps all its thoughts in your library and can be woken at any time. Guiding question: *"Did this give me what it could?"*
+
+Example: you capture a line by Seneca as noise. While clarifying you keep it as a signal, and it comes back after 1 day. Each time you swipe → it returns a bit later: after 1, 2, 3, 5, 8, 12, 18, 27 … days. If it comes up after 8 days and you swipe ←, the next gap is 32 days. When it has given you what it could, swipe ↓ to let it go quiet: the entry and its thoughts stay in your library, and Wake brings it back, starting again at 1 day.
 
 ## Who is it for?
 

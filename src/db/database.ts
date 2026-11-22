@@ -16,6 +16,7 @@ import {
   stageEncryptionRecord,
   type VaultKeyMaterial
 } from '../services/security'
+import { reviewDateFromInterval } from '../services/lifecycle'
 import type { Book, BookInput } from '../types/book'
 import type { Quote, QuoteInput } from '../types/quote'
 
@@ -183,13 +184,18 @@ export function createQuote(input: QuoteInput) {
 
 async function insertQuote(input: QuoteInput) {
   const timestamp = now()
+  const status = input.status ?? 'signal'
+  // New signals start tomorrow at 06:00 (a 1-day interval), like signals from Klären, instead of being due at once.
+  const startsTomorrow =
+    status === 'signal' ? { reviewIntervalDays: input.reviewIntervalDays ?? 1, nextReviewAt: reviewDateFromInterval(input.reviewIntervalDays ?? 1) } : {}
   const quote: Quote = {
     ...input,
+    ...startsTomorrow,
     id: crypto.randomUUID(),
     tags: normalizeTags(input.tags),
     favorite: input.favorite ?? false,
     likes: 0,
-    status: input.status ?? 'signal',
+    status,
     signalStrength: input.signalStrength ?? 'normal',
     entryType: input.entryType ?? 'note',
     people: input.people ?? [],
@@ -225,7 +231,11 @@ export function upsertQuotes(quotes: Quote[]) {
 // are kept apart by the bulk-rewrite lock above), and it only serializes within a single tab.
 const quoteUpdateQueue = new Map<string, Promise<unknown>>()
 
-export function updateQuote(id: string, patch: Partial<Quote>): Promise<Quote | undefined> {
+export type QuotePatchOrUpdater = Partial<Quote> | ((current: Quote) => Partial<Quote> | null)
+
+// The updater form runs inside the per-id queue on the freshly read row, so patches derived from the
+// current state (counters, lists) never act on stale data. Returning null skips the write.
+export function updateQuote(id: string, patch: QuotePatchOrUpdater): Promise<Quote | undefined> {
   const previous = quoteUpdateQueue.get(id) ?? Promise.resolve()
   const run = previous.catch(() => undefined).then(() => guardedWrite(() => applyQuoteUpdate(id, patch)))
   quoteUpdateQueue.set(id, run)
@@ -236,10 +246,16 @@ export function updateQuote(id: string, patch: Partial<Quote>): Promise<Quote | 
   return run
 }
 
-async function applyQuoteUpdate(id: string, patch: Partial<Quote>) {
+async function applyQuoteUpdate(id: string, patchOrUpdater: QuotePatchOrUpdater) {
   const timestamp = now()
   const current = await getQuote(id)
-  if (!current) return undefined
+  if (!current) {
+    // A plain patch on a vanished row stays a quiet no-op; an updater derives from the row, so a missing one is a failure the caller must see.
+    if (typeof patchOrUpdater === 'function') throw new Error('Quote not found or unreadable')
+    return undefined
+  }
+  const patch = typeof patchOrUpdater === 'function' ? patchOrUpdater(current) : patchOrUpdater
+  if (!patch) return current
   const nextQuote = {
     ...current,
     ...patch,

@@ -1,4 +1,4 @@
-import type { Quote } from '../types/quote'
+import type { Quote, Thought } from '../types/quote'
 import type { Book } from '../types/book'
 import { normalizeTags } from '../db/database'
 import { csvEscape, parseCsv } from './csv'
@@ -40,7 +40,9 @@ export function parseCsvImport(content: string): Quote[] {
     headers.forEach((header, index) => {
       entry[header] = row[index] ?? ''
     })
-    return normalizeImportedQuote(entry)
+    // normalizeThoughts validates the parsed lines like the JSON path (ids are generated there).
+    const thoughts = parseCsvThoughts(entry.thoughts ?? '') as unknown as Thought[] | undefined
+    return normalizeImportedQuote({ ...entry, thoughts })
   })
 }
 
@@ -66,7 +68,9 @@ export function exportCsv(quotes: Quote[]) {
     'people',
     'locationName',
     'locationLatitude',
-    'locationLongitude'
+    'locationLongitude',
+    'reviewIntervalDays',
+    'thoughts'
   ]
   const rows = quotes.map((quote) =>
     [
@@ -86,7 +90,9 @@ export function exportCsv(quotes: Quote[]) {
       quote.people?.join(', ') ?? '',
       quote.locationName ?? '',
       quote.locationLatitude !== undefined ? String(quote.locationLatitude) : '',
-      quote.locationLongitude !== undefined ? String(quote.locationLongitude) : ''
+      quote.locationLongitude !== undefined ? String(quote.locationLongitude) : '',
+      quote.reviewIntervalDays !== undefined ? String(quote.reviewIntervalDays) : '',
+      (quote.thoughts ?? []).map((thought) => `${thought.createdAt} ${thought.text}`).join('\n')
     ].map(csvEscape)
   )
 
@@ -144,7 +150,7 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     imageMimeType: safeMediaMimeType(row.imageDataUrl, row.imageMimeType, allowedImageMimeTypes),
     favorite: row.favorite === true || String(row.favorite).toLowerCase() === 'true',
     likes: Number(row.likes ?? 0) || 0,
-    status: row.status === 'inbox' ? 'inbox' : 'signal',
+    status: row.status === 'inbox' || row.status === 'rest' ? row.status : 'signal',
     signalStrength: row.signalStrength === 'quiet' || row.signalStrength === 'strong' ? row.signalStrength : 'normal',
     entryType: normalizeEntryType(row.entryType),
     occurredAt: optional(row.occurredAt),
@@ -156,8 +162,57 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     updatedAt: row.updatedAt || timestamp,
     reviewCount: optionalNumber(row.reviewCount) ?? 0,
     lastReviewedAt: optional(row.lastReviewedAt),
-    nextReviewAt: optional(row.nextReviewAt)
+    nextReviewAt: optional(row.nextReviewAt),
+    reviewIntervalDays: validReviewInterval(row.reviewIntervalDays),
+    thoughts: normalizeThoughts(row.thoughts)
   }
+}
+
+function validReviewInterval(value: unknown) {
+  if (typeof value !== 'number' && typeof value !== 'string') return undefined
+  const days = optionalNumber(value)
+  return days !== undefined && Number.isInteger(days) && days >= 1 && days <= 365 ? days : undefined
+}
+
+const maxThoughtTextChars = 10_000
+const maxThoughtsPerQuote = 500
+
+// CSV cell format of exportCsv: "<ISO date> <text>"; a thought may span several lines. Only an exact ISO stamp starts a new
+// thought, every other line continues the previous one. Lines before the first stamp are dropped.
+const csvThoughtStart = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z) (.*)$/
+
+function parseCsvThoughts(cell: string): Array<{ text: string; createdAt: string }> | undefined {
+  if (!cell.trim()) return undefined
+  const thoughts: Array<{ text: string; createdAt: string }> = []
+  for (const line of cell.split(/\r\n|\r|\n/)) {
+    const match = csvThoughtStart.exec(line)
+    if (match) thoughts.push({ createdAt: match[1], text: match[2] })
+    else if (thoughts.length) thoughts[thoughts.length - 1].text += `\n${line}`
+  }
+  return thoughts.map((thought) => ({ ...thought, text: thought.text.trim() }))
+}
+
+function normalizeThoughts(value: unknown): Thought[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const thoughts: Thought[] = []
+  const seenIds = new Set<string>()
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const { id, text, createdAt, fromNote } = item as Record<string, unknown>
+    if (typeof text !== 'string' || typeof createdAt !== 'string') continue
+    if (!text.trim() || Number.isNaN(Date.parse(createdAt))) continue
+    let thoughtId = safeImportedId(id) ?? crypto.randomUUID()
+    if (seenIds.has(thoughtId)) thoughtId = crypto.randomUUID()
+    seenIds.add(thoughtId)
+    thoughts.push({
+      id: thoughtId,
+      text: text.slice(0, maxThoughtTextChars),
+      createdAt: new Date(createdAt).toISOString(),
+      ...(fromNote === true ? { fromNote: true } : {})
+    })
+  }
+  if (thoughts.length <= maxThoughtsPerQuote) return thoughts
+  return [...thoughts].sort((x, y) => Date.parse(y.createdAt) - Date.parse(x.createdAt)).slice(0, maxThoughtsPerQuote)
 }
 
 function normalizeImportedBook(row: BookImportRow): Book {

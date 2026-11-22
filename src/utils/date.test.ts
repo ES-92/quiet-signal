@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { localDateKey } from './date'
+import { localDateKey, formatRelativeDay } from './date'
 
 describe('localDateKey', () => {
   it('liefert das lokale Datum um 00:30 Berliner Zeit (UTC liegt noch am Vortag)', () => {
@@ -68,5 +68,21 @@ describe('localDateKey', () => {
 
     // Assert
     expect(key).toBe('2027-01-01')
+  })
+})
+
+describe('formatRelativeDay', () => {
+  const now = new Date('2026-11-21T12:00:00+01:00')
+
+  it('reads today and yesterday in words', () => {
+    // Arrange / Act / Assert
+    expect(formatRelativeDay('2026-11-21T08:00:00+01:00', now, 'de')).toBe('heute')
+    expect(formatRelativeDay('2026-11-20T23:00:00+01:00', now, 'de')).toBe('gestern')
+  })
+
+  it('switches to months below a year and to years beyond', () => {
+    // Arrange / Act / Assert
+    expect(formatRelativeDay('2026-10-01T12:00:00+01:00', now, 'de')).toBe('letzten Monat')
+    expect(formatRelativeDay('2024-11-01T12:00:00+01:00', now, 'de')).toBe('vor 2 Jahren')
   })
 })
