@@ -6,6 +6,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Changed
+- Menü: Beim Öffnen springt der Fokus nicht mehr ins Suchfeld (keine aufpoppende Tastatur), sondern auf das Menü selbst; nur die aktuelle Seite ist als aktiv markiert und sieht nicht mehr aus wie die Erfassen-Taste.
 - Löschen vereinheitlicht: „Löschen“ auf der Detailseite legt den Eintrag jetzt wie auf Heute in den Papierkorb (mit Rückgängig) statt ihn nach Rückfrage endgültig zu löschen; endgültig gelöscht wird nur noch im Papierkorb.
 - Klarere Namen: Die Seite „Rauschen“ heißt jetzt „Klären“ (Titel und Navigation; der Status heißt weiter Rauschen), „Werkzeuge“ heißt jetzt „Menü“.
 - Stöbern ist wirklich nur Ansehen: Die Leiste zeigt nur Gedanke und Weiter, Wischen nach links/rechts blättert nur, ↓ und Löschen gibt es dort nicht; nichts wird geliked, verschoben oder ruhen gelassen. Hinweis: „Nur ansehen – nichts wird verschoben.“
