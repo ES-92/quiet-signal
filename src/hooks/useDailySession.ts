@@ -19,8 +19,10 @@ export function useDailySession() {
   // Browse mode: a fixed list of signals picked once per start, independent of due dates and reloads.
   const [browseIds, setBrowseIds] = useState<string[] | null>(null)
   const [browseRound, setBrowseRound] = useState(0)
+  // A browse round that was used up: shows the normal finished state (with "browse anyway" for a new round) instead of the idle one.
+  const [browseFinished, setBrowseFinished] = useState(false)
   // Position in the daily deck while browsing, so "done" returns to where the visit was.
-  const dailyIndexBeforeBrowse = useRef(0)
+  const [dailyIndexBeforeBrowse, setDailyIndexBeforeBrowse] = useState(0)
 
   // Original deck position of each hidden card, so undo can put it back after the reload dropped its id.
   const hiddenPositions = useRef(new Map<string, number>())
@@ -80,6 +82,12 @@ export function useDailySession() {
   const currentQuote = dailyQuotes[currentIndex]
   // The visit had cards (also when all were rested or deleted since), so an empty deck means "finished", not "nothing due".
   const visitHadCards = browseIds ? browseIds.length > 0 : sessionQuoteIds.length > 0
+  // The browse deck is used up (or its last card was rested): leave browse mode, so no label or "done" button dangles without a card.
+  if (browseIds && browseIds.length > 0 && !currentQuote) {
+    setBrowseIds(null)
+    setIndex(dailyIndexBeforeBrowse)
+    setBrowseFinished(true)
+  }
   const currentBook = currentQuote?.bookId ? books.find((book) => book.id === currentQuote.bookId) : undefined
 
   return {
@@ -90,7 +98,7 @@ export function useDailySession() {
     nextQuote: dailyQuotes[currentIndex + 1],
     thirdQuote: dailyQuotes[currentIndex + 2],
     currentBook,
-    stackCompleted: visitHadCards && !currentQuote,
+    stackCompleted: (visitHadCards || browseFinished) && !currentQuote,
     reflectionCount: weeklyReflection.entries.length,
     showReflectionNudge: weeklyReflection.entries.length >= 3,
     inboxCount,
@@ -98,8 +106,9 @@ export function useDailySession() {
     browsing: browseIds !== null,
     startBrowsing: () => {
       const round = browseRound + 1
-      if (browseIds === null) dailyIndexBeforeBrowse.current = index
+      if (browseIds === null) setDailyIndexBeforeBrowse(index)
       setBrowseRound(round)
+      setBrowseFinished(false)
       setBrowseIds(
         selectBrowseStack(quotes, { limit: dailyCount, seed: `${localDateKey(new Date())}:browse:${round}` }).map(
           (quote) => quote.id
@@ -109,9 +118,11 @@ export function useDailySession() {
     },
     stopBrowsing: () => {
       setBrowseIds(null)
-      setIndex(dailyIndexBeforeBrowse.current)
+      setBrowseFinished(false)
+      setIndex(dailyIndexBeforeBrowse)
     },
     advanceIndex: () => setIndex((value) => Math.min(value + 1, dailyQuotes.length)),
+    rewindIndex: () => setIndex((value) => Math.max(0, Math.min(value, dailyQuotes.length) - 1)),
     hideQuote: (id: string) => {
       const position = sessionQuoteIds.indexOf(id)
       if (!browseIds && position >= 0) hiddenPositions.current.set(id, position)

@@ -1047,6 +1047,9 @@ describe('TodayPage', () => {
 
       // Act
       const again = await screen.findByRole('button', { name: en.browseAnyway }, SLOW)
+      expect(screen.getByText(en.doneForToday)).toBeInTheDocument()
+      expect(screen.queryByText(en.browsingLabel)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.stopBrowsing })).not.toBeInTheDocument()
       fireEvent.click(again)
 
       // Assert

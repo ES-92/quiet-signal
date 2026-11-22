@@ -193,6 +193,64 @@ describe('useDailySession', () => {
     expect(result.current.currentIndex).toBe(0)
   })
 
+  it('verlässt den Stöbermodus, wenn der Stöberstapel durch ist, und zeigt den Abschluss mit neuer Runde', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future }), makeQuote({ id: 't-2', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    act(() => result.current.advanceIndex())
+    expect(result.current.browsing).toBe(true)
+
+    // Act
+    act(() => result.current.advanceIndex())
+
+    // Assert
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.currentQuote).toBeUndefined()
+    expect(result.current.stackCompleted).toBe(true)
+    expect(result.current.hasSignals).toBe(true)
+    act(() => result.current.startBrowsing())
+    expect(result.current.browsing).toBe(true)
+    expect(result.current.dailyQuotes).toHaveLength(2)
+    expect(result.current.currentIndex).toBe(0)
+  })
+
+  it('geht mit Fertig weiter in die Ruheansicht ohne Abschluss', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+
+    // Act
+    act(() => result.current.stopBrowsing())
+
+    // Assert
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.stackCompleted).toBe(false)
+  })
+
+  it('geht mit rewindIndex eine Karte zurück und nie unter null', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1' }), makeQuote({ id: 't-2' })])
+    const { result } = await renderSession()
+    await waitFor(() => expect(result.current.dailyQuotes).toHaveLength(2))
+    act(() => result.current.advanceIndex())
+    act(() => result.current.advanceIndex())
+    expect(result.current.currentQuote).toBeUndefined()
+
+    // Act
+    act(() => result.current.rewindIndex())
+    const afterOne = result.current.currentIndex
+    act(() => result.current.rewindIndex())
+    act(() => result.current.rewindIndex())
+
+    // Assert
+    expect(afterOne).toBe(1)
+    expect(result.current.currentIndex).toBe(0)
+  })
+
   it('hält den Stöberstapel stabil, während sich die Bibliothek neu lädt', async () => {
     // Arrange
     const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
