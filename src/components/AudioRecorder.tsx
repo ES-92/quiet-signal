@@ -15,6 +15,8 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const unmountedRef = useRef(false)
+  // Set from the first tap until the recorder runs (or fails), so a double tap cannot open two microphone streams.
+  const startingRef = useRef(false)
   const [recording, setRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState('')
@@ -52,6 +54,7 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
   }, [])
 
   async function startRecording() {
+    if (startingRef.current || recorderRef.current) return
     setError('')
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
@@ -59,9 +62,11 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
       return
     }
 
+    startingRef.current = true
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      if (unmountedRef.current) {
+      // Gone, or a recorder is already running: release this stream right away.
+      if (unmountedRef.current || recorderRef.current) {
         stream.getTracks().forEach((track) => track.stop())
         return
       }
@@ -92,6 +97,8 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
       setError(t('microphoneDenied'))
+    } finally {
+      startingRef.current = false
     }
   }
 

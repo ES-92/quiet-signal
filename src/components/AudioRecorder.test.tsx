@@ -98,4 +98,23 @@ describe('AudioRecorder', () => {
     // Assert
     expect(track.stop).toHaveBeenCalled()
   })
+
+  it('fordert bei doppeltem Tippen nur ein Mikrofon an', async () => {
+    // Arrange
+    const { track, stream } = fakeStream()
+    let resolve: (value: MediaStream) => void = () => undefined
+    getUserMedia.mockReturnValue(new Promise<MediaStream>((done) => (resolve = done)))
+    renderWithProviders(<AudioRecorder onChange={vi.fn()} />)
+    const start = screen.getByRole('button', { name: new RegExp(en.startRecording) })
+
+    // Act
+    fireEvent.click(start)
+    fireEvent.click(start)
+    await act(async () => resolve(stream))
+
+    // Assert
+    expect(getUserMedia).toHaveBeenCalledTimes(1)
+    expect(FakeMediaRecorder.instances).toHaveLength(1)
+    expect(track.stop).not.toHaveBeenCalled()
+  })
 })
