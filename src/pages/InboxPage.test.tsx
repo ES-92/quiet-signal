@@ -71,6 +71,48 @@ afterEach(() => {
 })
 
 describe('InboxPage', () => {
+  describe('Kopf', () => {
+    it('zeigt Titel, Klär-Frage und dann direkt den Stapel', async () => {
+      // Arrange
+      await seedInbox()
+
+      // Act
+      await renderInbox()
+      const card = await screen.findByRole('blockquote')
+
+      // Assert
+      const title = screen.getByRole('heading', { level: 1, name: en.noiseInboxTitle })
+      const question = screen.getByText(en.clarifyQuestion)
+      expect(title.previousElementSibling).toBeNull()
+      expect(title.compareDocumentPosition(question)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+      expect(question.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('hat keine doppelte Überschrift und keine Erklärtexte mehr', async () => {
+      // Arrange
+      await seedInbox()
+
+      // Act
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      expect(screen.getAllByRole('heading')).toHaveLength(1)
+      expect(screen.queryByText('Clarify noise')).not.toBeInTheDocument()
+      expect(screen.queryByText('Clarifying stack')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Capture raw thoughts, photos/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Work through raw moments one by one/)).not.toBeInTheDocument()
+    })
+
+    it('behält die Aktion „Rauschen erfassen“', async () => {
+      // Arrange / Act
+      await renderInbox()
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.openCapture })).toBeInTheDocument()
+    })
+  })
+
   it('zeigt die Klär-Frage im Kopf der Klären-Seite', async () => {
     // Arrange / Act
     await renderInbox()
