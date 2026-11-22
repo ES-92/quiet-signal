@@ -78,6 +78,5 @@ function scoreTitle(title: string) {
 function scoreBookIdentity(book: Book, quoteCount: number) {
   const sourceScore = book.source === 'readwise' || book.source === 'kindle' ? 2 : 0
   const authorScore = book.author ? 6 : 0
-  const weightScore = book.weight === 'often' ? 4 : book.weight === 'normal' ? 2 : 0
-  return scoreTitle(book.title) * 3 + authorScore + weightScore + sourceScore + Math.min(quoteCount, 12)
+  return scoreTitle(book.title) * 3 + authorScore + sourceScore + Math.min(quoteCount, 12)
 }

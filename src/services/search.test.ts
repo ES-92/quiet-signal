@@ -47,14 +47,13 @@ describe('filterQuotes', () => {
     expect(result).toEqual([treffer])
   })
 
-  it('durchsucht Autor, Werk, Notiz, Personen, Ort und Tags', () => {
+  it('durchsucht Autor, Werk, Notiz, Personen und Tags, aber nicht den gespeicherten Ort', () => {
     // Arrange
     const quotes = [
       makeQuote({ author: 'Rilke' }),
       makeQuote({ work: 'Rilke-Briefe' }),
       makeQuote({ note: 'rilke' }),
       makeQuote({ people: ['Rilke'] }),
-      makeQuote({ locationName: 'Rilkestraße' }),
       makeQuote({ tags: ['rilke'] }),
       makeQuote({ author: 'Kafka' })
     ]
@@ -63,7 +62,20 @@ describe('filterQuotes', () => {
     const result = filterQuotes(quotes, filters({ query: 'rilke' }))
 
     // Assert
-    expect(result).toHaveLength(6)
+    expect(result).toHaveLength(5)
+  })
+
+  it('findet einen Eintrag nicht über seinen gespeicherten Ort oder seine Art', () => {
+    // Arrange
+    const quotes = [makeQuote({ locationName: 'Rilkestraße', entryType: 'conversation' })]
+
+    // Act
+    const byPlace = filterQuotes(quotes, filters({ query: 'rilkestraße' }))
+    const byKind = filterQuotes(quotes, filters({ query: 'conversation' }))
+
+    // Assert
+    expect(byPlace).toEqual([])
+    expect(byKind).toEqual([])
   })
 
   it('filtert nach Tag exakt', () => {

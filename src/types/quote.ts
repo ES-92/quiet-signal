@@ -1,5 +1,7 @@
 export type QuoteStatus = 'inbox' | 'signal' | 'rest'
+/** @deprecated No longer used by the app; kept so stored values and backups pass through unchanged. */
 export type SignalStrength = 'quiet' | 'normal' | 'strong'
+/** @deprecated No longer used by the app; kept so stored values and backups pass through unchanged. */
 export type EntryType = 'note' | 'memory' | 'book_quote' | 'idea' | 'conversation' | 'observation'
 
 export interface Thought {
@@ -19,11 +21,15 @@ export interface Quote {
   bookId?: string
   tags: string[]
   note?: string
+  /** @deprecated Not written for new entries and not evaluated anywhere; existing values stay in rows and backups. */
   entryType?: EntryType
   occurredAt?: string
   people?: string[]
+  /** @deprecated Location fields are no longer written or shown; existing values stay in rows and backups. */
   locationName?: string
+  /** @deprecated See locationName. */
   locationLatitude?: number
+  /** @deprecated See locationName. */
   locationLongitude?: number
   audioDataUrl?: string
   audioMimeType?: string
@@ -36,6 +42,7 @@ export interface Quote {
   favorite: boolean
   likes: number
   status?: QuoteStatus
+  /** @deprecated Not written for new entries and not evaluated anywhere; existing values stay in rows and backups. */
   signalStrength?: SignalStrength
   createdAt: string
   updatedAt: string
@@ -64,14 +71,6 @@ export interface QuoteFilters {
 
 export function quoteStatus(quote: Pick<Quote, 'status'>): QuoteStatus {
   return quote.status ?? 'signal'
-}
-
-export function signalStrength(quote: Pick<Quote, 'signalStrength'>): SignalStrength {
-  return quote.signalStrength ?? 'normal'
-}
-
-export function entryType(quote: Pick<Quote, 'entryType'>): EntryType {
-  return quote.entryType ?? 'note'
 }
 
 export function isSnoozed(quote: Pick<Quote, 'snoozedUntil'>, now = Date.now()): boolean {

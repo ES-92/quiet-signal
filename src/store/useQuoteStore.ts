@@ -40,7 +40,6 @@ interface QuoteStore {
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
   likeQuote: (id: string) => Promise<void>
-  dislikeQuote: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
   // onPrevious receives the review values of the row the change was actually applied to (for an undo).
@@ -98,17 +97,6 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
       quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
     }))
     tapHaptic(8)
-    await updateQuote(id, { likes: next })
-  },
-  dislikeQuote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const next = Math.max(0, (quote.likes ?? 0) - 1)
-    if (next === (quote.likes ?? 0)) return
-    set((state) => ({
-      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
-    }))
-    tapHaptic(12)
     await updateQuote(id, { likes: next })
   },
   removeQuote: async (id) => {

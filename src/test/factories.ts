@@ -21,8 +21,6 @@ export function makeQuote(overrides: Partial<Quote> = {}): Quote {
     favorite: false,
     likes: 0,
     status: 'signal',
-    signalStrength: 'normal',
-    entryType: 'note',
     createdAt: FIXED_TIMESTAMP,
     updatedAt: FIXED_TIMESTAMP,
     reviewCount: 0,
@@ -35,7 +33,6 @@ export function makeBook(overrides: Partial<Book> = {}): Book {
   return {
     id: `b-${bookCounter}`,
     title: `Buch ${bookCounter}`,
-    weight: 'normal',
     createdAt: FIXED_TIMESTAMP,
     updatedAt: FIXED_TIMESTAMP,
     ...overrides

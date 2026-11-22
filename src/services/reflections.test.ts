@@ -191,13 +191,13 @@ describe('buildReflection', () => {
     expect(result.topTags[0]).toEqual({ key: 'stille', label: 'Stille', count: 2 })
   })
 
-  it('nutzt Buchtitel über bookId, sonst das Werk, und zählt Orte und Typen', () => {
+  it('nutzt Buchtitel über bookId, sonst das Werk', () => {
     // Arrange
     const date = '2026-03-10T09:00:00+01:00'
     const book = makeBook({ title: 'Der Prozess' })
     const quotes = [
-      makeQuote({ createdAt: date, bookId: book.id, work: 'Anderes Werk', locationName: 'Hannover' }),
-      makeQuote({ createdAt: date, work: 'Walden', locationName: 'Hannover', entryType: 'idea' }),
+      makeQuote({ createdAt: date, bookId: book.id, work: 'Anderes Werk' }),
+      makeQuote({ createdAt: date, work: 'Walden' }),
       makeQuote({ createdAt: date, bookId: 'unbekannt', work: 'Walden' })
     ]
 
@@ -209,11 +209,24 @@ describe('buildReflection', () => {
       ['Walden', 2],
       ['Der Prozess', 1]
     ])
-    expect(result.topPlaces).toEqual([{ key: 'hannover', label: 'Hannover', count: 2 }])
-    expect(result.topTypes.map((t) => [t.label, t.count])).toEqual([
-      ['note', 2],
-      ['idea', 1]
-    ])
+  })
+
+  it('wertet gespeicherte Orte und Arten nicht aus', () => {
+    // Arrange
+    const date = '2026-03-10T09:00:00+01:00'
+    const quotes = [
+      makeQuote({ createdAt: date, locationName: 'Hannover', entryType: 'idea' }),
+      makeQuote({ createdAt: date, locationName: 'Hannover', entryType: 'idea' })
+    ]
+
+    // Act
+    const result = buildReflection(quotes, [], 'week', new Date(NOW))
+    const markdown = reflectionMarkdown(result, 'Brief')
+
+    // Assert
+    expect(result).not.toHaveProperty('topPlaces')
+    expect(result).not.toHaveProperty('topTypes')
+    expect(markdown).not.toContain('Hannover')
   })
 
   it('bestimmt die häufigste Tageszeit in Ortszeit', () => {

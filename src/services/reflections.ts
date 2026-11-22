@@ -1,6 +1,6 @@
 import type { Book } from '../types/book'
 import { localDateKey } from '../utils/date'
-import { entryType, quoteStatus, signalStrength, type Quote } from '../types/quote'
+import { quoteStatus, type Quote } from '../types/quote'
 
 export type ReflectionPeriod = 'week' | 'month'
 
@@ -20,8 +20,6 @@ export interface ReflectionSummary {
   topSignal?: Quote
   topTags: ReflectionMetric[]
   topBooks: ReflectionMetric[]
-  topPlaces: ReflectionMetric[]
-  topTypes: ReflectionMetric[]
   topTime?: ReflectionMetric
 }
 
@@ -57,8 +55,6 @@ export function buildReflection(quotes: Quote[], books: Book[], period: Reflecti
       }),
       3
     ),
-    topPlaces: topMetrics(entries.flatMap((quote) => (quote.locationName ? [quote.locationName] : [])), 3),
-    topTypes: topMetrics(entries.map((quote) => entryType(quote)), 4),
     topTime: topMetrics(entries.map((quote) => timeBucket(entryDate(quote))), 1)[0]
   }
 }
@@ -84,9 +80,6 @@ export function reflectionMarkdown(summary: ReflectionSummary, letter: string) {
   }
   if (summary.topBooks.length) {
     lines.push('', '## Books', summary.topBooks.map((book) => `- ${book.label} (${book.count})`).join('\n'))
-  }
-  if (summary.topPlaces.length) {
-    lines.push('', '## Places', summary.topPlaces.map((place) => `- ${place.label} (${place.count})`).join('\n'))
   }
 
   return lines.join('\n')
@@ -119,8 +112,7 @@ function chooseTopSignal(signals: Quote[]) {
 }
 
 function signalScore(quote: Quote) {
-  const strengthScore = signalStrength(quote) === 'strong' ? 8 : signalStrength(quote) === 'normal' ? 4 : 1
-  return (quote.likes ?? 0) * 5 + (quote.favorite ? 10 : 0) + strengthScore + Math.min(quote.reviewCount ?? 0, 6)
+  return (quote.likes ?? 0) * 5 + (quote.favorite ? 10 : 0) + Math.min(quote.reviewCount ?? 0, 6)
 }
 
 function topMetrics(values: string[], limit: number): ReflectionMetric[] {

@@ -1,8 +1,5 @@
-import { quoteStatus, signalStrength, isSnoozed, type Quote, type SignalStrength } from '../types/quote'
-import { weightMultiplier, type BookWeight } from '../types/book'
+import { quoteStatus, isSnoozed, type Quote } from '../types/quote'
 import { localDateKey } from '../utils/date'
-
-export type BookWeightMap = Record<string, BookWeight>
 
 const dayMs = 24 * 60 * 60 * 1000
 
@@ -17,11 +14,10 @@ export function nextMorningISO(now = new Date()): string {
 
 export function selectDailyStack(
   quotes: Quote[],
-  options: { limit: number; date?: Date; bookWeights?: BookWeightMap } = { limit: 5 }
+  options: { limit: number; date?: Date } = { limit: 5 }
 ) {
   const now = Date.now()
   const baseDate = options.date ?? new Date()
-  const weights = options.bookWeights ?? {}
   const dateKey = localDateKey(baseDate)
   const random = seededRandom(`${dateKey}:${options.limit}`)
 
@@ -36,7 +32,7 @@ export function selectDailyStack(
     .filter((quote) => !isSnoozed(quote, now))
     .filter((quote) => !reviewedToday(quote))
     .filter((quote) => !quote.nextReviewAt || new Date(quote.nextReviewAt).getTime() <= now)
-    .map((quote) => ({ quote, score: stackScore(quote, now, random, weights) }))
+    .map((quote) => ({ quote, score: stackScore(quote, now, random) }))
     .sort((a, b) => b.score - a.score)
 
   const selected: Quote[] = []
@@ -44,10 +40,7 @@ export function selectDailyStack(
 
   for (const item of ordered) {
     const author = item.quote.author?.toLowerCase().trim()
-    // Books marked "often" may surface more than once per stack, so don't
-    // dedupe them by author the way we do for everything else.
-    const allowRepeatAuthor = weights[item.quote.bookId ?? ''] === 'often'
-    if (author && usedAuthors.has(author) && !allowRepeatAuthor && ordered.length > options.limit) {
+    if (author && usedAuthors.has(author) && ordered.length > options.limit) {
       continue
     }
 
@@ -66,12 +59,11 @@ export function selectDailyStack(
   return selected
 }
 
-function stackScore(quote: Quote, today: number, random: () => number, weights: BookWeightMap) {
+function stackScore(quote: Quote, today: number, random: () => number) {
   const reviewScore = scoreQuote(quote, today)
   const likeBonus = Math.min(quote.likes ?? 0, 8) * 35
-  const weighted = (reviewScore + likeBonus) * weightMultiplier(weights[quote.bookId ?? '']) * signalMultiplier(signalStrength(quote))
   const randomScore = random() * 180
-  return weighted + randomScore
+  return reviewScore + likeBonus + randomScore
 }
 
 // Browsing shuffles every live signal, independent of due date, snooze and today's reviews.
@@ -84,12 +76,6 @@ export function selectBrowseStack(quotes: Quote[], options: { limit: number; see
     ;[pool[index], pool[swap]] = [pool[swap], pool[index]]
   }
   return pool.slice(0, options.limit)
-}
-
-function signalMultiplier(strength: SignalStrength) {
-  if (strength === 'strong') return 1.38
-  if (strength === 'quiet') return 0.68
-  return 1
 }
 
 function scoreQuote(quote: Quote, today: number) {
