@@ -209,7 +209,7 @@ export const de: Record<keyof typeof en, string> = {
   release030Encryption: 'Verschlüsselung: sicheres Ein- und Ausschalten, beschädigte Einträge blockieren die Bibliothek nicht mehr und Sicherheitsverbesserungen für den verschlüsselten Tresor.',
   release030Deck: 'Korrekturen am Tagesstapel: Likes bleiben erhalten, nach dem Verwerfen wird keine Karte übersprungen und Rückgängig bringt die Karte zurück.',
   release030Capture: 'Die Schnellerfassung behält deinen Entwurf.',
-  release040Gestures: 'Neue Bedeutung der Wischgesten: → öfter, ← seltener, ↑ Gedanke, ↓ ruhen lassen. Mit Rückgängig, falls du dich vertippt hast.',
+  release040Gestures: 'Neue Bedeutung der Wischgesten: → öfter, ← seltener, ↑ Gedanke, ↓ ruhen lassen. Mit Rückgängig, falls ein Wisch danebengeht.',
   release040Thoughts: 'Gedanken zu jedem Eintrag – und ein neuer Rückblick rund um das, was du gedacht hast.',
   release040Rest: 'Stille und Wecken: Was gerade nicht gebraucht wird, darf ruhen und kommt später zurück, wenn du es weckst.',
   release040Favourites: 'Favoriten sind nie länger als 30 Tage weg und haben einen eigenen Tab in der Sammlung.',
