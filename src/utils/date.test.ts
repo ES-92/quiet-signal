@@ -86,3 +86,11 @@ describe('formatRelativeDay', () => {
     expect(formatRelativeDay('2024-11-01T12:00:00+01:00', now, 'de')).toBe('vor 2 Jahren')
   })
 })
+
+describe('formatRelativeDay with an invalid date', () => {
+  it('does not throw and reads as today', () => {
+    const now = new Date('2026-11-21T12:00:00+01:00')
+    expect(() => formatRelativeDay('foo', now, 'de')).not.toThrow()
+    expect(formatRelativeDay('foo', now, 'de')).toBe(formatRelativeDay(now.toISOString(), now, 'de'))
+  })
+})

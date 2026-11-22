@@ -16,9 +16,18 @@ export function effectiveInterval(quote: Pick<Quote, 'reviewIntervalDays' | 'rev
   return 7
 }
 
+// Stored dates can come from old rows or imports, so every helper here tolerates invalid input: an invalid date
+// counts as "now" (due) instead of throwing during render.
+function validTime(value: string | undefined): number | undefined {
+  if (!value) return undefined
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : undefined
+}
+
 export function reviewDateFromInterval(days: number, now = new Date()): string {
-  const next = new Date(now)
-  next.setDate(next.getDate() + days)
+  const next = Number.isFinite(now.getTime()) ? new Date(now) : new Date()
+  const safeDays = Number.isFinite(days) ? Math.min(Math.max(days, 0), maxIntervalDays * 10) : 1
+  next.setDate(next.getDate() + safeDays)
   next.setHours(reviewHour, 0, 0, 0)
   return next.toISOString()
 }
@@ -96,11 +105,14 @@ export function favoriteCapPatch(quote: Quote, now = new Date()): Partial<Quote>
 
 // When a signal is really due. A favourite is never due later than 30 days after its last review (or creation),
 // even if an old or imported row stores a date further away. Stored data is not rewritten.
+// An invalid stored date is treated like no date: due now.
 export function effectiveDueAt(quote: Quote): string | undefined {
+  const dueTime = validTime(quote.nextReviewAt)
+  if (dueTime === undefined) return undefined
   if (!quote.favorite || quoteStatus(quote) !== 'signal') return quote.nextReviewAt
-  const capped = reviewDateFromInterval(favoriteMaxIntervalDays, new Date(quote.lastReviewedAt ?? quote.createdAt))
-  if (!quote.nextReviewAt) return undefined
-  return new Date(quote.nextReviewAt).getTime() <= new Date(capped).getTime() ? quote.nextReviewAt : capped
+  const baseTime = validTime(quote.lastReviewedAt) ?? validTime(quote.createdAt) ?? Date.now()
+  const capped = reviewDateFromInterval(favoriteMaxIntervalDays, new Date(baseTime))
+  return dueTime <= new Date(capped).getTime() ? quote.nextReviewAt : capped
 }
 
 export function restPatch(quote: Quote, now = new Date()): Partial<Quote> {
@@ -155,5 +167,7 @@ export function statusChangePatch(previous: QuoteStatus, next: QuoteStatus, now 
 }
 
 export function daysUnclarified(quote: Pick<Quote, 'createdAt'>, now = new Date()): number {
-  return Math.max(0, Math.floor((now.getTime() - new Date(quote.createdAt).getTime()) / dayMs))
+  const createdTime = validTime(quote.createdAt)
+  if (createdTime === undefined) return 0
+  return Math.max(0, Math.floor((now.getTime() - createdTime) / dayMs))
 }
