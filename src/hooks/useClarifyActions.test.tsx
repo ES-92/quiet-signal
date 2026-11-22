@@ -59,6 +59,23 @@ describe('useClarifyActions', () => {
     expect(onMessage.mock.calls).toEqual([[en.keptInNoise], [en.movedToSignals]])
   })
 
+  it('meldet einen Fehler statt einer unbehandelten Ablehnung, wenn der Eintrag verschwunden ist', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'gone', status: 'inbox' })
+    useQuoteStore.setState({ quotes: [quote], loading: false })
+    const onMessage = vi.fn()
+    const { result } = renderHook(() => useClarifyActions(quote, buildPatch, onMessage), { wrapper })
+
+    // Act
+    await act(async () => {
+      await result.current.finishSignal()
+    })
+
+    // Assert
+    expect(onMessage).not.toHaveBeenCalled()
+    expect(useToastStore.getState().toast?.message).toBe(en.saveFailed)
+  })
+
   it('stellt zurück und zeigt einen Hinweis', async () => {
     // Arrange
     const quote = makeQuote({ id: 'q', status: 'inbox' })
