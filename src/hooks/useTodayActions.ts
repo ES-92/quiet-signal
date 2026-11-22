@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { tapHaptic } from '../services/haptics'
@@ -7,20 +7,20 @@ import type { Book } from '../types/book'
 import type { Quote } from '../types/quote'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
-import { useToastStore } from '../store/useToastStore'
+import { dismissUndoToast, useToastStore } from '../store/useToastStore'
 
 interface TodayActionsInput {
   currentQuote: Quote | undefined
   currentBook: Book | undefined
   browsing: boolean
   advanceIndex: () => void
-  rewindIndex: () => void
+  rewindTo: (id: string) => void
   hideQuote: (id: string) => void
   showQuote: (id: string) => void
 }
 
 // Card actions of the daily deck (more/less often, rest with undo, thought, discard with undo, context menu, inline book editor).
-export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, rewindIndex, hideQuote, showQuote }: TodayActionsInput) {
+export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const { saveQuote, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
@@ -42,10 +42,19 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     setBookEditorOpen(false)
   }
 
-  // An undo toast of an earlier action would act on a card that is no longer where it was; the next deck action dismisses it.
-  function dismissUndoToast() {
-    const { toast, hideToast } = useToastStore.getState()
-    if (toast?.onAction) hideToast()
+  // Counts deck actions, so an answer that arrives late can tell whether a newer action has taken over the toast slot.
+  const actionSeq = useRef(0)
+  // The card on top right now, for undo callbacks that were created for an earlier card.
+  const topQuoteId = useRef(currentQuoteId)
+  useEffect(() => {
+    topQuoteId.current = currentQuoteId
+  })
+
+  // Every deck action dismisses the undo toast of the previous one and claims the toast slot.
+  function beginDeckAction() {
+    dismissUndoToast()
+    actionSeq.current += 1
+    return actionSeq.current
   }
 
   // moreOften/lessOften already bump the review bookkeeping, so no separate like here.
@@ -54,7 +63,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   ) {
     if (!currentQuote) return
     const id = currentQuote.id
-    dismissUndoToast()
+    const seq = beginDeckAction()
     advanceIndex()
     try {
       // Captured from the row the change was applied to, so the undo restores exactly that state.
@@ -62,7 +71,8 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
       const days = await change(id, (snapshot) => {
         previous = snapshot
       })
-      if (typeof days !== 'number') return
+      // A newer deck action owns the toast slot by now; a late "comes back" toast would wipe its toast.
+      if (typeof days !== 'number' || seq !== actionSeq.current) return
       showToast({
         message: t('comesBackInDays', { days }),
         ...(previous && {
@@ -70,9 +80,12 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
           onAction: () => {
             const restore = previous
             if (!restore) return
-            rewindIndex()
+            // Jump to the card by id: the deck may have moved on since, so stepping back one could land on another card.
+            const resumeId = topQuoteId.current
+            rewindTo(id)
             restoreReview(id, restore).catch(() => {
-              advanceIndex()
+              if (resumeId) rewindTo(resumeId)
+              else advanceIndex()
               showToast({ message: t('saveFailed') })
             })
           }
@@ -87,7 +100,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   async function likeWhileBrowsing() {
     if (!currentQuote) return
     const id = currentQuote.id
-    dismissUndoToast()
+    beginDeckAction()
     advanceIndex()
     try {
       await likeQuote(id)
@@ -103,7 +116,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   function handleLessOften() {
     if (!browsing) return reviewWithInterval(lessOften)
     if (currentQuote) {
-      dismissUndoToast()
+      beginDeckAction()
       advanceIndex()
     }
     return Promise.resolve()
@@ -114,7 +127,7 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     if (!currentQuote) return
     const id = currentQuote.id
     const previousSnooze = currentQuote.snoozedUntil
-    dismissUndoToast()
+    beginDeckAction()
     restQuote(id).catch(() => {
       showQuote(id)
       showToast({ message: t('restFailed') })
@@ -137,12 +150,13 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
 
   function openThought() {
     if (!currentQuote) return
-    dismissUndoToast()
+    beginDeckAction()
     setThoughtOpen(true)
   }
 
   // Hides the card at once and saves in the background; if saving fails, the card comes back with an error toast.
   function discardWithUndo(id: string) {
+    beginDeckAction()
     discardQuote(id).catch(() => {
       showQuote(id)
       showToast({ message: t('discardFailed') })

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db, upsertBooks, upsertQuotes } from '../db/database'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import { nextSessionIds, useDailySession } from './useDailySession'
 
@@ -231,24 +232,83 @@ describe('useDailySession', () => {
     expect(result.current.stackCompleted).toBe(false)
   })
 
-  it('geht mit rewindIndex eine Karte zurück und nie unter null', async () => {
+  it('springt mit rewindTo zur Karte mit dieser id und ignoriert unbekannte ids', async () => {
     // Arrange
-    await upsertQuotes([makeQuote({ id: 't-1' }), makeQuote({ id: 't-2' })])
+    await upsertQuotes([makeQuote({ id: 't-1' }), makeQuote({ id: 't-2' }), makeQuote({ id: 't-3' })])
     const { result } = await renderSession()
-    await waitFor(() => expect(result.current.dailyQuotes).toHaveLength(2))
+    await waitFor(() => expect(result.current.dailyQuotes).toHaveLength(3))
+    const order = ids(result.current.dailyQuotes)
+    act(() => result.current.advanceIndex())
     act(() => result.current.advanceIndex())
     act(() => result.current.advanceIndex())
     expect(result.current.currentQuote).toBeUndefined()
 
     // Act
-    act(() => result.current.rewindIndex())
-    const afterOne = result.current.currentIndex
-    act(() => result.current.rewindIndex())
-    act(() => result.current.rewindIndex())
+    act(() => result.current.rewindTo(order[0]))
+    const first = result.current.currentQuote?.id
+    act(() => result.current.rewindTo('gibt-es-nicht'))
 
     // Assert
-    expect(afterOne).toBe(1)
+    expect(first).toBe(order[0])
     expect(result.current.currentIndex).toBe(0)
+  })
+
+  it('bleibt im Stöbermodus, wenn die letzte Karte ruht, und holt sie per showQuote zurück', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    expect(result.current.browsing).toBe(true)
+
+    // Act
+    act(() => result.current.hideQuote('t-1'))
+    const finished = { browsing: result.current.browsing, completed: result.current.stackCompleted }
+    act(() => result.current.showQuote('t-1'))
+
+    // Assert
+    expect(finished).toEqual({ browsing: false, completed: true })
+    expect(result.current.browsing).toBe(true)
+    expect(result.current.currentQuote?.id).toBe('t-1')
+    expect(result.current.stackCompleted).toBe(false)
+  })
+
+  it('beendet mit Fertig auch einen aufgebrauchten Stöberstapel und startet danach eine neue Runde', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+    act(() => result.current.startBrowsing())
+    act(() => result.current.advanceIndex())
+
+    // Act
+    act(() => result.current.stopBrowsing())
+
+    // Assert
+    expect(result.current.browsing).toBe(false)
+    expect(result.current.stackCompleted).toBe(false)
+    act(() => result.current.startBrowsing())
+    expect(result.current.currentQuote?.id).toBe('t-1')
+  })
+
+  it('blendet einen Rückgängig-Hinweis aus, wenn der Stöbermodus beginnt oder endet', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', nextReviewAt: future })])
+    const { result } = await renderSession()
+
+    // Act / Assert
+    useToastStore.getState().showToast({ message: 'Rückgängig?', actionLabel: 'Undo', onAction: () => {} })
+    act(() => result.current.startBrowsing())
+    expect(useToastStore.getState().toast).toBeNull()
+
+    useToastStore.getState().showToast({ message: 'Rückgängig?', actionLabel: 'Undo', onAction: () => {} })
+    act(() => result.current.stopBrowsing())
+    expect(useToastStore.getState().toast).toBeNull()
+
+    useToastStore.getState().showToast({ message: 'Nur Info' })
+    act(() => result.current.startBrowsing())
+    expect(useToastStore.getState().toast?.message).toBe('Nur Info')
   })
 
   it('hält den Stöberstapel stabil, während sich die Bibliothek neu lädt', async () => {

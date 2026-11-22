@@ -4,6 +4,7 @@ import { selectBrowseStack, selectDailyStack, type BookWeightMap } from '../serv
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
+import { dismissUndoToast } from '../store/useToastStore'
 import { quoteStatus, type Quote } from '../types/quote'
 import { localDateKey } from '../utils/date'
 
@@ -19,8 +20,6 @@ export function useDailySession() {
   // Browse mode: a fixed list of signals picked once per start, independent of due dates and reloads.
   const [browseIds, setBrowseIds] = useState<string[] | null>(null)
   const [browseRound, setBrowseRound] = useState(0)
-  // A browse round that was used up: shows the normal finished state (with "browse anyway" for a new round) instead of the idle one.
-  const [browseFinished, setBrowseFinished] = useState(false)
   // Position in the daily deck while browsing, so "done" returns to where the visit was.
   const [dailyIndexBeforeBrowse, setDailyIndexBeforeBrowse] = useState(0)
 
@@ -76,18 +75,20 @@ export function useDailySession() {
     [quotes]
   )
 
+  // Latest deck for callbacks that outlive a render (undo toasts).
+  const dailyQuotesRef = useRef(dailyQuotes)
+  useEffect(() => {
+    dailyQuotesRef.current = dailyQuotes
+  })
+
   if (index > dailyQuotes.length) setIndex(dailyQuotes.length)
 
   const currentIndex = Math.min(index, dailyQuotes.length)
   const currentQuote = dailyQuotes[currentIndex]
   // The visit had cards (also when all were rested or deleted since), so an empty deck means "finished", not "nothing due".
   const visitHadCards = browseIds ? browseIds.length > 0 : sessionQuoteIds.length > 0
-  // The browse deck is used up (or its last card was rested): leave browse mode, so no label or "done" button dangles without a card.
-  if (browseIds && browseIds.length > 0 && !currentQuote) {
-    setBrowseIds(null)
-    setIndex(dailyIndexBeforeBrowse)
-    setBrowseFinished(true)
-  }
+  // A used-up browse deck keeps its list (so undoing the rest of its last card brings the card back); without a card it is not
+  // "browsing" any more and the page shows the finished state, where "browse anyway" starts a new round.
   const currentBook = currentQuote?.bookId ? books.find((book) => book.id === currentQuote.bookId) : undefined
 
   return {
@@ -98,17 +99,17 @@ export function useDailySession() {
     nextQuote: dailyQuotes[currentIndex + 1],
     thirdQuote: dailyQuotes[currentIndex + 2],
     currentBook,
-    stackCompleted: (visitHadCards || browseFinished) && !currentQuote,
+    stackCompleted: visitHadCards && !currentQuote,
     reflectionCount: weeklyReflection.entries.length,
     showReflectionNudge: weeklyReflection.entries.length >= 3,
     inboxCount,
     hasSignals,
-    browsing: browseIds !== null,
+    browsing: browseIds !== null && Boolean(currentQuote),
     startBrowsing: () => {
+      dismissUndoToast()
       const round = browseRound + 1
       if (browseIds === null) setDailyIndexBeforeBrowse(index)
       setBrowseRound(round)
-      setBrowseFinished(false)
       setBrowseIds(
         selectBrowseStack(quotes, { limit: dailyCount, seed: `${localDateKey(new Date())}:browse:${round}` }).map(
           (quote) => quote.id
@@ -117,12 +118,16 @@ export function useDailySession() {
       setIndex(0)
     },
     stopBrowsing: () => {
+      dismissUndoToast()
       setBrowseIds(null)
-      setBrowseFinished(false)
       setIndex(dailyIndexBeforeBrowse)
     },
     advanceIndex: () => setIndex((value) => Math.min(value + 1, dailyQuotes.length)),
-    rewindIndex: () => setIndex((value) => Math.max(0, Math.min(value, dailyQuotes.length) - 1)),
+    // Puts the card with this id on top again; a card that is not in the current deck leaves the position alone.
+    rewindTo: (id: string) => {
+      const position = dailyQuotesRef.current.findIndex((quote) => quote.id === id)
+      if (position >= 0) setIndex(position)
+    },
     hideQuote: (id: string) => {
       const position = sessionQuoteIds.indexOf(id)
       if (!browseIds && position >= 0) hiddenPositions.current.set(id, position)

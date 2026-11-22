@@ -27,7 +27,7 @@ interface Props {
 }
 
 function setup(props: Props) {
-  const callbacks = { advanceIndex: vi.fn(), rewindIndex: vi.fn(), hideQuote: vi.fn(), showQuote: vi.fn() }
+  const callbacks = { advanceIndex: vi.fn(), rewindTo: vi.fn(), hideQuote: vi.fn(), showQuote: vi.fn() }
   const hook = renderHook(
     (current: Props) => ({
       actions: useTodayActions({ currentQuote: current.quote, currentBook: current.book, browsing: current.browsing ?? false, ...callbacks }),
@@ -142,7 +142,7 @@ describe('useTodayActions', () => {
     })
 
     // Assert
-    expect(callbacks.rewindIndex).toHaveBeenCalledTimes(1)
+    expect(callbacks.rewindTo).toHaveBeenCalledExactlyOnceWith('q')
     await waitFor(async () => {
       const stored = await getQuote('q')
       expect(stored).toMatchObject({
@@ -330,6 +330,35 @@ describe('useTodayActions', () => {
       // Assert: the rest toast is gone (→/← may leave their own interval toast with its own undo).
       expect(useToastStore.getState().toast?.message).not.toBe(en.restedToast)
     })
+
+    it('is dismissed by ↑ (thought) without leaving another toast', async () => {
+      // Arrange / Act
+      await restThenAct({}, (a) => a.openThought())
+
+      // Assert
+      expect(useToastStore.getState().toast).toBeNull()
+    })
+  })
+
+  it('lässt einen späten Abstands-Toast von → nicht den Ruhen-Toast einer neueren Karte überschreiben', async () => {
+    // Arrange
+    const a = makeQuote({ id: 'a', reviewIntervalDays: 3 })
+    const b = makeQuote({ id: 'b', reviewIntervalDays: 3 })
+    await upsertQuotes([a, b])
+    await useQuoteStore.getState().loadQuotes()
+    const { result, rerender } = setup({ quote: a })
+    let pendingA: Promise<void> | undefined
+
+    // Act
+    await act(async () => {
+      pendingA = result.current.actions.handleMoreOften()
+      rerender({ quote: b })
+      result.current.actions.handleRest()
+      await pendingA
+    })
+
+    // Assert
+    expect(useToastStore.getState().toast?.message).toBe(en.restedToast)
   })
 
   it('blendet die Karte wieder ein und zeigt einen Fehler, wenn das Ruhenlassen scheitert', async () => {

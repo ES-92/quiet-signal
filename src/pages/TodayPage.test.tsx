@@ -449,6 +449,29 @@ describe('TodayPage', () => {
     expect(currentText()).toBe(first)
   })
 
+  it('holt per Rückgängig die Karte des Hinweises zurück, auch wenn danach weitere Karten bearbeitet wurden', async () => {
+    // Arrange
+    await seedStack()
+    await renderToday()
+    await screen.findByRole('blockquote')
+    const first = currentId()
+    swipe(160)
+    await waitFor(() => expect(currentId()).not.toBe(first), SLOW)
+    await waitFor(() => expect(useToastStore.getState().toast?.message).toMatch(/^Comes back in \d+ days$/), SLOW)
+    const undoFirst = useToastStore.getState().toast
+    const second = currentId()
+    swipe(160)
+    await waitFor(() => expect(currentId()).not.toBe(second), SLOW)
+    await waitFor(() => expect(useToastStore.getState().toast?.message).toMatch(/^Comes back in \d+ days$/), SLOW)
+
+    // Act
+    act(() => undoFirst?.onAction?.())
+
+    // Assert
+    await waitFor(() => expect(currentId()).toBe(first), SLOW)
+    await waitFor(async () => expect((await getQuote(first))?.reviewCount).toBe(0), SLOW)
+  })
+
   it('stellt eine über das Kontextmenü gelöschte Karte per Rückgängig wieder her', async () => {
     // Arrange
     await seedStack()
@@ -1055,6 +1078,42 @@ describe('TodayPage', () => {
       // Assert
       expect(await screen.findByRole('blockquote')).toBeInTheDocument()
       expect(screen.getByText('1 of 2')).toBeInTheDocument()
+    })
+
+    it('holt die ruhende letzte Stöberkarte per Rückgängig zurück und bleibt im Stöbern', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })])
+      await renderToday()
+      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
+      await screen.findByRole('blockquote')
+      swipe(0, 160)
+      await screen.findByText(en.doneForToday, undefined, SLOW)
+      await waitFor(async () => expect((await getQuote('t-1'))?.status).toBe('rest'), SLOW)
+
+      // Act
+      act(() => useToastStore.getState().toast?.onAction?.())
+
+      // Assert
+      expect(await screen.findByRole('blockquote', undefined, SLOW)).toHaveTextContent('Eins')
+      expect(screen.getByText(en.browsingLabel)).toBeInTheDocument()
+    })
+
+    it('blendet beim Wechsel in eine neue Stöberrunde den alten Rückgängig-Hinweis aus', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins' })])
+      await renderToday()
+      await screen.findByRole('blockquote')
+      swipe(160)
+      await screen.findByText(en.doneForToday, undefined, SLOW)
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toMatch(/^Comes back in \d+ days$/), SLOW)
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.browseAnyway }))
+
+      // Assert
+      expect(await screen.findByRole('blockquote', undefined, SLOW)).toBeInTheDocument()
+      expect(useToastStore.getState().toast).toBeNull()
+      expect(screen.getByText('1 of 1')).toBeInTheDocument()
     })
   })
 })
