@@ -65,6 +65,36 @@ describe('QuoteCard', () => {
     expect(screen.getByText('today')).toBeInTheDocument()
   })
 
+  it('zeigt bei überfälligem Signal „overdue“ statt „today“', () => {
+    // Arrange
+    const due = new Date()
+    due.setDate(due.getDate() - 3)
+    due.setHours(6, 0, 0, 0)
+
+    // Act
+    renderWithProviders(<QuoteCard quote={makeQuote({ status: 'signal', nextReviewAt: due.toISOString() })} />)
+
+    // Assert
+    expect(screen.getByText(en.cardOverdue)).toBeInTheDocument()
+    expect(screen.queryByText('today')).not.toBeInTheDocument()
+  })
+
+  it('zeigt bei einem alten Favoriten den auf 30 Tage gekappten Termin', () => {
+    // Arrange
+    const reviewed = new Date()
+    reviewed.setHours(9, 0, 0, 0)
+    const far = new Date(reviewed)
+    far.setDate(far.getDate() + 300)
+
+    // Act
+    renderWithProviders(
+      <QuoteCard quote={makeQuote({ status: 'signal', favorite: true, lastReviewedAt: reviewed.toISOString(), nextReviewAt: far.toISOString() })} />
+    )
+
+    // Assert
+    expect(screen.getByText('in 30 days')).toBeInTheDocument()
+  })
+
   it('zeigt bei späterer Fälligkeit die relative Zeit', () => {
     // Arrange
     const due = new Date()

@@ -1,7 +1,7 @@
 import { BookOpen, Clock, ExternalLink, Heart, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
-import { dueInDays, formatDueIn } from '../services/dueLabel'
+import { dueInDays, formatDueIn, overdueDays } from '../services/dueLabel'
 import { quoteStatus, type Quote } from '../types/quote'
 import { AudioPlayer } from './AudioRecorder'
 import { PhotoPreview } from './PhotoCapture'
@@ -21,7 +21,15 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact 
   const status = quoteStatus(quote)
   const thoughtCount = quote.thoughts?.length ?? 0
   // When it comes back: short and relative. Unsorted entries have no schedule yet, so they show no time.
-  const comesBack = status === 'rest' ? t('cardResting') : status === 'signal' ? formatDueIn(dueInDays(quote), locale) : undefined
+  const now = new Date()
+  const comesBack =
+    status === 'rest'
+      ? t('cardResting')
+      : status === 'signal'
+        ? overdueDays(quote, now) > 0
+          ? t('cardOverdue')
+          : formatDueIn(dueInDays(quote, now), locale)
+        : undefined
   const facts = [thoughtCount > 0 ? tCount('cardThoughts', thoughtCount) : undefined, comesBack].filter(Boolean)
 
   return (

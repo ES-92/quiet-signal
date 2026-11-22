@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { makeQuote, resetFactories } from '../test/factories'
-import { dueInDays, formatDueIn } from './dueLabel'
+import { dueInDays, formatDueIn, overdueDays } from './dueLabel'
 
 const now = new Date(2026, 5, 10, 14, 30) // 10 June 2026, local
 
@@ -40,6 +40,31 @@ describe('dueInDays', () => {
 
     // Act / Assert
     expect(dueInDays(quote, now)).toBe(30)
+  })
+})
+
+describe('overdueDays', () => {
+  it('counts the calendar days since the due date', () => {
+    expect(overdueDays(makeQuote({ nextReviewAt: at(-3, 22) }), now)).toBe(3)
+    expect(overdueDays(makeQuote({ nextReviewAt: at(-1, 6) }), now)).toBe(1)
+  })
+
+  it.each([
+    ['due today, earlier', at(0, 6)],
+    ['due later today', at(0, 22)],
+    ['due in the future', at(4)],
+    ['without a date', undefined]
+  ])('is 0 for a review that is %s', (_name, nextReviewAt) => {
+    expect(overdueDays(makeQuote({ nextReviewAt }), now)).toBe(0)
+  })
+
+  it('is exclusive with dueInDays for the same quote', () => {
+    // Arrange
+    const quote = makeQuote({ nextReviewAt: at(-3) })
+
+    // Act / Assert
+    expect(overdueDays(quote, now)).toBe(3)
+    expect(dueInDays(quote, now)).toBe(0)
   })
 })
 

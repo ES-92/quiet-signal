@@ -123,7 +123,7 @@ describe('QuoteDetailPage', () => {
     })
 
     it.each([
-      ['overdue', { nextReviewAt: '2026-03-01T05:00:00.000Z' }],
+      ['due earlier today', { nextReviewAt: '2026-03-10T05:00:00.000Z' }],
       ['due later today', { nextReviewAt: '2026-03-10T20:00:00.000Z' }],
       ['without a due date', { nextReviewAt: undefined }]
     ])('says due today for a signal that is %s', async (_name, overrides) => {
@@ -189,6 +189,19 @@ describe('QuoteDetailPage', () => {
       expect(screen.queryByText(en.entryStatus)).not.toBeInTheDocument()
       expect(screen.queryByText('♥ 3')).not.toBeInTheDocument()
     })
+  })
+
+  it('says how long a signal has been overdue', async () => {
+    // Arrange
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-03-10T12:00:00'))
+    await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 3, nextReviewAt: '2026-03-07T05:00:00.000Z' })])
+
+    // Act
+    await renderDetail()
+
+    // Assert
+    expect(screen.getByText('Overdue for 3 days · Seen 3 times')).toBeInTheDocument()
   })
 
   describe('edit form', () => {

@@ -1,5 +1,5 @@
 import { useI18n } from '../i18n/useI18n'
-import { dueInDays } from '../services/dueLabel'
+import { dueInDays, overdueDays } from '../services/dueLabel'
 import { effectiveDueAt } from '../services/lifecycle'
 import { quoteStatus, type Quote } from '../types/quote'
 
@@ -15,7 +15,10 @@ export function EntryInfoLine({ quote }: { quote: Quote }) {
     lead = t('infoResting')
   } else {
     const now = new Date()
-    if (dueInDays(quote, now) === 0) {
+    const overdue = overdueDays(quote, now)
+    if (overdue > 0) {
+      lead = tCount('infoOverdue', overdue)
+    } else if (dueInDays(quote, now) === 0) {
       lead = t('dueToday')
     } else {
       const date = new Date(effectiveDueAt(quote) as string)
