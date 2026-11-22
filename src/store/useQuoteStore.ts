@@ -31,7 +31,6 @@ import {
   restoreThoughtPatch,
   undoAdoptNotePatch
 } from '../services/thoughts'
-import { tapHaptic } from '../services/haptics'
 import type { Quote, QuoteFilters, QuoteInput, QuoteStatus, Thought } from '../types/quote'
 import { emptyFilters } from '../services/search'
 
@@ -44,7 +43,6 @@ interface QuoteStore {
   loadQuotes: () => Promise<void>
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
-  likeQuote: (id: string) => Promise<void>
   toggleFavorite: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
@@ -123,17 +121,6 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
         : patch
     )
     await get().loadQuotes()
-  },
-  likeQuote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const next = (quote.likes ?? 0) + 1
-    // Optimistic bump so the count animates instantly, then persist.
-    set((state) => ({
-      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
-    }))
-    tapHaptic(8)
-    await updateQuote(id, { likes: next })
   },
   toggleFavorite: async (id) => {
     if (!get().quotes.some((item) => item.id === id)) return

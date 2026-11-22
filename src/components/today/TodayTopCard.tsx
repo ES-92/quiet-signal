@@ -13,10 +13,12 @@ interface TodayTopCardProps {
   position: number
   total: number
   deck: ReturnType<typeof useSwipeDeck>
+  // While browsing both side swipes only page on, so both stamps say so.
+  browsing?: boolean
 }
 
 // The draggable top card of the daily deck: swipe stamps, progress, text (fitted to the card), source and media.
-export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps) {
+export function TodayTopCard({ quote, position, total, deck, browsing = false }: TodayTopCardProps) {
   const { t } = useI18n()
   // Shrink long quotes to fit the card instead of clipping them.
   const { containerRef, textRef } = useFitText(quote.id)
@@ -57,7 +59,7 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
           transform: `translate3d(${lerp(12, 0, likeHint)}px, ${lerp(8, 0, likeHint)}px, 0) rotate(${lerp(6, 0, likeHint)}deg)`
         }}
       >
-        <Flame size={16} fill="currentColor" /> {t('gestureMoreOften')}
+        {browsing ? t('next') : <><Flame size={16} fill="currentColor" /> {t('gestureMoreOften')}</>}
       </div>
       <div
         className="pointer-events-none absolute left-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-graphite bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-graphite shadow-[0_12px_34px_rgba(31,30,28,0.1)] backdrop-blur"
@@ -66,7 +68,7 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
           transform: `translate3d(${lerp(-12, 0, dislikeHint)}px, ${lerp(8, 0, dislikeHint)}px, 0) rotate(${lerp(-6, 0, dislikeHint)}deg)`
         }}
       >
-        <ChevronsLeft size={16} /> {t('gestureLessOften')}
+        {browsing ? t('next') : <><ChevronsLeft size={16} /> {t('gestureLessOften')}</>}
       </div>
 
       <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />

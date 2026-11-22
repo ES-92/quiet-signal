@@ -224,18 +224,6 @@ describe('lifecycle store actions', () => {
     expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['rest', 'wake'])
   })
 
-  it('does not log a browse-mode like', async () => {
-    // Arrange
-    await seedLegacyQuote()
-
-    // Act
-    await useQuoteStore.getState().likeQuote('legacy')
-    await useQuoteStore.getState().loadQuotes()
-
-    // Assert
-    expect(useQuoteStore.getState().quotes[0].activity).toBeUndefined()
-  })
-
   it('returns undefined and writes nothing for an unknown id', async () => {
     // Arrange
     await seedLegacyQuote()

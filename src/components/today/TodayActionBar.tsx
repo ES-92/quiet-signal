@@ -10,6 +10,9 @@ interface TodayActionBarProps {
   onMenu: () => void
   contextOpen?: boolean
   disabled?: boolean
+  // Browse mode is read-only: only a thought and paging on are offered.
+  browsing?: boolean
+  onNext?: () => void
 }
 
 // Icon over a short visible label; at least 44 px high, and the label truncates instead of widening the column (fits 320 px).
@@ -22,8 +25,39 @@ function Label({ children }: { children: ReactNode }) {
 }
 
 // Button alternative to the four swipe gestures plus the card menu; icons hint at the action (thought, rest) rather than the swipe direction.
-export function TodayActionBar({ onMoreOften, onLessOften, onThought, onRest, onMenu, contextOpen = false, disabled }: TodayActionBarProps) {
+export function TodayActionBar({
+  onMoreOften,
+  onLessOften,
+  onThought,
+  onRest,
+  onMenu,
+  contextOpen = false,
+  disabled,
+  browsing = false,
+  onNext
+}: TodayActionBarProps) {
   const { t } = useI18n()
+
+  if (browsing) {
+    return (
+      <div className="grid w-full max-w-xs grid-cols-2 gap-2" role="toolbar" aria-label={t('cardActionBar')}>
+        <button disabled={disabled} className={quietClass} aria-label={t('gestureThought')} title={t('gestureThought')} onClick={onThought}>
+          <PenLine size={16} aria-hidden />
+          <Label>{t('actionShortThought')}</Label>
+        </button>
+        <button
+          disabled={disabled}
+          className={`${buttonClass} bg-ink text-paper shadow-[0_12px_28px_rgba(31,30,28,0.14)]`}
+          aria-label={t('next')}
+          title={t('next')}
+          onClick={onNext}
+        >
+          <ArrowRight size={16} aria-hidden />
+          <Label>{t('next')}</Label>
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="grid w-full grid-cols-5 gap-1.5 sm:gap-2" role="toolbar" aria-label={t('cardActionBar')}>

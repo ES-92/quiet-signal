@@ -79,7 +79,7 @@ export const en = {
   loadingLibrary: 'Loading your collection...',
   nothingDueToday: 'Nothing due today',
   browseAnyway: 'Browse anyway',
-  browsingLabel: 'Browsing – doesn’t change intervals',
+  browsingLabel: 'Just looking – nothing gets rescheduled.',
   stopBrowsing: 'Done',
   nothingDueBody: 'Drop a moment into Noise to get started.',
   nothingDueBodyWithSignals: 'Your signals will come back in their own time.',

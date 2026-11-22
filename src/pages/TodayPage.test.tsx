@@ -13,6 +13,8 @@ import { TodayPage } from './TodayPage'
 
 const en = translations.en
 const SLOW = { timeout: 3000 }
+// Some tests replace addThought on the store; every test starts with the real one again.
+const realAddThought = useQuoteStore.getState().addThought
 
 const idByText: Record<string, string> = { Eins: 't-1', Zwei: 't-2', Drei: 't-3' }
 
@@ -93,7 +95,7 @@ beforeEach(async () => {
   resetFactories()
   await db.delete()
   await db.open()
-  useQuoteStore.setState({ quotes: [], loading: true })
+  useQuoteStore.setState({ quotes: [], loading: true, addThought: realAddThought })
   useBookStore.setState({ books: [], loading: true })
   useToastStore.setState({ toast: null })
   localStorage.setItem(coachKey, 'true')
@@ -936,32 +938,6 @@ describe('TodayPage', () => {
       expect(screen.queryByText(en.nothingDueToday)).not.toBeInTheDocument()
       await expectStatusSettled('t-1', 'rest')
     })
-
-    it('zeigt Stapel beendet, wenn die letzte Stöberkarte ruht, und bietet Stöbern weiter an', async () => {
-      // Arrange
-      const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
-      await upsertQuotes([
-        makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 }),
-        makeQuote({ id: 't-2', text: 'Zwei', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })
-      ])
-      await renderToday()
-      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
-      await screen.findByRole('blockquote')
-      const first = currentText()
-      // The first card only moves on (left swipe), so it stays a signal and "browse anyway" is still on offer once the
-      // last card rests. Resting both would leave no signal at all, and the button then (correctly) disappears after the reload.
-      swipe(-160)
-      await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
-      const lastId = currentId()
-
-      // Act
-      swipe(0, 160)
-
-      // Assert
-      expect(await screen.findByText(en.doneForToday, undefined, SLOW)).toBeInTheDocument()
-      await expectStatusSettled(lastId, 'rest')
-      expect(screen.getByRole('button', { name: en.browseAnyway })).toBeInTheDocument()
-    })
   })
 
   describe('Stöbern', () => {
@@ -998,12 +974,61 @@ describe('TodayPage', () => {
       expect(screen.queryByRole('button', { name: en.browseAnyway })).not.toBeInTheDocument()
     })
 
-    it('erhöht beim Stöbern per Wisch nach rechts nur die Likes und zeigt keinen Toast', async () => {
-      // Arrange
+    async function startBrowsing() {
       await seedNotDue()
       await renderToday()
       fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
       await screen.findByRole('blockquote')
+    }
+
+    async function expectUntouched(id: string) {
+      const stored = await getQuote(id)
+      expect(stored?.status).toBe('signal')
+      expect(stored?.likes ?? 0).toBe(0)
+      expect(stored?.reviewIntervalDays).toBe(5)
+      expect(stored?.nextReviewAt).toBe(future)
+      expect(stored?.reviewCount).toBe(2)
+      expect(stored?.lastReviewedAt).toBeUndefined()
+      expect(stored?.activity).toBeUndefined()
+    }
+
+    it('sagt ehrlich, dass beim Stöbern nichts verschoben wird', async () => {
+      // Arrange / Act
+      await startBrowsing()
+
+      // Assert
+      expect(screen.getByText(en.browsingLabel)).toHaveTextContent('Just looking – nothing gets rescheduled.')
+    })
+
+    it('zeigt beim Stöbern in der Leiste nur Gedanke und Weiter', async () => {
+      // Arrange / Act
+      await startBrowsing()
+
+      // Assert
+      const toolbar = within(screen.getByRole('toolbar', { name: en.cardActionBar }))
+      expect(toolbar.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([en.gestureThought, en.next])
+      expect(screen.queryByRole('button', { name: en.gestureMoreOften })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.gestureLessOften })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.gestureRest })).not.toBeInTheDocument()
+    })
+
+    it('blättert beim Stöbern per Weiter nur weiter und ändert nichts', async () => {
+      // Arrange
+      await startBrowsing()
+      const first = currentId()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.next }))
+
+      // Assert
+      await waitFor(() => expect(screen.getByText('2 of 2')).toBeInTheDocument(), SLOW)
+      await expectUntouched(first)
+      expect(useToastStore.getState().toast).toBeNull()
+    })
+
+    it('geht beim Stöbern per Wisch nach rechts nur weiter, ohne Like und ohne Toast', async () => {
+      // Arrange
+      await startBrowsing()
       const first = currentId()
 
       // Act
@@ -1011,17 +1036,55 @@ describe('TodayPage', () => {
 
       // Assert
       await waitFor(() => expect(screen.getByText('2 of 2')).toBeInTheDocument(), SLOW)
-      await expectKeptCount(1)
-      await act(async () => {
-        await useQuoteStore.getState().loadQuotes()
-      })
+      await expectUntouched(first)
+      expect(useToastStore.getState().toast).toBeNull()
+    })
+
+    it('lässt beim Stöbern einen Wisch nach unten nichts ruhen', async () => {
+      // Arrange
+      await startBrowsing()
+      const first = currentId()
+
+      // Act
+      swipe(0, 160)
+      await new Promise((resolve) => setTimeout(resolve, 800))
+
+      // Assert
+      expect(currentId()).toBe(first)
+      expect(screen.getByText('1 of 2')).toBeInTheDocument()
+      await expectUntouched(first)
+      expect(useToastStore.getState().toast).toBeNull()
+    })
+
+    it('bietet beim Stöbern im Kartenmenü Favorit und Details, aber kein Löschen', async () => {
+      // Arrange
+      await startBrowsing()
+
+      // Act
+      await longPress()
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.favorite })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: en.openDetails })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.deleteEntry })).not.toBeInTheDocument()
+    })
+
+    it('erlaubt beim Stöbern einen Gedanken, ohne die Abstände zu ändern', async () => {
+      // Arrange
+      await startBrowsing()
+      const first = currentId()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.gestureThought }))
+      fireEvent.change(screen.getByPlaceholderText(en.thoughtPlaceholder), { target: { value: 'Beim Stöbern gedacht' } })
+      fireEvent.click(screen.getByRole('button', { name: en.save }))
+
+      // Assert
+      await waitFor(async () => expect((await getQuote(first))?.thoughts?.map((thought) => thought.text)).toEqual(['Beim Stöbern gedacht']), SLOW)
       const stored = await getQuote(first)
-      expect(stored?.likes).toBe(1)
       expect(stored?.reviewIntervalDays).toBe(5)
       expect(stored?.nextReviewAt).toBe(future)
-      expect(stored?.reviewCount).toBe(2)
-      expect(stored?.lastReviewedAt).toBeUndefined()
-      expect(useToastStore.getState().toast).toBeNull()
+      await waitFor(() => expect(useQuoteStore.getState().quotes.find((quote) => quote.id === first)?.thoughts).toHaveLength(1))
     })
 
     it('geht beim Stöbern per Wisch nach links nur weiter und ändert nichts', async () => {
@@ -1096,25 +1159,6 @@ describe('TodayPage', () => {
       // Assert
       expect(await screen.findByRole('blockquote')).toBeInTheDocument()
       expect(screen.getByText('1 of 2')).toBeInTheDocument()
-    })
-
-    it('holt die ruhende letzte Stöberkarte per Rückgängig zurück und bleibt im Stöbern', async () => {
-      // Arrange
-      await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })])
-      await renderToday()
-      fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
-      await screen.findByRole('blockquote')
-      swipe(0, 160)
-      await screen.findByText(en.doneForToday, undefined, SLOW)
-      await expectStatusSettled('t-1', 'rest')
-
-      // Act
-      act(() => useToastStore.getState().toast?.onAction?.())
-
-      // Assert
-      expect(await screen.findByRole('blockquote', undefined, SLOW)).toHaveTextContent('Eins')
-      expect(screen.getByText(en.browsingLabel)).toBeInTheDocument()
-      await expectStatusSettled('t-1', 'signal')
     })
 
     it('blendet beim Wechsel in eine neue Stöberrunde den alten Rückgängig-Hinweis aus', async () => {

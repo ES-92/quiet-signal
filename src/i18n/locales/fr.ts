@@ -81,7 +81,7 @@ export const fr: Record<keyof typeof en, string> = {
   loadingLibrary: 'Chargement de la bibliothèque...',
   nothingDueToday: 'Rien à revoir aujourd’hui',
   browseAnyway: 'Parcourir quand même',
-  browsingLabel: 'Parcours – ne change pas les intervalles',
+  browsingLabel: 'Juste regarder : rien n’est reprogrammé.',
   stopBrowsing: 'Terminé',
   nothingDueBody: 'Dépose un moment dans Bruit pour commencer.',
   nothingDueBodyWithSignals: 'Tes signaux reviendront en leur temps.',

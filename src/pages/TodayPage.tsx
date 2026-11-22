@@ -55,14 +55,22 @@ export function TodayPage() {
     setCoachDismissed(true)
   }
 
+  // Browsing is read-only: → and ← only page on, ↓ does nothing (the card springs back); ↑ and long-press stay.
   const deck = useSwipeDeck(
-    {
-      right: () => void actions.handleMoreOften(),
-      left: () => void actions.handleLessOften(),
-      down: actions.handleRest,
-      up: actions.openThought,
-      longPress: actions.openContext
-    },
+    session.browsing
+      ? {
+          right: () => void actions.browseNext(),
+          left: () => void actions.browseNext(),
+          up: actions.openThought,
+          longPress: actions.openContext
+        }
+      : {
+          right: () => void actions.handleMoreOften(),
+          left: () => void actions.handleLessOften(),
+          down: actions.handleRest,
+          up: actions.openThought,
+          longPress: actions.openContext
+        },
     {
       enabled: Boolean(currentQuote) && !actions.contextOpen && !actions.thoughtOpen && !coachVisible,
       distance: 76,
@@ -103,6 +111,7 @@ export function TodayPage() {
             position={currentIndex + 1}
             total={dailyQuotes.length}
             deck={deck}
+            browsing={session.browsing}
           >
             {actions.contextOpen && (
               <TodayContextMenu
@@ -110,7 +119,7 @@ export function TodayPage() {
                 onClose={actions.closeContext}
                 onFavorite={() => void actions.handleFavoriteToggle()}
                 onOpenDetails={actions.handleOpenDetails}
-                onDiscard={actions.handleContextDiscard}
+                onDiscard={session.browsing ? undefined : actions.handleContextDiscard}
               />
             )}
             {coachVisible && <GestureCoach deck="today" onDismiss={dismissCoach} />}
@@ -145,6 +154,8 @@ export function TodayPage() {
             onMenu={actions.openContext}
             contextOpen={actions.contextOpen}
             disabled={coachVisible || actions.contextOpen || actions.thoughtOpen}
+            browsing={session.browsing}
+            onNext={() => void actions.browseNext()}
           />
         )}
         <div className="sm:hidden" role="group" aria-label={t('quickNoise')}>

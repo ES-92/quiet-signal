@@ -84,6 +84,11 @@ export function useSwipeDeck(actions: SwipeDeckActions, options: SwipeDeckOption
   }
 
   function commit(direction: SwipeDirection, action?: () => void) {
+    // A direction without an action (e.g. ↓ while browsing) springs back instead of throwing the card off.
+    if (!action) {
+      reset()
+      return
+    }
     const width = window.innerWidth || 390
     const horizontal = direction === 'right' || direction === 'left'
     const sign = direction === 'right' || direction === 'down' ? 1 : -1

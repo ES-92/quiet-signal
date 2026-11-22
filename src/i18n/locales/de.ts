@@ -81,7 +81,7 @@ export const de: Record<keyof typeof en, string> = {
   loadingLibrary: 'Sammlung wird geladen...',
   nothingDueToday: 'Heute ist nichts fällig',
   browseAnyway: 'Trotzdem stöbern',
-  browsingLabel: 'Stöbern – ändert keine Abstände',
+  browsingLabel: 'Nur ansehen – nichts wird verschoben.',
   stopBrowsing: 'Fertig',
   nothingDueBody: 'Lege einen Moment ins Rauschen, um zu beginnen.',
   nothingDueBodyWithSignals: 'Deine Signale kommen zu ihrer Zeit wieder.',

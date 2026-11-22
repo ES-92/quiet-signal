@@ -11,11 +11,12 @@ interface TodayDeckStackProps {
   position: number
   total: number
   deck: ReturnType<typeof useSwipeDeck>
+  browsing?: boolean
   children?: ReactNode
 }
 
 // Swipe surface with the top card and up to two preview cards behind it; children (menu, coach) overlay the surface.
-export function TodayDeckStack({ quote, nextQuote, thirdQuote, position, total, deck, children }: TodayDeckStackProps) {
+export function TodayDeckStack({ quote, nextQuote, thirdQuote, position, total, deck, browsing = false, children }: TodayDeckStackProps) {
   const deckLift = deck.exit ? 1 : Math.min(1, Math.hypot(deck.drag.x, deck.drag.y) / 140 + deck.hints.right * 0.6)
 
   return (
@@ -27,7 +28,7 @@ export function TodayDeckStack({ quote, nextQuote, thirdQuote, position, total, 
       >
         {thirdQuote && <DeckPreview quote={thirdQuote} depth={2} lift={deckLift} />}
         {nextQuote && <DeckPreview quote={nextQuote} depth={1} lift={deckLift} />}
-        <TodayTopCard quote={quote} position={position} total={total} deck={deck} />
+        <TodayTopCard quote={quote} position={position} total={total} deck={deck} browsing={browsing} />
         {children}
       </div>
     </section>

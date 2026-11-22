@@ -81,7 +81,7 @@ export const es: Record<keyof typeof en, string> = {
   loadingLibrary: 'Cargando tu biblioteca...',
   nothingDueToday: 'Hoy no hay nada pendiente',
   browseAnyway: 'Explorar de todos modos',
-  browsingLabel: 'Explorando – no cambia los intervalos',
+  browsingLabel: 'Solo mirar: nada se reprograma.',
   stopBrowsing: 'Listo',
   nothingDueBody: 'Guarda un momento en Ruido para empezar.',
   nothingDueBodyWithSignals: 'Tus señales volverán a su debido tiempo.',
