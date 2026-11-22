@@ -558,11 +558,12 @@ describe('InboxPage', () => {
 
       // Assert
       expect(screen.getByLabelText(en.author)).toHaveValue('Die Autorin')
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
       expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
       expect(screen.getByRole('option', { name: 'Der Titel - Die Autorin' })).toBeInTheDocument()
     })
 
-    it('öffnet „Mehr Details“ von selbst, wenn die Buchwahl das versteckte Feld Werk füllt', async () => {
+    it('lässt „Mehr Details“ zu, wenn die Buchwahl nur Werk mit dem Buchtitel füllt', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
       await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
@@ -575,18 +576,34 @@ describe('InboxPage', () => {
       fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
 
       // Assert
-      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'true')
-      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.getByLabelText(en.author)).toBeInTheDocument()
     })
 
-    it('lässt „Mehr Details“ zu, wenn der Nutzer es nach der Buchwahl selbst einklappt', async () => {
+    it('behält die Überschriften-Reihenfolge h1, h2 auch mit geöffneten Details', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+
+      // Assert
+      const levels = screen.getAllByRole('heading').map((heading) => heading.tagName)
+      expect(levels).toEqual(['H1', 'H2'])
+    })
+
+    it('klappt „Mehr Details“ nach der Buchwahl per Klick ein und aus', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
       await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
       await renderInbox()
       await screen.findByRole('blockquote')
       fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
       fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
 
       // Act
       fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))

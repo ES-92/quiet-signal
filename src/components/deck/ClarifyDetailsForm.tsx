@@ -14,7 +14,7 @@ interface ClarifyDetailsFormProps {
   onFinish: () => void
 }
 
-// Edit form for the top card. Text, author, book, tags and first thought are always shown; the rarely used fields sit behind "More details", which opens by itself when any of them already has a value or gets one (e.g. picking a book fills Werk).
+// Edit form for the top card. Text, author, book, tags and first thought are always shown; the rarely used fields sit behind "More details", which opens by itself when any of them already has a value or gets a value other than the picked book's title.
 export function ClarifyDetailsForm({
   draft,
   books,
@@ -30,18 +30,22 @@ export function ClarifyDetailsForm({
   // Decided when the form opens, so clearing a field never makes the others jump away.
   const [moreOpen, setMoreOpen] = useState(hasRareValues)
   // While collapsed the user cannot edit these fields, so a change means the app filled one (adjusting state while rendering).
-  const rareKey = [draft.people, draft.occurredAt, draft.work, draft.year, draft.note, draft.source].join('\u0001')
+  // Picking a book fills Werk with the book's title; that is expected and does not open the disclosure.
+  const bookTitle = books.find((book) => book.id === draft.bookId)?.title
+  const work = draft.work === bookTitle ? '' : draft.work
+  const autoFields = [draft.people, draft.occurredAt, work, draft.year, draft.note, draft.source]
+  const rareKey = autoFields.join('\u0001')
   const [seenRareKey, setSeenRareKey] = useState(rareKey)
   if (rareKey !== seenRareKey) {
     setSeenRareKey(rareKey)
-    if (hasRareValues) setMoreOpen(true)
+    if (autoFields.some((value) => value.trim())) setMoreOpen(true)
   }
 
   return (
     <div className="quiet-pop grid gap-4 rounded-md border border-line bg-white/30 p-4">
       <div>
         <p className="text-xs uppercase tracking-[0.16em] text-graphite">{t('signalDraft')}</p>
-        <h3 className="mt-1 font-serif text-2xl">{t('signalDraftTitle')}</h3>
+        <h2 className="mt-1 font-serif text-2xl">{t('signalDraftTitle')}</h2>
       </div>
       <label className="grid gap-2">
         <span className="text-sm text-graphite">{t('text')}</span>
