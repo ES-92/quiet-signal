@@ -5,6 +5,9 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed
+- README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
+
 ## [0.4.0] - 2026-11-22
 
 ### Added

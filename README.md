@@ -2,13 +2,16 @@
 
 [![CI](https://github.com/ES-92/quiet-signal/actions/workflows/ci.yml/badge.svg)](https://github.com/ES-92/quiet-signal/actions/workflows/ci.yml)
 
-**A free, local-first, privacy-first commonplace app for notes, quotes, and recurring insights.**
+**A private, swipe-first place to collect quotes and thoughts — and see them again.**
+Like Readwise for your own reflections, without the subscription or the cloud.
 
-Most highlights and notes disappear into an archive you never open again. Quiet Signal helps you collect thoughts, quotes, photos, and voice notes — and quietly *resurfaces* the ones that matter, so you actually revisit them.
+Quiet Signal is not another notes app. It's for the things you want to *come back to*: a line from a book, a thought on a walk, something someone said. You capture them in seconds, and the app quietly brings them back over the following days and weeks, so they turn into reflection instead of an archive you never open.
 
-It's a [Readwise](https://readwise.io)-style review flow for your *own* thoughts — without an account, a subscription, a cloud, or any tracking. Everything stays in your browser.
+Everything stays on your device — no account, no server, no tracking.
 
-> **Live app:** https://quiet-signal.vercel.app ·
+> **Live app:** https://quiet-signal.vercel.app · free, installable, works offline
+>
+> 🇩🇪 *Auf Deutsch?* Die App ist komplett auf Deutsch nutzbar (außerdem Englisch, Spanisch, Französisch).
 
 <p align="center">
   <img src="docs/screenshots/demo.gif" alt="Swiping through the daily review deck" width="260">
@@ -21,11 +24,13 @@ It's a [Readwise](https://readwise.io)-style review flow for your *own* thoughts
   <img src="docs/screenshots/reflections.png" alt="Weekly reflection" width="200">
 </p>
 
-## Why?
+## Why I built it
 
-- You collect quotes, ideas, and highlights — but rarely look at them again.
-- You want the "resurface what matters" habit of Readwise, but **local-first and private**.
-- You don't want yet another cloud account, subscription, or analytics SDK watching your notes.
+I wanted a Readwise alternative without a subscription. Obsidian never felt right for this on my phone, and every notes app I tried slowly turned into a pile I stopped looking at. What I actually wanted wasn't more notes, but a calm daily moment to **reflect** on what I had collected — with a UI I can use one-handed, by swiping.
+
+And since it's about reflecting on myself, no provider needs to see any of it. So Quiet Signal is local-first and private by principle: your entries live in your browser, and nothing leaves your device.
+
+I didn't find an app that combines these things, so I built one.
 
 Quiet Signal is built around a simple metaphor: capture the **noise**, keep the **signal**.
 
@@ -53,7 +58,7 @@ Example: you capture a line by Seneca as noise. While clarifying you keep it as 
 
 ## Who is it for?
 
-Readers, writers, students, researchers, Obsidian/PKM folks, and anyone who likes the Readwise idea but wants their highlights **local and private** instead of in someone else's cloud.
+Readers who want their Kindle highlights to resurface, people who journal or reflect but don't want a cloud diary, and PKM folks who like the Readwise idea but want it **on their phone, local and private** instead of in someone else's cloud.
 
 Not a Notion/Obsidian replacement — more a small, focused companion for the things you actually want to remember.
 
@@ -101,7 +106,7 @@ React 19 · TypeScript · Vite · TailwindCSS · Zustand · Dexie (IndexedDB) ·
 - Richer reflections and pattern views
 - More import sources
 - Polished gesture discoverability
-- (Your ideas — open an issue or a discussion!)
+- (Your ideas — [open an issue](https://github.com/ES-92/quiet-signal/issues/new/choose)!)
 
 This project intentionally stays **free and local**. There is no paid tier; cloud sync is deliberately out of scope.
 
