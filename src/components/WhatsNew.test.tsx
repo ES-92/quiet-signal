@@ -1,7 +1,7 @@
 import { fireEvent, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { translations } from '../i18n/translations'
-import { APP_VERSION } from '../services/release'
+import { APP_VERSION, releaseNotes } from '../services/release'
 import { renderWithProviders } from '../test/render'
 import { WhatsNew } from './WhatsNew'
 
@@ -9,6 +9,24 @@ const en = translations.en
 const versionKey = 'quiet-signal-last-seen-version'
 
 describe('WhatsNew', () => {
+  const originalNotes = [...releaseNotes]
+  afterEach(() => {
+    releaseNotes.splice(0, releaseNotes.length, ...originalNotes)
+  })
+
+  it('zeigt bei einem Versionssprung ohne Release-Notes kein leeres Sheet und merkt sich die Version', () => {
+    // Arrange
+    releaseNotes.splice(0)
+    localStorage.setItem(versionKey, '0.1.0')
+
+    // Act
+    renderWithProviders(<WhatsNew onSupport={vi.fn()} />)
+
+    // Assert
+    expect(screen.queryByText(en.whatsNewTitle)).not.toBeInTheDocument()
+    expect(localStorage.getItem(versionKey)).toBe(APP_VERSION)
+  })
+
   it('zeigt die Release-Notes, wenn die zuletzt gesehene Version älter ist', () => {
     // Arrange
     localStorage.setItem(versionKey, '0.1.0')

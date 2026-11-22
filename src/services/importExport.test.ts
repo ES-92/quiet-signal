@@ -14,6 +14,210 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('Stille und Gedanken im Import/Export', () => {
+  const thought = { id: 'th-1', text: 'Noch ein Gedanke', createdAt: '2026-01-05T09:00:00.000Z', fromNote: true }
+
+  it('übersteht einen JSON-Roundtrip mit Status, Abstand und Gedanken', () => {
+    // Arrange
+    const quote = makeQuote({ status: 'rest', reviewIntervalDays: 8, thoughts: [thought] })
+
+    // Act
+    const [result] = parseJsonImport(exportJson([quote]))
+
+    // Assert
+    expect(result).toMatchObject({ status: 'rest', reviewIntervalDays: 8, thoughts: [thought] })
+  })
+
+  it('übersteht einen CSV-Roundtrip für Status und Abstand und exportiert Gedanken lesbar', () => {
+    // Arrange
+    const second = { id: 'th-2', text: 'Zweiter', createdAt: '2026-01-06T09:00:00.000Z' }
+    const quote = makeQuote({ status: 'rest', reviewIntervalDays: 8, thoughts: [thought, second] })
+
+    // Act
+    const csv = exportCsv([quote])
+    const [result] = parseCsvImport(csv)
+
+    // Assert
+    expect(result).toMatchObject({ status: 'rest', reviewIntervalDays: 8 })
+    expect(csv).toContain(`${thought.createdAt} ${thought.text}\n${second.createdAt} ${second.text}`)
+    expect(result.thoughts).toEqual([
+      { id: expect.stringMatching(uuidPattern), text: thought.text, createdAt: thought.createdAt },
+      { id: expect.stringMatching(uuidPattern), text: second.text, createdAt: second.createdAt }
+    ])
+  })
+
+  it('liest CSV-Gedanken mit Leerzeichen und Anführungszeichen zurück und überspringt Zeilen ohne Datum oder Text', () => {
+    // Arrange
+    const field = [
+      '2026-01-05T09:00:00.000Z Ein Gedanke, mit ""Zitat""',
+      'ohne Datum',
+      '2026-01-06T09:00:00.000Z   ',
+      '2026-01-07T09:00:00.000Z Letzter'
+    ].join('\n')
+    const content = `text,thoughts\nZitat,"${field}"`
+
+    // Act
+    const [result] = parseCsvImport(content)
+
+    // Assert
+    expect(result.thoughts?.map((item) => [item.createdAt, item.text])).toEqual([
+      ['2026-01-05T09:00:00.000Z', 'Ein Gedanke, mit "Zitat"\nohne Datum'],
+      ['2026-01-07T09:00:00.000Z', 'Letzter']
+    ])
+  })
+
+  it('behält mehrzeilige Gedanken mit Zahlenzeilen im Roundtrip exakt bei', () => {
+    // Arrange
+    const multiline = { id: 'th-9', text: 'Drei Dinge:\n1. Punkt\n2024\n3.\n\n1/2 Rest', createdAt: '2026-01-05T09:00:00.000Z' }
+    const next = { id: 'th-10', text: 'Danach', createdAt: '2026-01-06T09:00:00.000Z' }
+    const quote = makeQuote({ thoughts: [multiline, next] })
+
+    // Act
+    const [result] = parseCsvImport(exportCsv([quote]))
+
+    // Assert
+    expect(result.thoughts?.map((item) => [item.createdAt, item.text])).toEqual([
+      [multiline.createdAt, multiline.text],
+      [next.createdAt, next.text]
+    ])
+  })
+
+  it('wendet auf CSV-Gedanken dieselbe Obergrenze an wie beim JSON-Import', () => {
+    // Arrange
+    const many = Array.from({ length: 600 }, (_, index) => {
+      const day = new Date(Date.UTC(2026, 0, 1) + index * 86_400_000).toISOString()
+      return `${day} g${index}`
+    }).join('\n')
+
+    // Act
+    const [result] = parseCsvImport(`text,thoughts\nx,"${many}"`)
+
+    // Assert
+    expect(result.thoughts).toHaveLength(500)
+  })
+
+  it('behält Gedanken im Roundtrip exportCsv und parseCsvImport (Text und createdAt)', () => {
+    // Arrange
+    const quote = makeQuote({ thoughts: [thought] })
+
+    // Act
+    const [result] = parseCsvImport(exportCsv([quote]))
+
+    // Assert
+    expect(result.thoughts).toMatchObject([{ text: thought.text, createdAt: thought.createdAt }])
+  })
+
+  it('fällt bei unbekanntem Status auf signal zurück', () => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', status: 'archived' }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.status).toBe('signal')
+  })
+
+  it.each([0, -3, Number.NaN, 366, 2.5, 'abc', true, [7]])('lässt ungültiges reviewIntervalDays %s weg', (value) => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', reviewIntervalDays: value }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.reviewIntervalDays).toBeUndefined()
+  })
+
+  it('übernimmt nur gültige Gedanken, vergibt fehlende IDs und behält fromNote nur bei true', () => {
+    // Arrange
+    const content = JSON.stringify([
+      {
+        text: 'x',
+        thoughts: [
+          { id: 'ok-1', text: 'Gültig', createdAt: '2026-01-05T09:00:00.000Z', fromNote: false },
+          { text: 'Ohne ID', createdAt: '2026-01-06T09:00:00.000Z', fromNote: true },
+          { id: 'bad-1', text: 42, createdAt: '2026-01-07T09:00:00.000Z' },
+          { id: 'bad-2', text: 'Ohne Datum' },
+          'kein Objekt'
+        ]
+      }
+    ])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts).toHaveLength(2)
+    expect(result.thoughts?.[0]).toEqual({ id: 'ok-1', text: 'Gültig', createdAt: '2026-01-05T09:00:00.000Z' })
+    expect(result.thoughts?.[1].id).toMatch(uuidPattern)
+    expect(result.thoughts?.[1]).toMatchObject({ text: 'Ohne ID', fromNote: true })
+  })
+
+  it('speichert das Datum eines Gedankens als ISO-String', () => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', thoughts: [{ id: 't', text: 'Gedanke', createdAt: 'Jan 1 2026 10:00 UTC' }] }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts?.[0].createdAt).toBe('2026-01-01T10:00:00.000Z')
+  })
+
+  it('verwirft leere Texte und unparsbare Daten, kürzt Texte und vergibt doppelte IDs neu', () => {
+    // Arrange
+    const content = JSON.stringify([
+      {
+        text: 'x',
+        thoughts: [
+          { id: 'dup', text: '   ', createdAt: '2026-01-05T09:00:00.000Z' },
+          { id: 'a', text: 'Kein Datum', createdAt: 'gestern' },
+          { id: 'dup', text: 'L'.repeat(10_050), createdAt: '2026-01-06T09:00:00.000Z' },
+          { id: 'dup', text: 'Zweiter', createdAt: '2026-01-07T09:00:00.000Z' }
+        ]
+      }
+    ])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts).toHaveLength(2)
+    expect(result.thoughts?.[0].id).toBe('dup')
+    expect(result.thoughts?.[0].text).toHaveLength(10_000)
+    expect(result.thoughts?.[1].id).toMatch(uuidPattern)
+  })
+
+  it('behält höchstens die 500 neuesten Gedanken', () => {
+    // Arrange
+    const thoughts = Array.from({ length: 502 }, (_, index) => ({
+      id: `t-${index}`,
+      text: `Gedanke ${index}`,
+      createdAt: new Date(Date.UTC(2026, 0, 1) + index * 60_000).toISOString()
+    }))
+
+    // Act
+    const [result] = parseJsonImport(JSON.stringify([{ text: 'x', thoughts }]))
+
+    // Assert
+    expect(result.thoughts).toHaveLength(500)
+    expect(result.thoughts?.some((thought) => thought.id === 't-0' || thought.id === 't-1')).toBe(false)
+    expect(result.thoughts?.some((thought) => thought.id === 't-501')).toBe(true)
+  })
+
+  it('lässt thoughts weg, wenn kein Array geliefert wird', () => {
+    // Arrange
+    const content = JSON.stringify([{ text: 'x', thoughts: 'nope' }])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.thoughts).toBeUndefined()
+  })
+})
+
 describe('exportJson und parseJsonImportBundle', () => {
   it('erzeugt einen Envelope mit App-Name, Version und Exportzeitpunkt', () => {
     // Arrange

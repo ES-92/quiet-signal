@@ -3,15 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import { DailyRestState } from '../components/deck/DailyRestState'
 import { QuickCaptureDock } from '../components/deck/QuickCaptureDock'
 import { GestureCoach } from '../components/GestureCoach'
+import { TodayActionBar } from '../components/today/TodayActionBar'
 import { TodayBookEditor } from '../components/today/TodayBookEditor'
 import { TodayContextMenu } from '../components/today/TodayContextMenu'
 import { TodayDeckStack } from '../components/today/TodayDeckStack'
 import { TodayHeader } from '../components/today/TodayHeader'
+import { ThoughtSheet } from '../components/thoughts/ThoughtSheet'
 import { useDailySession } from '../hooks/useDailySession'
 import { useSwipeDeck } from '../hooks/useSwipeDeck'
 import { useTodayActions } from '../hooks/useTodayActions'
 import { useI18n } from '../i18n/useI18n'
 import { markCoachmarkSeen, shouldShowCoachmark } from '../services/coach'
+import { thoughtsNewestFirst } from '../services/thoughts'
+import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 
 export function TodayPage() {
   const { t } = useI18n()
@@ -21,7 +26,9 @@ export function TodayPage() {
   const actions = useTodayActions({
     currentQuote,
     currentBook,
+    browsing: session.browsing,
     advanceIndex: session.advanceIndex,
+    rewindTo: session.rewindTo,
     hideQuote: session.hideQuote,
     showQuote: session.showQuote
   })
@@ -30,6 +37,21 @@ export function TodayPage() {
   const [coachDismissed, setCoachDismissed] = useState(() => !shouldShowCoachmark())
   const coachVisible = Boolean(currentQuote) && !coachDismissed
 
+  const { addThought } = useQuoteStore()
+  const { showToast } = useToastStore()
+
+  // Saves the thought, then closes the sheet; the card stays on top. On failure the sheet keeps the text.
+  // The sheet awaits this promise to keep its saving state, so it must settle only once the write is done.
+  async function saveThought(text: string) {
+    if (!currentQuote) return
+    try {
+      await addThought(currentQuote.id, text)
+      actions.closeThought()
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
+  }
+
   function dismissCoach() {
     markCoachmarkSeen()
     setCoachDismissed(true)
@@ -37,13 +59,17 @@ export function TodayPage() {
 
   const deck = useSwipeDeck(
     {
-      right: actions.handleKeep,
-      left: actions.handleSnooze,
-      down: actions.handleDiscard,
-      up: actions.openContext,
+      right: () => void actions.handleMoreOften(),
+      left: () => void actions.handleLessOften(),
+      down: actions.handleRest,
+      up: actions.openThought,
       longPress: actions.openContext
     },
-    { enabled: Boolean(currentQuote) && !actions.contextOpen && !coachVisible, distance: 76, exitMs: 620 }
+    {
+      enabled: Boolean(currentQuote) && !actions.contextOpen && !actions.thoughtOpen && !coachVisible,
+      distance: 76,
+      exitMs: 620
+    }
   )
 
   return (
@@ -55,37 +81,61 @@ export function TodayPage() {
           {t('loadingLibrary')}
         </div>
       ) : currentQuote ? (
-        <TodayDeckStack
-          quote={currentQuote}
-          nextQuote={session.nextQuote}
-          thirdQuote={session.thirdQuote}
-          position={currentIndex + 1}
-          total={dailyQuotes.length}
-          deck={deck}
+        <div
+          data-testid="today-deck-area"
+          // The hint row only exists while browsing; without it the card must own the single flexible row.
+          className={`grid min-h-0 gap-2 ${session.browsing ? 'grid-rows-[auto_minmax(0,1fr)]' : 'grid-rows-[minmax(0,1fr)]'}`}
         >
-          {actions.contextOpen && (
-            <TodayContextMenu
-              favorite={currentQuote.favorite}
-              hasBook={Boolean(currentBook)}
-              onClose={actions.closeContext}
-              onFavorite={() => void actions.handleFavoriteToggle()}
-              onSnooze={actions.handleContextSnooze}
-              onDislike={actions.handleDislike}
-              onOpenDetails={actions.handleOpenDetails}
-              onEditBook={actions.openBookEditor}
-              onDiscard={actions.handleContextDiscard}
-            />
+          {session.browsing && (
+            <div className="flex items-center justify-center gap-3 text-xs text-graphite">
+              <span>{t('browsingLabel')}</span>
+              <button
+                type="button"
+                className="quiet-touch rounded-full border border-line bg-paper/82 px-3 py-1 text-ink transition active:scale-[0.98]"
+                onClick={session.stopBrowsing}
+              >
+                {t('stopBrowsing')}
+              </button>
+            </div>
           )}
-          {coachVisible && <GestureCoach deck="today" onDismiss={dismissCoach} />}
-        </TodayDeckStack>
+          <TodayDeckStack
+            quote={currentQuote}
+            nextQuote={session.nextQuote}
+            thirdQuote={session.thirdQuote}
+            position={currentIndex + 1}
+            total={dailyQuotes.length}
+            deck={deck}
+          >
+            {actions.contextOpen && (
+              <TodayContextMenu
+                favorite={currentQuote.favorite}
+                hasBook={Boolean(currentBook)}
+                onClose={actions.closeContext}
+                onFavorite={() => void actions.handleFavoriteToggle()}
+                onOpenDetails={actions.handleOpenDetails}
+                onEditBook={actions.openBookEditor}
+                onDiscard={actions.handleContextDiscard}
+              />
+            )}
+            {coachVisible && <GestureCoach deck="today" onDismiss={dismissCoach} />}
+          </TodayDeckStack>
+        </div>
       ) : (
         <DailyRestState
           title={session.stackCompleted ? t('doneForToday') : t('nothingDueToday')}
-          body={session.stackCompleted ? t('doneForTodayBody') : t('nothingDueBody')}
+          body={session.stackCompleted ? t('doneForTodayBody') : session.hasSignals ? t('nothingDueBodyWithSignals') : t('nothingDueBody')}
           showReflection={session.showReflectionNudge}
           onOpenReflections={() => navigate('/reflections')}
           inboxCount={session.inboxCount}
           onOpenInbox={() => navigate('/inbox')}
+          onBrowse={session.hasSignals ? session.startBrowsing : undefined}
+        />
+      )}
+      {actions.thoughtOpen && currentQuote && (
+        <ThoughtSheet
+          thoughts={thoughtsNewestFirst(currentQuote)}
+          onSave={saveThought}
+          onClose={actions.closeThought}
         />
       )}
       {actions.bookEditorOpen && currentBook && (
@@ -98,8 +148,21 @@ export function TodayPage() {
           onSave={() => void actions.handleSaveBook()}
         />
       )}
-      <footer className="flex shrink-0 justify-center pb-1 sm:hidden" aria-label={t('quickNoise')}>
-        <QuickCaptureDock />
+      <footer className="flex shrink-0 flex-col items-center gap-2 pb-1">
+        {currentQuote && (
+          <TodayActionBar
+            onMoreOften={() => void actions.handleMoreOften()}
+            onLessOften={() => void actions.handleLessOften()}
+            onThought={actions.openThought}
+            onRest={actions.handleRest}
+            onMenu={actions.openContext}
+            contextOpen={actions.contextOpen}
+            disabled={coachVisible || actions.contextOpen || actions.thoughtOpen}
+          />
+        )}
+        <div className="sm:hidden" role="group" aria-label={t('quickNoise')}>
+          <QuickCaptureDock />
+        </div>
       </footer>
     </div>
   )

@@ -94,6 +94,34 @@ describe('Normalisierung', () => {
 })
 
 describe('Quotes: Anlegen und Aktualisieren', () => {
+  it('startet neue Signale morgen um 06:00 mit Abstand 1', async () => {
+    // Arrange
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 5, 10, 15, 30))
+
+    // Act
+    const created = await createQuote({ text: 'Neu', tags: [], favorite: false, status: 'signal' } as never)
+
+    // Assert
+    vi.useRealTimers()
+    expect(created.reviewIntervalDays).toBe(1)
+    expect(created.nextReviewAt).toBe(new Date(2026, 5, 11, 6, 0, 0, 0).toISOString())
+    expect((await getQuote(created.id))?.nextReviewAt).toBe(created.nextReviewAt)
+  })
+
+  it('lässt Eingang und Ruhe ohne Fälligkeit und achtet einen vorgegebenen Abstand', async () => {
+    // Act
+    const inbox = await createQuote({ text: 'a', tags: [], favorite: false, status: 'inbox' } as never)
+    const rest = await createQuote({ text: 'b', tags: [], favorite: false, status: 'rest' } as never)
+    const custom = await createQuote({ text: 'c', tags: [], favorite: false, status: 'signal', reviewIntervalDays: 7 } as never)
+
+    // Assert
+    expect(inbox.nextReviewAt).toBeUndefined()
+    expect(inbox.reviewIntervalDays).toBeUndefined()
+    expect(rest.nextReviewAt).toBeUndefined()
+    expect(custom.reviewIntervalDays).toBe(7)
+  })
+
   it('legt ein Zitat mit Standardwerten an und listet es', async () => {
     // Arrange
     const input = { text: 'Hallo', tags: ['A, b'], favorite: false }
@@ -171,6 +199,25 @@ describe('Quotes: Anlegen und Aktualisieren', () => {
     expect(await getQuote('gibt-es-nicht')).toBeUndefined()
   })
 
+  it('wirft bei einem Updater auf eine unbekannte ID, statt Erfolg zu melden', async () => {
+    // Arrange / Act
+    const attempt = updateQuote('gibt-es-nicht', () => ({ text: 'x' }))
+
+    // Assert
+    await expect(attempt).rejects.toThrow('Quote not found or unreadable')
+  })
+
+  it('schreibt bei einem Updater, der null liefert, nichts und meldet trotzdem Erfolg', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Alt' })])
+
+    // Act
+    const result = await updateQuote('q1', () => null)
+
+    // Assert
+    expect(result?.text).toBe('Alt')
+  })
+
   it('entfernt Zitate einzeln und per clearQuotes', async () => {
     // Arrange
     await upsertQuotes([makeQuote({ id: 'a' }), makeQuote({ id: 'b' }), makeQuote({ id: 'c' })])
@@ -197,6 +244,60 @@ describe('Quotes: Anlegen und Aktualisieren', () => {
 
     // Assert
     expect(ids).toEqual(['neu', 'alt'])
+  })
+})
+
+describe('updateQuote updater form', () => {
+  it('passes the freshly read row to the updater and writes its patch', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', likes: 1 })])
+    await updateQuote('q1', { likes: 5 })
+
+    // Act
+    const updated = await updateQuote('q1', (current) => ({ likes: current.likes + 1 }))
+
+    // Assert
+    expect(updated?.likes).toBe(6)
+    expect((await getQuote('q1'))?.likes).toBe(6)
+  })
+
+  it('writes nothing and returns the current row when the updater returns null', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', text: 'Same' })])
+    const before = (await getQuote('q1'))?.updatedAt
+
+    // Act
+    const result = await updateQuote('q1', () => null)
+
+    // Assert
+    expect(result?.text).toBe('Same')
+    expect((await getQuote('q1'))?.updatedAt).toBe(before)
+  })
+
+  it('does not call the updater for a missing row', async () => {
+    // Arrange
+    const updater = vi.fn(() => ({ likes: 1 }))
+
+    // Act
+    const attempt = updateQuote('missing', updater)
+
+    // Assert
+    await expect(attempt).rejects.toThrow('Quote not found or unreadable')
+    expect(updater).not.toHaveBeenCalled()
+  })
+
+  it('serializes concurrent updaters so no increment is lost', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'q1', likes: 0 })])
+
+    // Act
+    await Promise.all([
+      updateQuote('q1', (current) => ({ likes: current.likes + 1 })),
+      updateQuote('q1', (current) => ({ likes: current.likes + 1 }))
+    ])
+
+    // Assert
+    expect((await getQuote('q1'))?.likes).toBe(2)
   })
 })
 

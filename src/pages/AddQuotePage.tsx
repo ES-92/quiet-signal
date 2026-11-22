@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { QuoteForm } from '../components/QuoteForm'
 import { useI18n } from '../i18n/useI18n'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import type { QuoteInput } from '../types/quote'
 
 export function AddQuotePage() {
@@ -9,9 +10,15 @@ export function AddQuotePage() {
   const navigate = useNavigate()
   const addQuote = useQuoteStore((state) => state.addQuote)
 
+  const showToast = useToastStore((state) => state.showToast)
+
   async function handleSubmit(input: QuoteInput) {
-    const quote = await addQuote(input)
-    navigate(`/quote/${quote.id}`)
+    try {
+      const quote = await addQuote(input)
+      navigate(`/quote/${quote.id}`)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
   }
 
   return (

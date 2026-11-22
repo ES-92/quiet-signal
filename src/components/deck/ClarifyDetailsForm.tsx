@@ -54,6 +54,15 @@ export function ClarifyDetailsForm({
         />
       </label>
 
+      <label className="grid gap-2">
+        <span className="text-sm text-graphite">{t('firstThoughtLabel')}</span>
+        <textarea
+          className="min-h-20 rounded-md border border-line bg-white/50 p-3"
+          value={draft.firstThought}
+          onChange={(event) => onChange({ firstThought: event.target.value })}
+        />
+      </label>
+
       {bookDetails && (
         <div className="grid gap-3 rounded-md border border-line bg-paper/60 p-3 sm:grid-cols-2">
           <p className="font-serif text-xl sm:col-span-2">{t('bookDetails')}</p>

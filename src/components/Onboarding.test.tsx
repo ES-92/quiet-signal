@@ -16,6 +16,25 @@ describe('Onboarding', () => {
     expect(screen.getByRole('heading', { name: en.onboardingTitle })).toBeInTheDocument()
   })
 
+  it('nennt auf dem ersten Schritt Rauschen, Signal und Stille mit ihren Leitfragen', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    expect(screen.getByText(en.onboardingNoise)).toBeInTheDocument()
+    expect(screen.getByText(en.onboardingSignal)).toBeInTheDocument()
+    expect(screen.getByText(en.onboardingRest)).toBeInTheDocument()
+  })
+
+  it('beschreibt die Gesten mit dem neuen Lebenszyklus statt mit Snooze', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    expect(screen.getByText(en.onboardingGestureBody)).toBeInTheDocument()
+    expect(en.onboardingGestureBody).not.toMatch(/snooze/i)
+  })
+
   it('zeigt nichts, wenn das Onboarding bereits gesehen wurde', () => {
     // Arrange
     localStorage.setItem(onboardingKey, 'true')
@@ -25,6 +44,36 @@ describe('Onboarding', () => {
 
     // Assert
     expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+  })
+
+  it('zeigt auf dem ersten Schritt nur einen Weiter-Button', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    expect(screen.getAllByRole('button', { name: en.onboardingNext })).toHaveLength(1)
+  })
+
+  it('bietet auf Schritten mit eigener Aktion zusätzlich Weiter an', () => {
+    // Arrange
+    renderWithProviders(<Onboarding />)
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.onboardingNext }))
+
+    // Assert
+    expect(screen.getByRole('button', { name: en.onboardingTryCapture })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: en.onboardingNext })).toHaveLength(1)
+  })
+
+  it('lässt das Fenster scrollen, wenn der Inhalt höher als der Bildschirm ist', () => {
+    // Arrange / Act
+    renderWithProviders(<Onboarding />)
+
+    // Assert
+    const sheet = screen.getByRole('dialog')
+    expect(sheet).toHaveClass('overflow-y-auto')
+    expect(sheet).not.toHaveClass('overflow-hidden')
   })
 
   it('wechselt mit Weiter zum nächsten Schritt', () => {

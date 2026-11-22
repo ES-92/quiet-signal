@@ -5,3 +5,18 @@ export function localDateKey(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
+
+const MS_PER_DAY = 86_400_000
+
+function startOfLocalDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+}
+
+/** Relative day label ("heute", "gestern", "vor 3 Monaten") for an ISO timestamp, in the given UI language. */
+export function formatRelativeDay(iso: string, now: Date, language: string): string {
+  const formatter = new Intl.RelativeTimeFormat(language, { numeric: 'auto' })
+  const days = Math.max(0, Math.round((startOfLocalDay(now) - startOfLocalDay(new Date(iso))) / MS_PER_DAY))
+  if (days < 30) return formatter.format(-days, 'day')
+  if (days < 365) return formatter.format(-Math.floor(days / 30), 'month')
+  return formatter.format(-Math.floor(days / 365), 'year')
+}

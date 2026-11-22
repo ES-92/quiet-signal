@@ -1,6 +1,7 @@
 import { ArrowRight, Clock3, SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
+import { daysUnclarified } from '../../services/lifecycle'
 import { entryType, type Quote } from '../../types/quote'
 import { AudioPlayer } from '../AudioRecorder'
 import { GestureCoach } from '../GestureCoach'
@@ -35,6 +36,7 @@ export function ClarifyDeckStack({
   onDismissCoach
 }: ClarifyDeckStackProps) {
   const { t } = useI18n()
+  const unclarifiedDays = daysUnclarified(quote)
   const clarifyLift = deck.exit ? 1 : Math.min(1, Math.hypot(deck.drag.x, deck.drag.y) / 132)
 
   return (
@@ -42,7 +44,7 @@ export function ClarifyDeckStack({
       {thirdQuote && <ClarifyPreviewCard quote={thirdQuote} depth={2} lift={clarifyLift} />}
       {nextQuote && <ClarifyPreviewCard quote={nextQuote} depth={1} lift={clarifyLift} />}
       <article
-        className="clarify-top-card relative z-20 touch-none select-none overflow-hidden rounded-md border border-line bg-paper p-4 shadow-[0_22px_62px_rgba(31,30,28,0.14)] will-change-transform"
+        className="clarify-top-card relative z-20 min-h-[16.5rem] touch-none select-none overflow-hidden rounded-md border border-line bg-paper p-4 shadow-[0_22px_62px_rgba(31,30,28,0.14)] will-change-transform"
         {...deck.bind}
         style={{
           opacity: deck.exit ? 0.72 : 1,
@@ -90,6 +92,9 @@ export function ClarifyDeckStack({
             {t(typeLabels[entryType(quote)])}
           </span>
         </div>
+        {unclarifiedDays >= 7 && (
+          <p className="mt-2 text-xs text-graphite">{t('unclarifiedSince', { days: unclarifiedDays })}</p>
+        )}
         {quote.imageDataUrl && (
           <img
             className="mt-4 max-h-56 w-full rounded-md border border-line object-cover"

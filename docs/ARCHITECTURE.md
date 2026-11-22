@@ -28,7 +28,7 @@ Capture, then clarify, then review:
 
 1. **Capture.** Text, photo, voice, share-target and imports create entries through `useQuoteStore.addQuote` -> `createQuote`. Quick capture, the zero-capture sheet and the share target create entries with `status: 'inbox'` ("Rauschen" / noise); the full add form lets you pick the status; `createQuote` itself defaults to `status: 'signal'` when no status is given. Imports go through `upsertQuotes`.
 2. **Clarify.** The inbox page (`InboxPage`, built from `components/deck/` and the `useInbox*` / `useClarify*` hooks) shows inbox entries as a swipe deck. Per entry you can keep it as a signal (optionally with a signal strength: `quiet`, `normal`, `strong`), save details while it stays in the inbox, snooze it (`snoozedUntil` = next 06:00 local time), or discard it. Discarding sets `deletedAt` (soft delete into the trash, with undo); the trash page restores or empties it.
-3. **Review.** The Today page (`useDailySession` + `selectDailyStack` in `src/services/review.ts`) builds the daily deck from entries with `status === 'signal'`. Marking a card as read goes through `useQuoteStore.reviewQuote` -> `applyReview`, which bumps `reviewCount`, sets `lastReviewedAt` and computes `nextReviewAt`; "later" only pushes `nextReviewAt` by six hours.
+3. **Review.** The Today page (`useDailySession` + `selectDailyStack` in `src/services/review.ts`) builds the daily deck from *due* entries with `status === 'signal'` only; the stack is not padded, so it can be empty (then "Browse anyway" uses `selectBrowseStack`, which changes no schedule). Gestures map to pure patch builders in `src/services/lifecycle.ts` (`moreOftenPatch`, `lessOftenPatch`, `restPatch`, `wakePatch`), applied through `useQuoteStore` with the updater form of `updateQuote(id, (current) => patch)` so they act on the freshly read row. Dated thoughts live in `src/services/thoughts.ts` (`addThoughtPatch`, `adoptNotePatch`, ...).
 
 Every persisted change goes store -> `src/db/database.ts` -> Dexie, and the store then reloads its list (`loadQuotes`). Entries without `status` are treated as `signal` (`quoteStatus`), which keeps old data working.
 
@@ -59,38 +59,38 @@ Export/import format: `exportJson` writes `{ app: 'Quiet Signal', version: 1, ex
 
 ## Review algorithm
 
-All of it is in `src/services/review.ts`.
+Lifecycle in `src/services/lifecycle.ts`, stack selection in `src/services/review.ts`. A quote is `inbox` (noise), `signal` or `rest` (see README, "Noise, Signal, Rest").
 
 ### Intervals
 
-`nextReviewDate` runs when a card is marked read (`applyReview` increments `reviewCount` afterwards, so the table is keyed by the count *before* the review). Intervals are in days.
+Each signal carries its own `reviewIntervalDays` (optional field on the quote, no schema change). When it is missing, `effectiveInterval` derives it from `reviewCount`: `0 -> 1`, `1 -> 3`, `2 or more -> 7`. Intervals are in days and capped at 365.
 
-| `reviewCount` before | quiet | normal | strong |
-| --- | --- | --- | --- |
-| 0 | 2 | 1 | 1 |
-| 1 | 5 | 3 | 2 |
-| 2 or more, not favorite | 11 | 7 | 5 |
-| 2 or more, favorite | 9 | 5 | 3 |
+| Action | New interval |
+| --- | --- |
+| New signal / wake | `1` |
+| more often (swipe right) | `min(365, ceil(current * 1.5))`, also `likes + 1` |
+| less often (swipe left) | `min(365, max(14, ceil(current * 4)))` |
+| let rest (swipe down) | status becomes `rest`, interval is kept |
 
-For 2 or more the code uses `base = favorite ? 5 : 7`, then `strong -> max(3, base - 2)`, `quiet -> base + 4`, `normal -> base`. The action "later" ignores the table and sets `nextReviewAt` six hours ahead without touching `reviewCount`.
+More-often and less-often also bump `reviewCount` and set `lastReviewedAt`. `nextReviewAt` is the local calendar day today plus the interval, at 06:00 local time (`reviewDateFromInterval`). Example: 1, 2, 3, 5, 8, 12, 18, 27 days on repeated "more often"; "less often" at 8 days gives 32.
 
 ### Daily stack
 
-`selectDailyStack(quotes, { limit, mode, date?, bookWeights? })`:
+`selectDailyStack(quotes, { limit, date?, bookWeights? })`:
 
-1. **Candidates:** `status === 'signal'`, not deleted, not snoozed, and not already read today (compared by local day key).
-2. **Due vs. backlog:** an entry is *due* when it has no `nextReviewAt` or it is in the past. The *backlog* holds entries whose `nextReviewAt` is after the end of the local day. Entries due later today are in neither group, so they appear once they become due.
-3. **Score** (higher first):
+1. **Candidates:** `status === 'signal'`, not deleted, not snoozed, not already reviewed today (local day key), and *due* (`!nextReviewAt` or `nextReviewAt <= now`). There is no backlog fill.
+2. **Score** (higher first):
    - Review score: never reviewed = `1000` (+`80` if favorite); otherwise `daysSinceReview * 10` (+`60` if favorite) `- reviewCount`.
    - Like bonus: `min(likes, 8) * 35`.
    - `(reviewScore + likeBonus) * bookWeightMultiplier * signalMultiplier`, where book weight is `rare 0.4`, `normal 1`, `often 1.7` and signal strength is `quiet 0.68`, `normal 1`, `strong 1.38`.
-   - Plus a seeded random term in `[0, 180)` (`balanced` mode) or `[0, 1200)` (`random` mode).
-4. **Order:** due entries by score, then backlog entries by score; the backlog keeps the stack from running dry.
-5. **Author dedupe:** walking that order, an entry whose author (case-insensitive) is already in the stack is skipped, unless its book is weighted `often`, or there are no more candidates than `limit`. A second pass then fills any remaining slots from what was skipped.
+   - Plus a seeded random term in `[0, 180)`.
+3. **Author dedupe:** walking that order, an entry whose author (case-insensitive) is already in the stack is skipped, unless its book is weighted `often`, or there are no more candidates than `limit`. A second pass then fills any remaining slots from what was skipped.
+
+`selectBrowseStack(quotes, { limit, seed })` shuffles all live signals regardless of due date and never writes.
 
 ### Seed
 
-The random term comes from a small seeded PRNG (FNV-1a hash of the seed string, then a mulberry-style generator). The seed is `` `${localDateKey}:${limit}:${mode}` ``: the same entries on the same local day produce the same stack, and a new local day reshuffles. The day key uses the local calendar date (`src/utils/date.ts`), not UTC. Tests run with `TZ=Europe/Berlin` to keep this deterministic.
+The random term comes from a small seeded PRNG (FNV-1a hash of the seed string, then a mulberry-style generator). The seed is `` `${localDateKey}:${limit}` ``: the same entries on the same local day produce the same stack, and a new local day reshuffles. The day key uses the local calendar date (`src/utils/date.ts`), not UTC. Tests run with `TZ=Europe/Berlin` to keep this deterministic.
 
 ## Security model
 

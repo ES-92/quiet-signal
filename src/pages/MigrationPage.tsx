@@ -8,7 +8,7 @@ import { useQuoteStore } from '../store/useQuoteStore'
 const allowedTargets = new Set(['https://quiet-signal.vercel.app', 'http://127.0.0.1:5184', 'http://localhost:5184'])
 
 export function MigrationPage() {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const { quotes, loadQuotes } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
   const [sent, setSent] = useState(false)
@@ -40,7 +40,7 @@ export function MigrationPage() {
         </span>
         <p className="mt-5 text-xs uppercase tracking-[0.22em] text-graphite">{t('migrationTitle')}</p>
         <h1 className="mt-2 font-serif text-4xl leading-tight">{t('migrationSendTitle')}</h1>
-        <p className="mt-4 leading-7 text-graphite">{t('migrationSendBody', { quotes: quotes.length, books: books.length })}</p>
+        <p className="mt-4 leading-7 text-graphite">{t('migrationSendBody', { entries: tCount('entriesCount', quotes.length), books: tCount('dataBooksValue', books.length) })}</p>
         {!allowed && <p className="mt-4 rounded-md border border-clay px-3 py-2 text-sm text-clay">{t('migrationUnsupported')}</p>}
         <button
           className="mt-6 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-ink px-4 py-3 text-sm text-paper disabled:opacity-50"

@@ -20,6 +20,7 @@ export function Onboarding() {
         eyebrow: t('onboardingEyebrow'),
         title: t('onboardingTitle'),
         body: t('onboardingBody'),
+        states: [t('onboardingNoise'), t('onboardingSignal'), t('onboardingRest')],
         action: t('onboardingNext')
       },
       {
@@ -27,14 +28,16 @@ export function Onboarding() {
         eyebrow: t('onboardingCaptureEyebrow'),
         title: t('onboardingCaptureTitle'),
         body: t('onboardingCaptureBody'),
-        action: t('onboardingTryCapture')
+        action: t('onboardingTryCapture'),
+        skippable: true
       },
       {
         icon: <Inbox size={20} />,
         eyebrow: t('onboardingClarifyEyebrow'),
         title: t('onboardingClarifyTitle'),
         body: t('onboardingClarifyBody'),
-        action: t('onboardingOpenInbox')
+        action: t('onboardingOpenInbox'),
+        skippable: true
       },
       {
         icon: <ShieldCheck size={20} />,
@@ -92,7 +95,12 @@ export function Onboarding() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-ink/35 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:justify-center sm:p-6">
-      <section className="quiet-sheet classical-panel relative w-full max-w-lg overflow-hidden rounded-md p-5 text-ink sm:p-7">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label={current.title}
+        className="quiet-sheet classical-panel relative max-h-full w-full max-w-lg overflow-y-auto overscroll-contain rounded-md p-5 text-ink sm:p-7"
+      >
         <button
           className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-md border border-line text-graphite hover:text-ink"
           onClick={dismiss}
@@ -102,16 +110,25 @@ export function Onboarding() {
         </button>
 
         <div className="flex items-center gap-3 pr-10">
-          <span className="flex h-12 w-12 items-center justify-center rounded-md bg-ink text-paper shadow-[0_14px_32px_rgba(31,30,28,0.16)]">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-ink text-paper shadow-[0_14px_32px_rgba(31,30,28,0.16)]">
             {current.icon}
           </span>
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.2em] text-graphite">{current.eyebrow}</p>
-            <h2 className="font-serif text-3xl leading-tight">{current.title}</h2>
+            <h2 className="font-serif text-2xl leading-tight sm:text-3xl">{current.title}</h2>
           </div>
         </div>
 
         <p className="mt-4 leading-7 text-graphite">{current.body}</p>
+        {current.states && (
+          <ul className="mt-3 grid gap-2 text-sm leading-6 text-graphite">
+            {current.states.map((line) => (
+              <li key={line} className="rounded-md bg-paper/60 px-3 py-2">
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="mt-5 grid grid-cols-4 gap-1" aria-label={t('onboardingProgress')}>
           {steps.map((item, index) => (
@@ -135,7 +152,7 @@ export function Onboarding() {
               {current.action}
             </span>
           </button>
-          {!last && (
+          {current.skippable && (
             <button className="min-h-[50px] rounded-md border border-line px-4 py-3 text-sm text-graphite" onClick={next}>
               {t('onboardingNext')}
             </button>

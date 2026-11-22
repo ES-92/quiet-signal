@@ -12,7 +12,7 @@ export function ClarifyPreviewCard({ quote, depth, lift }: { quote: Quote; depth
   return (
     <article
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-4 top-7 z-10 min-h-[16.5rem] overflow-hidden rounded-md border border-line bg-paper/80 p-4 shadow-[0_18px_46px_rgba(31,30,28,0.08)] will-change-transform"
+      className="pointer-events-none absolute inset-x-4 top-7 z-10 min-h-[16.5rem] max-h-[16.5rem] overflow-hidden rounded-md border border-line bg-paper/80 p-4 shadow-[0_18px_46px_rgba(31,30,28,0.08)] will-change-transform"
       style={{
         opacity,
         transform: `translate3d(0, ${y}px, 0) rotate(${rotate}deg) scale(${scale})`,

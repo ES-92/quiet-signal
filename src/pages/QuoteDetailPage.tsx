@@ -1,4 +1,4 @@
-import { BookMarked, Heart, Trash2 } from 'lucide-react'
+import { BookMarked, Heart, Sun, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
@@ -6,18 +6,24 @@ import { ConfirmSheet } from '../components/ConfirmSheet'
 import { LikeControl } from '../components/LikeControl'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { QuoteForm } from '../components/QuoteForm'
+import { ThoughtList } from '../components/thoughts/ThoughtList'
+import { ThoughtSheet } from '../components/thoughts/ThoughtSheet'
 import { useI18n } from '../i18n/useI18n'
+import { statusChangePatch } from '../services/lifecycle'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
-import { entryType, quoteStatus, signalStrength, type QuoteInput } from '../types/quote'
+import { useToastStore } from '../store/useToastStore'
+import { entryType, quoteStatus, signalStrength, type QuoteInput, type Thought } from '../types/quote'
 
 export function QuoteDetailPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
+  const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [thoughtSheetOpen, setThoughtSheetOpen] = useState(false)
 
   useEffect(() => {
     void loadQuotes()
@@ -26,6 +32,11 @@ export function QuoteDetailPage() {
 
   const quote = quotes.find((item) => item.id === id)
   const book = quote?.bookId ? books.find((item) => item.id === quote.bookId) : undefined
+  const statusLabels = {
+    inbox: 'entryStatus_inbox',
+    signal: 'entryStatus_signal',
+    rest: 'entryStatus_rest'
+  } as const
   const strengthLabels = {
     quiet: 'signalStrength_quiet',
     normal: 'signalStrength_normal',
@@ -51,9 +62,59 @@ export function QuoteDetailPage() {
     )
   }
 
-  async function handleSubmit(input: QuoteInput) {
+  const sortedThoughts = [...(quote.thoughts ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  async function handleSubmit(changes: Partial<QuoteInput>) {
     if (!id) return
-    await saveQuote(id, input)
+    // Moving between states (e.g. noise to signal) carries the matching schedule fields; only a status the user actually changed counts.
+    const previous = useQuoteStore.getState().quotes.find((item) => item.id === id)
+    const patch = changes.status && previous ? statusChangePatch(quoteStatus(previous), changes.status) : {}
+    // The form keeps its values on failure; the toast tells the user the save did not happen.
+    await attempt(() => saveQuote(id, { ...changes, ...patch }))
+  }
+
+  // Runs a store action and reports failure with a toast instead of an unhandled rejection.
+  async function attempt(action: () => Promise<void>) {
+    try {
+      await action()
+      return true
+    } catch {
+      showToast({ message: t('saveFailed') })
+      return false
+    }
+  }
+
+  async function saveThought(text: string) {
+    if (!id) return
+    if (await attempt(() => addThought(id, text))) setThoughtSheetOpen(false)
+  }
+
+  // Deleting is one tap, so the toast offers to put the thought back exactly as it was.
+  async function handleRemoveThought(thought: Thought) {
+    if (!id) return
+    if (!(await attempt(() => removeThought(id, thought.id)))) return
+    showToast({
+      message: t('thoughtDeleted'),
+      actionLabel: t('undo'),
+      onAction: () => void attempt(() => restoreThought(id, thought))
+    })
+  }
+
+  async function handleAdoptNote() {
+    if (!quote) return
+    // Undo removes only the adopted thought (by id) and restores the note, so thoughts added in between survive.
+    const previousNote = quote.note
+    let adoptedId: string | undefined
+    const adopted = await attempt(async () => {
+      adoptedId = await adoptNote(quote.id)
+    })
+    if (!adopted || !adoptedId) return
+    const thoughtId = adoptedId
+    showToast({
+      message: t('adoptNoteToast'),
+      actionLabel: t('undo'),
+      onAction: () => void attempt(() => undoAdoptNote(quote.id, thoughtId, previousNote))
+    })
   }
 
   async function handleDelete() {
@@ -100,13 +161,40 @@ export function QuoteDetailPage() {
             <p className="mt-2 leading-7">{quote.note}</p>
           </div>
         )}
+        {quote.text.trim() && quote.note?.trim() && (
+          <button
+            className="inline-flex min-h-[44px] w-fit items-center rounded-md border border-line px-3 py-2 text-sm text-graphite"
+            onClick={() => void handleAdoptNote()}
+          >
+            {t('adoptNote')}
+          </button>
+        )}
+        <div className="grid gap-3 rounded-md border border-line bg-white/30 p-5">
+          <h2 className="text-sm uppercase tracking-[0.2em] text-graphite">{t('thoughtsTitle')}</h2>
+          {sortedThoughts.length > 0 && (
+            <ThoughtList
+              thoughts={sortedThoughts}
+              onEdit={(thoughtId, text) => void attempt(() => editThought(quote.id, thoughtId, text))}
+              onRemove={(thoughtId) => {
+                const removed = sortedThoughts.find((item) => item.id === thoughtId)
+                if (removed) void handleRemoveThought(removed)
+              }}
+            />
+          )}
+          <button
+            className="inline-flex min-h-[44px] w-fit items-center rounded-md border border-line px-3 py-2 text-sm text-graphite"
+            onClick={() => setThoughtSheetOpen(true)}
+          >
+            {t('addThought')}
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3 text-sm text-graphite">
           <Metric label={t('likesLabel')} value={String(quote.likes)} />
           <Metric label={t('favorite')} value={quote.favorite ? t('yes') : t('no')} />
           <Metric label={t('entryKind')} value={t(typeLabels[entryType(quote)])} />
-          <Metric label={t('entryStatus')} value={t(quoteStatus(quote) === 'inbox' ? 'entryStatus_inbox' : 'entryStatus_signal')} />
+          <Metric label={t('entryStatus')} value={t(statusLabels[quoteStatus(quote)])} />
           <Metric label={t('signalStrength')} value={t(strengthLabels[signalStrength(quote)])} />
-          {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString()} />}
+          {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString(locale)} />}
           {quote.locationName && <Metric label={t('locationLabel')} value={quote.locationName} />}
           {quote.people?.length ? <Metric label={t('people')} value={quote.people.join(', ')} /> : null}
         </div>
@@ -116,6 +204,14 @@ export function QuoteDetailPage() {
             onLike={() => void likeQuote(quote.id)}
             onDislike={() => void dislikeQuote(quote.id)}
           />
+          {quoteStatus(quote) === 'rest' && (
+            <button
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-clay px-3 py-2 text-sm text-clay"
+              onClick={() => void attempt(() => wakeQuote(quote.id))}
+            >
+              <Sun size={16} /> {t('wake')}
+            </button>
+          )}
           <button
             className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
             onClick={() => void saveQuote(quote.id, { favorite: !quote.favorite })}
@@ -133,6 +229,7 @@ export function QuoteDetailPage() {
           <QuoteForm quote={quote} submitLabel={t('saveChanges')} onSubmit={handleSubmit} />
         </div>
       </aside>
+      {thoughtSheetOpen && <ThoughtSheet thoughts={sortedThoughts} onSave={saveThought} onClose={() => setThoughtSheetOpen(false)} />}
       <ConfirmSheet
         open={deleteConfirmOpen}
         title={t('delete')}

@@ -68,8 +68,8 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
     () =>
       normalizedQuery
         ? quotes
-            .filter((quote) => quoteStatus(quote) === 'signal')
-            .filter((quote) => [quote.text, quote.author, quote.work, quote.note, quote.tags.join(' ')].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery))
+            .filter((quote) => quoteStatus(quote) !== 'inbox')
+            .filter((quote) => [quote.text, quote.author, quote.work, quote.note, quote.tags.join(' '), quote.thoughts?.map((thought) => thought.text).join(' ')].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery))
             .slice(0, 4)
         : [],
     [normalizedQuery, quotes]
@@ -114,7 +114,7 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
         <label className="flex min-h-[46px] items-center gap-2 rounded-md border border-line bg-white/40 px-3">
           <Search size={16} className="text-graphite" />
           <input
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-graphite/65"
+            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-graphite/65 sm:text-sm"
             placeholder={t('commandSearchPlaceholder')}
             aria-label={t('commandSearchPlaceholder')}
             value={query}

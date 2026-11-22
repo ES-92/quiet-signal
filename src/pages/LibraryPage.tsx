@@ -5,20 +5,42 @@ import { QuoteCard } from '../components/QuoteCard'
 import { useI18n } from '../i18n/useI18n'
 import { filterQuotes, getFilterOptions } from '../services/search'
 import { useQuoteStore } from '../store/useQuoteStore'
+import { useToastStore } from '../store/useToastStore'
 import { quoteStatus } from '../types/quote'
 
+type LibraryView = 'signal' | 'rest' | 'all'
+
 export function LibraryPage() {
-  const { t } = useI18n()
-  const { quotes, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
+  const { t, tCount } = useI18n()
+  const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [view, setView] = useState<LibraryView>('signal')
+  const { showToast } = useToastStore()
+
+  async function wakeEntry(id: string) {
+    try {
+      await wakeQuote(id)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
+  }
 
   useEffect(() => {
     void loadQuotes()
   }, [loadQuotes])
 
-  const signalQuotes = quotes.filter((quote) => quoteStatus(quote) === 'signal')
-  const options = getFilterOptions(signalQuotes)
-  const results = filterQuotes(signalQuotes, filters)
+  // Noise never shows here; the view picks signals, resting entries or both.
+  const viewQuotes = quotes.filter((quote) => {
+    const status = quoteStatus(quote)
+    return view === 'all' ? status !== 'inbox' : status === view
+  })
+  const options = getFilterOptions(viewQuotes)
+  const results = filterQuotes(viewQuotes, filters)
+  const views: { id: LibraryView; label: string }[] = [
+    { id: 'signal', label: t('libraryViewSignal') },
+    { id: 'rest', label: t('libraryViewRest') },
+    { id: 'all', label: t('libraryViewAll') }
+  ]
 
   return (
     <div className="grid gap-5 sm:gap-7">
@@ -27,8 +49,27 @@ export function LibraryPage() {
           <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('archive')}</p>
           <h1 className="mt-2 truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
         </div>
-        <p className="text-sm text-graphite">{t('countOfQuotes', { shown: results.length, total: signalQuotes.length })}</p>
+        {viewQuotes.length > 0 && (
+          <p className="text-sm text-graphite">{tCount('countOfQuotes', viewQuotes.length, { shown: results.length, total: viewQuotes.length })}</p>
+        )}
       </section>
+
+      <div className="flex gap-2" role="group" aria-label={t('library')}>
+        {views.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={view === item.id}
+            className={[
+              'min-h-[44px] rounded-md border px-4 py-2 text-sm',
+              view === item.id ? 'border-ink bg-ink text-paper' : 'border-line text-graphite'
+            ].join(' ')}
+            onClick={() => setView(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
       <section className="grid gap-2 rounded-md border border-line bg-white/30 p-3 sm:hidden">
         <input
@@ -87,9 +128,17 @@ export function LibraryPage() {
               onFavorite={(id) => void saveQuote(id, { favorite: !quote.favorite })}
               onLike={(id) => void likeQuote(id)}
               onDislike={(id) => void dislikeQuote(id)}
+              onWake={quoteStatus(quote) === 'rest' ? (id) => void wakeEntry(id) : undefined}
             />
           ))}
         </div>
+      ) : loading && quotes.length === 0 ? (
+        // Cold load: the empty state would claim there is nothing yet while the library is still being read.
+        <p className="py-10 text-center text-graphite">{t('loadingLibrary')}</p>
+      ) : viewQuotes.length === 0 ? (
+        <EmptyState title={view === 'rest' ? t('emptyRestTitle') : t('emptyCollectionTitle')}>
+          {view === 'rest' ? t('emptyRestBody') : t('emptyCollectionBody')}
+        </EmptyState>
       ) : (
         <EmptyState title={t('noMatches')}>
           {t('noMatchesBody')}

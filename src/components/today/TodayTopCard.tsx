@@ -1,4 +1,4 @@
-import { Clock3, Flame } from 'lucide-react'
+import { ChevronsLeft, Flame } from 'lucide-react'
 import { useFitText } from '../../hooks/useFitText'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
@@ -6,6 +6,7 @@ import type { Quote } from '../../types/quote'
 import { lerp } from '../../utils/math'
 import { AudioPlayer } from '../AudioRecorder'
 import { PhotoPreview } from '../PhotoCapture'
+import { ThoughtHint } from '../thoughts/ThoughtHint'
 
 interface TodayTopCardProps {
   quote: Quote
@@ -56,7 +57,7 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
           transform: `translate3d(${lerp(12, 0, likeHint)}px, ${lerp(8, 0, likeHint)}px, 0) rotate(${lerp(6, 0, likeHint)}deg)`
         }}
       >
-        <Flame size={16} fill="currentColor" /> {t('like')}
+        <Flame size={16} fill="currentColor" /> {t('gestureMoreOften')}
       </div>
       <div
         className="pointer-events-none absolute left-4 top-16 z-10 flex items-center gap-1.5 rounded-full border-2 border-graphite bg-paper/80 px-3 py-1 text-sm font-medium uppercase tracking-wide text-graphite shadow-[0_12px_34px_rgba(31,30,28,0.1)] backdrop-blur"
@@ -65,7 +66,7 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
           transform: `translate3d(${lerp(-12, 0, dislikeHint)}px, ${lerp(8, 0, dislikeHint)}px, 0) rotate(${lerp(-6, 0, dislikeHint)}deg)`
         }}
       >
-        <Clock3 size={16} /> {t('later')}
+        <ChevronsLeft size={16} /> {t('gestureLessOften')}
       </div>
 
       <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />
@@ -107,6 +108,12 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
           </h2>
         )}
       </div>
+
+      {quote.thoughts && quote.thoughts.length > 0 && (
+        <div className="relative mb-3 shrink-0">
+          <ThoughtHint thoughts={quote.thoughts} />
+        </div>
+      )}
 
       <div className="shrink-0 border-t border-line pt-3 sm:pt-5">
         <p className="truncate text-sm text-graphite sm:text-base">

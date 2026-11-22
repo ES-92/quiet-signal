@@ -8,9 +8,26 @@ import {
   updateQuote,
   upsertQuotes
 } from '../db/database'
-import { applyReview, nextMorningISO, type ReviewAction } from '../services/review'
+import {
+  lessOftenPatch,
+  moreOftenPatch,
+  restoreReviewPatch,
+  restPatch,
+  reviewSnapshot,
+  wakePatch,
+  type ReviewSnapshot
+} from '../services/lifecycle'
+import { nextMorningISO } from '../services/review'
+import {
+  addThoughtPatch,
+  adoptNotePatch,
+  editThoughtPatch,
+  removeThoughtPatch,
+  restoreThoughtPatch,
+  undoAdoptNotePatch
+} from '../services/thoughts'
 import { tapHaptic } from '../services/haptics'
-import type { Quote, QuoteFilters, QuoteInput } from '../types/quote'
+import type { Quote, QuoteFilters, QuoteInput, Thought } from '../types/quote'
 import { emptyFilters } from '../services/search'
 
 interface QuoteStore {
@@ -26,6 +43,19 @@ interface QuoteStore {
   dislikeQuote: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
+  // onPrevious receives the review values of the row the change was actually applied to (for an undo).
+  moreOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
+  lessOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
+  restoreReview: (id: string, previous: ReviewSnapshot) => Promise<void>
+  restQuote: (id: string) => Promise<void>
+  wakeQuote: (id: string) => Promise<void>
+  addThought: (id: string, text: string) => Promise<void>
+  editThought: (id: string, thoughtId: string, text: string) => Promise<void>
+  removeThought: (id: string, thoughtId: string) => Promise<void>
+  restoreThought: (id: string, thought: Thought) => Promise<void>
+  // Resolves with the id of the thought created from the note (undefined when there was nothing to adopt).
+  adoptNote: (id: string) => Promise<string | undefined>
+  undoAdoptNote: (id: string, thoughtId: string, note: string | undefined) => Promise<void>
   discardQuote: (id: string) => Promise<void>
   restoreQuote: (id: string) => Promise<void>
   emptyTrash: () => Promise<void>
@@ -35,7 +65,6 @@ interface QuoteStore {
     nextBook: { title: string; author?: string },
     previousBook?: { title: string; author?: string }
   ) => Promise<void>
-  reviewQuote: (id: string, action: ReviewAction) => Promise<void>
   importQuotes: (quotes: Quote[]) => Promise<void>
   clearAll: () => Promise<void>
   setFilters: (patch: Partial<QuoteFilters>) => void
@@ -90,6 +119,75 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     await updateQuote(id, { snoozedUntil: nextMorningISO() })
     await get().loadQuotes()
   },
+  moreOften: async (id, onPrevious) => {
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    const updated = await updateQuote(id, (current) => {
+      onPrevious?.(reviewSnapshot(current))
+      return moreOftenPatch(current)
+    })
+    await get().loadQuotes()
+    return updated?.reviewIntervalDays
+  },
+  lessOften: async (id, onPrevious) => {
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    const updated = await updateQuote(id, (current) => {
+      onPrevious?.(reviewSnapshot(current))
+      return lessOftenPatch(current)
+    })
+    await get().loadQuotes()
+    return updated?.reviewIntervalDays
+  },
+  restoreReview: async (id, previous) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, () => restoreReviewPatch(previous))
+    await get().loadQuotes()
+  },
+  restQuote: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => restPatch(current))
+    await get().loadQuotes()
+  },
+  wakeQuote: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => wakePatch(current))
+    await get().loadQuotes()
+  },
+  addThought: async (id, text) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => addThoughtPatch(current, text))
+    await get().loadQuotes()
+  },
+  editThought: async (id, thoughtId, text) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => editThoughtPatch(current, thoughtId, text))
+    await get().loadQuotes()
+  },
+  removeThought: async (id, thoughtId) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => removeThoughtPatch(current, thoughtId))
+    await get().loadQuotes()
+  },
+  restoreThought: async (id, thought) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => restoreThoughtPatch(current, thought))
+    await get().loadQuotes()
+  },
+  adoptNote: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    let adoptedId: string | undefined
+    await updateQuote(id, (current) => {
+      const patch = adoptNotePatch(current)
+      adoptedId = patch?.thoughts?.[patch.thoughts.length - 1]?.id
+      return patch
+    })
+    await get().loadQuotes()
+    return adoptedId
+  },
+  undoAdoptNote: async (id, thoughtId, note) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => undoAdoptNotePatch(current, thoughtId, note))
+    await get().loadQuotes()
+  },
   discardQuote: async (id) => {
     await updateQuote(id, { deletedAt: new Date().toISOString() })
     await get().loadQuotes()
@@ -133,12 +231,6 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
         return updateQuote(quote.id, patch)
       })
     )
-    await get().loadQuotes()
-  },
-  reviewQuote: async (id, action) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    await updateQuote(id, applyReview(quote, action))
     await get().loadQuotes()
   },
   importQuotes: async (quotes) => {

@@ -9,7 +9,7 @@ import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 
 export function ImportExportPage() {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const { quotes, loadQuotes, importQuotes } = useQuoteStore()
   const { books, loadBooks, importBooks } = useBookStore()
   const [message, setMessage] = useState('')
@@ -31,7 +31,7 @@ export function ImportExportPage() {
       const imported = bundle.quotes
       const valid = imported.filter((quote) => quote.text || quote.audioDataUrl || quote.imageDataUrl)
       await importQuotes(valid)
-      setMessage(t('importedQuotes', { count: valid.length }))
+      setMessage(tCount('importedQuotes', valid.length))
     } catch (error) {
       console.error(error)
       setMessage(t('importFailed'))
@@ -49,8 +49,8 @@ export function ImportExportPage() {
       }
       if (plan.newBooks.length) await importBooks(plan.newBooks)
       if (plan.newQuotes.length) await importQuotes(plan.newQuotes)
-      const parts = [t('kindleImported', { quotes: plan.importedCount, books: plan.bookCount })]
-      if (plan.skippedCount) parts.push(t('kindleSkipped', { count: plan.skippedCount }))
+      const parts = [t('kindleImported', { quotes: tCount('quotesCount', plan.importedCount), books: tCount('fromBooks', plan.bookCount) })]
+      if (plan.skippedCount) parts.push(tCount('kindleSkipped', plan.skippedCount))
       setKindleMessage(parts.join(' '))
     } catch (error) {
       console.error(error)
@@ -69,8 +69,8 @@ export function ImportExportPage() {
       }
       if (plan.newBooks.length) await importBooks(plan.newBooks)
       if (plan.newQuotes.length) await importQuotes(plan.newQuotes)
-      const parts = [t('readwiseImported', { quotes: plan.importedCount, books: plan.bookCount })]
-      if (plan.skippedCount) parts.push(t('readwiseSkipped', { count: plan.skippedCount }))
+      const parts = [t('readwiseImported', { quotes: tCount('quotesCount', plan.importedCount), books: tCount('fromBooks', plan.bookCount) })]
+      if (plan.skippedCount) parts.push(tCount('readwiseSkipped', plan.skippedCount))
       setReadwiseMessage(parts.join(' '))
     } catch (error) {
       console.error(error)
@@ -126,7 +126,7 @@ export function ImportExportPage() {
         </div>
         <div className="rounded-md border border-line bg-white/30 p-5">
           <h2 className="font-serif text-3xl">{t('export')}</h2>
-          <p className="mt-2 text-sm leading-6 text-graphite">{t('exportAvailable', { count: quotes.length })}</p>
+          <p className="mt-2 text-sm leading-6 text-graphite">{tCount('exportAvailable', quotes.length)}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <button className="rounded-md bg-ink px-4 py-2 text-sm text-paper" onClick={() => downloadText('quiet-signal.json', exportJson(quotes, books), 'application/json')}>
               JSON

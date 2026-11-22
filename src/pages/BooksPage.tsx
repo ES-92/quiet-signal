@@ -11,7 +11,7 @@ import { useQuoteStore } from '../store/useQuoteStore'
 import type { BookWeight } from '../types/book'
 
 export function BooksPage() {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const { books, loadBooks, addBook, saveBook, removeBook } = useBookStore()
   const { quotes, loadQuotes, saveQuote } = useQuoteStore()
   const [adding, setAdding] = useState(false)
@@ -129,7 +129,7 @@ export function BooksPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{suggestion.primary.title}</p>
                   <p className="mt-1 text-sm text-graphite">
-                    {t('bookMergeSuggestion', { books: suggestion.books.length, quotes: suggestion.quoteCount })}
+                    {tCount('bookMergeSuggestion', suggestion.quoteCount, { books: suggestion.books.length })}
                   </p>
                 </div>
                 <button className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper" onClick={() => void handleMerge(suggestion)}>
@@ -158,7 +158,7 @@ export function BooksPage() {
                 <div className="min-w-0">
                   <p className="truncate font-serif text-lg leading-tight text-ink">{book.title}</p>
                   <p className="mt-1 truncate text-sm text-graphite">
-                    {[book.author, count === 1 ? t('oneQuote') : t('quotesCount', { count })].filter(Boolean).join(' · ')}
+                    {[book.author, tCount('quotesCount', count)].filter(Boolean).join(' · ')}
                   </p>
                 </div>
               </Link>
