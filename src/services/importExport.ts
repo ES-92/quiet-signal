@@ -40,7 +40,9 @@ export function parseCsvImport(content: string): Quote[] {
     headers.forEach((header, index) => {
       entry[header] = row[index] ?? ''
     })
-    return normalizeImportedQuote(entry)
+    // normalizeThoughts validates the parsed lines like the JSON path (ids are generated there).
+    const thoughts = parseCsvThoughts(entry.thoughts ?? '') as unknown as Thought[] | undefined
+    return normalizeImportedQuote({ ...entry, thoughts })
   })
 }
 
@@ -174,6 +176,18 @@ function validReviewInterval(value: unknown) {
 
 const maxThoughtTextChars = 10_000
 const maxThoughtsPerQuote = 500
+
+// CSV cell format of exportCsv: one thought per line, "<ISO date> <text>". Lines without a parseable leading date are skipped.
+function parseCsvThoughts(cell: string): Array<{ text: string; createdAt: string }> | undefined {
+  if (!cell.trim()) return undefined
+  const thoughts: Array<{ text: string; createdAt: string }> = []
+  for (const line of cell.split(/\r\n|\r|\n/)) {
+    const match = /^(\S+)\s+(\S[\s\S]*)$/.exec(line.trim())
+    if (!match || Number.isNaN(Date.parse(match[1]))) continue
+    thoughts.push({ createdAt: match[1], text: match[2] })
+  }
+  return thoughts
+}
 
 function normalizeThoughts(value: unknown): Thought[] | undefined {
   if (!Array.isArray(value)) return undefined
