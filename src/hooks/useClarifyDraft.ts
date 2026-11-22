@@ -1,14 +1,7 @@
 import { useState } from 'react'
 import type { Book } from '../types/book'
 import { statusChangePatch } from '../services/lifecycle'
-import {
-  entryType,
-  quoteStatus,
-  type EntryType,
-  type Quote,
-  type QuoteStatus,
-  type SignalStrength
-} from '../types/quote'
+import { quoteStatus, type Quote, type QuoteStatus } from '../types/quote'
 import { clean, fromLocalDateTime, splitList, toLocalDateTime } from '../utils/draftFields'
 
 export interface ClarifyDraft {
@@ -16,8 +9,6 @@ export interface ClarifyDraft {
   tags: string
   note: string
   firstThought: string
-  entryType: EntryType
-  strength: SignalStrength
   author: string
   work: string
   source: string
@@ -25,9 +16,6 @@ export interface ClarifyDraft {
   bookId: string
   occurredAt: string
   people: string
-  locationName?: string
-  locationLatitude?: number
-  locationLongitude?: number
 }
 
 const emptyDraft: ClarifyDraft = {
@@ -35,8 +23,6 @@ const emptyDraft: ClarifyDraft = {
   tags: '',
   note: '',
   firstThought: '',
-  entryType: 'note',
-  strength: 'normal',
   author: '',
   work: '',
   source: '',
@@ -52,18 +38,13 @@ function draftFromQuote(quote: Quote): ClarifyDraft {
     tags: quote.tags.join(', '),
     note: quote.note ?? '',
     firstThought: '',
-    entryType: entryType(quote),
-    strength: quote.signalStrength ?? 'normal',
     author: quote.author ?? '',
     work: quote.work ?? '',
     source: quote.source ?? '',
     year: quote.year ?? '',
     bookId: quote.bookId ?? '',
     occurredAt: toLocalDateTime(quote.occurredAt),
-    people: (quote.people ?? []).join(', '),
-    locationName: quote.locationName,
-    locationLatitude: quote.locationLatitude,
-    locationLongitude: quote.locationLongitude
+    people: (quote.people ?? []).join(', ')
   }
 }
 
@@ -95,14 +76,12 @@ export function useClarifyDraft(quote: Quote | undefined, books: Book[]) {
     }))
   }
 
-  function buildPatch(status: QuoteStatus, strength = draft.strength): Partial<Quote> {
+  function buildPatch(status: QuoteStatus): Partial<Quote> {
     return {
       text: draft.text.trim(),
       tags: splitList(draft.tags).map((tag) => tag.toLowerCase()),
       note: clean(draft.note),
       status,
-      signalStrength: strength,
-      entryType: draft.entryType,
       author: clean(draft.author),
       work: clean(draft.work),
       source: clean(draft.source),
@@ -110,9 +89,6 @@ export function useClarifyDraft(quote: Quote | undefined, books: Book[]) {
       bookId: clean(draft.bookId),
       occurredAt: fromLocalDateTime(draft.occurredAt),
       people: splitList(draft.people),
-      locationName: clean(draft.locationName),
-      locationLatitude: draft.locationLatitude,
-      locationLongitude: draft.locationLongitude,
       ...statusChangePatch(quote ? quoteStatus(quote) : 'inbox', status)
     }
   }

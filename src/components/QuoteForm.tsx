@@ -2,12 +2,9 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '../i18n/useI18n'
 import { useBookStore } from '../store/useBookStore'
 import { bookKey } from '../types/book'
-import { entryType, type EntryType, type Quote, type QuoteInput, type SignalStrength } from '../types/quote'
+import type { Quote, QuoteInput } from '../types/quote'
 import { AudioRecorder } from './AudioRecorder'
-import { EntryTypeControl } from './EntryTypeControl'
-import { LocationCapture } from './LocationCapture'
 import { PhotoCapture } from './PhotoCapture'
-import { SignalStrengthControl } from './SignalStrengthControl'
 
 // Creating submits every field; editing submits only the fields the user changed, so edits never overwrite changes made elsewhere on the page.
 type QuoteFormProps = {
@@ -34,13 +31,8 @@ interface FormValues {
   imageMimeType?: string
   favorite: boolean
   status: QuoteInput['status']
-  signalStrength: SignalStrength
-  entryType: EntryType
   occurredAt: string
   people: string
-  locationName?: string
-  locationLatitude?: number
-  locationLongitude?: number
 }
 
 function toFormValues(quote: Quote | undefined, defaultStatus: QuoteInput['status']): FormValues {
@@ -60,13 +52,8 @@ function toFormValues(quote: Quote | undefined, defaultStatus: QuoteInput['statu
     imageMimeType: quote?.imageMimeType,
     favorite: quote?.favorite ?? false,
     status: quote?.status ?? defaultStatus,
-    signalStrength: quote?.signalStrength ?? 'normal',
-    entryType: quote ? entryType(quote) : 'note',
     occurredAt: toLocalDateTime(quote?.occurredAt),
-    people: quote?.people?.join(', ') ?? '',
-    locationName: quote?.locationName,
-    locationLatitude: quote?.locationLatitude,
-    locationLongitude: quote?.locationLongitude
+    people: quote?.people?.join(', ') ?? ''
   }
 }
 
@@ -90,13 +77,8 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
   const [imageMimeType, setImageMimeType] = useState(initial.imageMimeType)
   const [favorite, setFavorite] = useState(initial.favorite)
   const [status, setStatus] = useState(initial.status)
-  const [signalStrength, setSignalStrength] = useState(initial.signalStrength)
-  const [draftEntryType, setDraftEntryType] = useState(initial.entryType)
   const [occurredAt, setOccurredAt] = useState(initial.occurredAt)
   const [people, setPeople] = useState(initial.people)
-  const [locationName, setLocationName] = useState(initial.locationName)
-  const [locationLatitude, setLocationLatitude] = useState(initial.locationLatitude)
-  const [locationLongitude, setLocationLongitude] = useState(initial.locationLongitude)
   const [saving, setSaving] = useState(false)
   const canSave = Boolean(text.trim() || audioDataUrl || imageDataUrl)
 
@@ -159,21 +141,15 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
       imageMimeType,
       favorite,
       status,
-      signalStrength,
-      entryType: draftEntryType,
       occurredAt: fromLocalDateTime(occurredAt),
-      people: splitList(people),
-      locationName: clean(locationName),
-      locationLatitude,
-      locationLongitude
+      people: splitList(people)
     }
     // Saving always ends, even when the caller's submit fails; the caller reports the failure and the form keeps its values.
     try {
       if (quote) {
         const current: FormValues = {
           text, author, work, source, year, bookId, tags, note, audioDataUrl, audioMimeType, audioDurationMs, imageDataUrl,
-          imageMimeType, favorite, status, signalStrength, entryType: draftEntryType, occurredAt, people, locationName,
-          locationLatitude, locationLongitude
+          imageMimeType, favorite, status, occurredAt, people
         }
         await onSubmit(changedFields(input, current, initial))
       } else {
@@ -213,8 +189,6 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
         }}
       />
       <Field label={t('tags')} value={tags} onChange={setTags} placeholder="alltag, idee, buch" />
-      <EntryTypeControl value={draftEntryType} onChange={setDraftEntryType} />
-      <SignalStrengthControl value={signalStrength ?? 'normal'} onChange={setSignalStrength} />
       <label className="grid gap-2">
         <span className="text-sm text-graphite">{t('note')}</span>
         <textarea
@@ -258,16 +232,6 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
             />
           </label>
           <Field label={t('people')} value={people} onChange={setPeople} placeholder={t('peoplePlaceholder')} />
-          <div className="sm:col-span-2">
-            <LocationCapture
-              value={{ locationName, locationLatitude, locationLongitude }}
-              onChange={(location) => {
-                setLocationName(location.locationName)
-                setLocationLatitude(location.locationLatitude)
-                setLocationLongitude(location.locationLongitude)
-              }}
-            />
-          </div>
           <label className="grid gap-2 sm:col-span-2">
             <span className="text-sm text-graphite">{t('entryStatus')}</span>
             <select
@@ -333,13 +297,8 @@ const fieldSources: Partial<Record<keyof QuoteInput, (keyof FormValues)[]>> = {
   imageMimeType: ['imageMimeType'],
   favorite: ['favorite'],
   status: ['status'],
-  signalStrength: ['signalStrength'],
-  entryType: ['entryType'],
   occurredAt: ['occurredAt'],
-  people: ['people'],
-  locationName: ['locationName'],
-  locationLatitude: ['locationLatitude'],
-  locationLongitude: ['locationLongitude']
+  people: ['people']
 }
 
 function changedFields(input: QuoteInput, current: FormValues, initial: FormValues): Partial<QuoteInput> {

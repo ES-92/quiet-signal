@@ -27,7 +27,7 @@ Rule of thumb: never touch `db.quotes` / `db.books` outside `src/db/database.ts`
 Capture, then clarify, then review:
 
 1. **Capture.** Text, photo, voice, share-target and imports create entries through `useQuoteStore.addQuote` -> `createQuote`. Quick capture, the zero-capture sheet and the share target create entries with `status: 'inbox'` ("Rauschen" / noise); the full add form lets you pick the status; `createQuote` itself defaults to `status: 'signal'` when no status is given. Imports go through `upsertQuotes`.
-2. **Clarify.** The inbox page (`InboxPage`, built from `components/deck/` and the `useInbox*` / `useClarify*` hooks) shows inbox entries as a swipe deck. Per entry you can keep it as a signal (optionally with a signal strength: `quiet`, `normal`, `strong`), save details while it stays in the inbox, snooze it (`snoozedUntil` = next 06:00 local time), or discard it. Discarding sets `deletedAt` (soft delete into the trash, with undo); the trash page restores or empties it.
+2. **Clarify.** The inbox page (`InboxPage`, built from `components/deck/` and the `useInbox*` / `useClarify*` hooks) shows inbox entries as a swipe deck. Per entry you can keep it as a signal, save details while it stays in the inbox, snooze it (`snoozedUntil` = next 06:00 local time), or discard it. Discarding sets `deletedAt` (soft delete into the trash, with undo); the trash page restores or empties it.
 3. **Review.** The Today page (`useDailySession` + `selectDailyStack` in `src/services/review.ts`) builds the daily deck from *due* entries with `status === 'signal'` only; the stack is not padded, so it can be empty (then "Browse anyway" uses `selectBrowseStack`, which changes no schedule). Gestures map to pure patch builders in `src/services/lifecycle.ts` (`moreOftenPatch`, `lessOftenPatch`, `restPatch`, `wakePatch`), applied through `useQuoteStore` with the updater form of `updateQuote(id, (current) => patch)` so they act on the freshly read row. Dated thoughts live in `src/services/thoughts.ts` (`addThoughtPatch`, `adoptNotePatch`, ...).
 
 Every persisted change goes store -> `src/db/database.ts` -> Dexie, and the store then reloads its list (`loadQuotes`). Entries without `status` are treated as `signal` (`quoteStatus`), which keeps old data working.
@@ -44,7 +44,7 @@ Database name `quiet-signal`, defined in `src/db/database.ts`. Each version list
 | 4 | `quotes` adds `entryType` |
 | 5 | `quotes` adds `snoozedUntil`, `deletedAt` |
 
-Versions 3 to 5 only add indexes; there are no upgrade callbacks. Rows written by older versions simply lack the newer fields, and the read paths fill in defaults (`withQuoteDefaults`: `likes` 0, `status` `signal`, `signalStrength` `normal`, `entryType` `note`, `people` `[]`). Imports of old backups apply the same defaults. Changing the schema means adding a new `version(n)` block, never editing an existing one.
+Versions 3 to 5 only add indexes; there are no upgrade callbacks. Rows written by older versions simply lack the newer fields, and the read paths fill in defaults (`withQuoteDefaults`: `likes` 0, `status` `signal`, `people` `[]`). Imports of old backups apply the same defaults. Changing the schema means adding a new `version(n)` block, never editing an existing one.
 
 Behaviour worth knowing:
 
@@ -76,15 +76,15 @@ More-often and less-often also bump `reviewCount` and set `lastReviewedAt`. `nex
 
 ### Daily stack
 
-`selectDailyStack(quotes, { limit, date?, bookWeights? })`:
+`selectDailyStack(quotes, { limit, date? })`:
 
 1. **Candidates:** `status === 'signal'`, not deleted, not snoozed, not already reviewed today (local day key), and *due* (`!nextReviewAt` or `nextReviewAt <= now`). There is no backlog fill.
 2. **Score** (higher first):
    - Review score: never reviewed = `1000` (+`80` if favorite); otherwise `daysSinceReview * 10` (+`60` if favorite) `- reviewCount`.
    - Like bonus: `min(likes, 8) * 35`.
-   - `(reviewScore + likeBonus) * bookWeightMultiplier * signalMultiplier`, where book weight is `rare 0.4`, `normal 1`, `often 1.7` and signal strength is `quiet 0.68`, `normal 1`, `strong 1.38`.
+   - `reviewScore + likeBonus`. Signal strength and book weight no longer influence the score.
    - Plus a seeded random term in `[0, 180)`.
-3. **Author dedupe:** walking that order, an entry whose author (case-insensitive) is already in the stack is skipped, unless its book is weighted `often`, or there are no more candidates than `limit`. A second pass then fills any remaining slots from what was skipped.
+3. **Author dedupe:** walking that order, an entry whose author (case-insensitive) is already in the stack is skipped, or there are no more candidates than `limit`. A second pass then fills any remaining slots from what was skipped.
 
 `selectBrowseStack(quotes, { limit, seed })` shuffles all live signals regardless of due date and never writes.
 
@@ -112,6 +112,10 @@ Be clear about what each mechanism does and does not protect.
 **Verifier and record versions.** The password is run through PBKDF2-SHA-256 once. The resulting bits are imported as the non-extractable AES-GCM key, and the stored verifier is `SHA-256(context || bits)` with a fixed domain label. The record carries `version: 2`. A record without a version (earlier format) is accepted on a correct password; a record with any other version fails closed (unlock is refused and the record is left untouched).
 
 **Key rotation for earlier-format vaults.** On a successful unlock of an earlier-format vault, `unlockVault` (`database.ts`) moves the vault to a fresh salt and key: every row (including trashed quotes and books) is re-encrypted in memory, the new version 2 record is first staged under `quiet-signal-encryption-pending`, the rows are written in one transaction, and only then the staged record becomes the active one and the in-memory key is switched. If anything fails before the rows are committed, the vault unlocks with its current key and the rotation is retried on the next unlock. If the active record cannot be saved after the commit, the staged record still describes the rows; the next unlock reads rows with either key and finishes the rotation. Version 2 vaults are not rotated again.
+
+### Deprecated stored fields
+
+`signalStrength`, `entryType`, `locationName`/`locationLatitude`/`locationLongitude` (on quotes) and `weight` (on books) are no longer written for new entries, shown, searched or evaluated. The type definitions keep them (marked `@deprecated`), existing rows and backups keep their values, and JSON import/export passes them through unchanged. The Dexie schema, including the indexes on `signalStrength`, `entryType` and `weight`, is unchanged.
 
 ### What stays unencrypted
 

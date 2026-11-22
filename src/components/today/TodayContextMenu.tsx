@@ -36,7 +36,7 @@ export function TodayContextMenu({
         </button>
       </div>
       <div className="mt-1 grid gap-1">
-        <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" onClick={onFavorite}>
+        <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50" aria-pressed={favorite} onClick={onFavorite}>
           <Heart size={17} fill={favorite ? 'currentColor' : 'none'} className={favorite ? 'text-clay' : 'text-graphite'} />
           {t('favorite')}
         </button>

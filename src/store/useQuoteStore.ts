@@ -13,6 +13,8 @@ import {
   moreOftenPatch,
   restoreReviewPatch,
   restPatch,
+  favoriteCapPatch,
+  favoriteTogglePatch,
   reviewSnapshot,
   wakePatch,
   type ReviewSnapshot
@@ -40,7 +42,7 @@ interface QuoteStore {
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
   likeQuote: (id: string) => Promise<void>
-  dislikeQuote: (id: string) => Promise<void>
+  toggleFavorite: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
   // onPrevious receives the review values of the row the change was actually applied to (for an undo).
@@ -86,7 +88,8 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     return quote
   },
   saveQuote: async (id, patch) => {
-    await updateQuote(id, patch)
+    // Setting the favourite flag through any form (e.g. the edit form) also applies the 30-day cap.
+    await updateQuote(id, patch.favorite ? (current) => (current.favorite ? patch : { ...favoriteCapPatch(current), ...patch }) : patch)
     await get().loadQuotes()
   },
   likeQuote: async (id) => {
@@ -100,16 +103,10 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     tapHaptic(8)
     await updateQuote(id, { likes: next })
   },
-  dislikeQuote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const next = Math.max(0, (quote.likes ?? 0) - 1)
-    if (next === (quote.likes ?? 0)) return
-    set((state) => ({
-      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
-    }))
-    tapHaptic(12)
-    await updateQuote(id, { likes: next })
+  toggleFavorite: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => favoriteTogglePatch(current))
+    await get().loadQuotes()
   },
   removeQuote: async (id) => {
     await deleteQuote(id)

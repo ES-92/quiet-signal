@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildReflection } from '../services/reflections'
-import { selectBrowseStack, selectDailyStack, type BookWeightMap } from '../services/review'
+import { selectBrowseStack, selectDailyStack } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
@@ -31,14 +31,9 @@ export function useDailySession() {
     void loadBooks()
   }, [loadQuotes, loadBooks])
 
-  const bookWeights = useMemo<BookWeightMap>(
-    () => Object.fromEntries(books.map((book) => [book.id, book.weight])),
-    [books]
-  )
-
   const selectedDailyQuotes = useMemo(
-    () => selectDailyStack(quotes, { limit: dailyCount, bookWeights }),
-    [bookWeights, dailyCount, quotes]
+    () => selectDailyStack(quotes, { limit: dailyCount }),
+    [dailyCount, quotes]
   )
 
   // Keep the cards of this visit stable while the underlying selection changes (adjusting state while rendering, not in an effect).

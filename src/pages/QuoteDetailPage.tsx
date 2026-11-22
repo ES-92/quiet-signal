@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
 import { ConfirmSheet } from '../components/ConfirmSheet'
-import { LikeControl } from '../components/LikeControl'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { QuoteForm } from '../components/QuoteForm'
 import { ThoughtList } from '../components/thoughts/ThoughtList'
@@ -13,13 +12,13 @@ import { statusChangePatch } from '../services/lifecycle'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
-import { entryType, quoteStatus, signalStrength, type QuoteInput, type Thought } from '../types/quote'
+import { quoteStatus, type QuoteInput, type Thought } from '../types/quote'
 
 export function QuoteDetailPage() {
   const { t, locale } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, toggleFavorite, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -36,19 +35,6 @@ export function QuoteDetailPage() {
     inbox: 'entryStatus_inbox',
     signal: 'entryStatus_signal',
     rest: 'entryStatus_rest'
-  } as const
-  const strengthLabels = {
-    quiet: 'signalStrength_quiet',
-    normal: 'signalStrength_normal',
-    strong: 'signalStrength_strong'
-  } as const
-  const typeLabels = {
-    note: 'entryType_note',
-    memory: 'entryType_memory',
-    book_quote: 'entryType_book_quote',
-    idea: 'entryType_idea',
-    conversation: 'entryType_conversation',
-    observation: 'entryType_observation'
   } as const
 
   if (!quote) {
@@ -145,6 +131,11 @@ export function QuoteDetailPage() {
             <h1 className="mt-3 break-words font-serif text-3xl leading-tight sm:text-5xl">{quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}</h1>
           )}
           <p className="mt-4 text-graphite">{[quote.author, quote.work, quote.year].filter(Boolean).join(', ')}</p>
+          {quote.likes > 0 && (
+            <p className="mt-2 text-sm tabular-nums text-graphite" title={t('likesLabel')} aria-label={`${t('likesLabel')}: ${quote.likes}`}>
+              ♥ {quote.likes}
+            </p>
+          )}
           {book && (
             <Link
               to={`/books/${book.id}`}
@@ -189,21 +180,12 @@ export function QuoteDetailPage() {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm text-graphite">
-          <Metric label={t('likesLabel')} value={String(quote.likes)} />
           <Metric label={t('favorite')} value={quote.favorite ? t('yes') : t('no')} />
-          <Metric label={t('entryKind')} value={t(typeLabels[entryType(quote)])} />
           <Metric label={t('entryStatus')} value={t(statusLabels[quoteStatus(quote)])} />
-          <Metric label={t('signalStrength')} value={t(strengthLabels[signalStrength(quote)])} />
           {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString(locale)} />}
-          {quote.locationName && <Metric label={t('locationLabel')} value={quote.locationName} />}
           {quote.people?.length ? <Metric label={t('people')} value={quote.people.join(', ')} /> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <LikeControl
-            likes={quote.likes}
-            onLike={() => void likeQuote(quote.id)}
-            onDislike={() => void dislikeQuote(quote.id)}
-          />
           {quoteStatus(quote) === 'rest' && (
             <button
               className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-clay px-3 py-2 text-sm text-clay"
@@ -214,7 +196,8 @@ export function QuoteDetailPage() {
           )}
           <button
             className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
-            onClick={() => void saveQuote(quote.id, { favorite: !quote.favorite })}
+            aria-pressed={Boolean(quote.favorite)}
+            onClick={() => void attempt(() => toggleFavorite(quote.id))}
           >
             <Heart size={16} fill={quote.favorite ? 'currentColor' : 'none'} /> {t('favorite')}
           </button>

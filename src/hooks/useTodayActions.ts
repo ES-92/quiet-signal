@@ -23,7 +23,7 @@ interface TodayActionsInput {
 export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
   const { t, tCount } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
   const { saveBook } = useBookStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
@@ -175,8 +175,13 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   async function handleFavoriteToggle() {
     if (!currentQuote) return
     tapHaptic(10)
-    await saveQuote(currentQuote.id, { favorite: !currentQuote.favorite })
-    setContextOpen(false)
+    try {
+      await toggleFavorite(currentQuote.id)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    } finally {
+      setContextOpen(false)
+    }
   }
 
   function handleContextDiscard() {

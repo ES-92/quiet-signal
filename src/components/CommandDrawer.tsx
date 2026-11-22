@@ -1,6 +1,6 @@
-import { BookMarked, Coffee, Download, Feather, Hand, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
+import { BookMarked, Coffee, Download, Feather, Hand, Heart, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { openCapture as dispatchCapture } from '../services/captureEvents'
 import { useBookStore } from '../store/useBookStore'
@@ -10,6 +10,7 @@ import { quoteStatus } from '../types/quote'
 const commandItems = [
   { to: '/today', labelKey: 'today', icon: Sparkles },
   { to: '/inbox', labelKey: 'noiseInbox', icon: Inbox },
+  { to: '/library?view=favorites', labelKey: 'favorites', icon: Heart },
   { to: '/library', labelKey: 'library', icon: Library },
   { to: '/reflections', labelKey: 'reflections', icon: Feather },
   { to: '/books', labelKey: 'books', icon: BookMarked },
@@ -27,6 +28,7 @@ interface CommandDrawerProps {
 export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
   const { t } = useI18n()
   const titleId = useId()
+  const location = useLocation()
   const { quotes, loadQuotes } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
   const [query, setQuery] = useState('')
@@ -142,7 +144,7 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
                   className={({ isActive }) =>
                     [
                       'flex min-h-[46px] items-center gap-3 rounded-md px-3 text-sm transition',
-                      isActive ? 'bg-ink text-paper' : 'text-ink hover:bg-white/50'
+                      isCommandActive(item.to, isActive, location.search) ? 'bg-ink text-paper' : 'text-ink hover:bg-white/50'
                     ].join(' ')
                   }
                 >
@@ -191,6 +193,13 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
       </aside>
     </div>
   )
+}
+
+// The Favoriten entry shares the /library path with the library: only the query string tells them apart.
+function isCommandActive(to: string, pathActive: boolean, search: string) {
+  if (to === '/library?view=favorites') return pathActive && new URLSearchParams(search).get('view') === 'favorites'
+  if (to === '/library') return pathActive && new URLSearchParams(search).get('view') !== 'favorites'
+  return pathActive
 }
 
 function ResultGroup({ title, children }: { title: string; children: ReactNode }) {

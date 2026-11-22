@@ -438,6 +438,7 @@ describe('useTodayActions', () => {
     // Arrange
     const quote = makeQuote({ id: 'q', favorite: false })
     await upsertQuotes([quote])
+    useQuoteStore.setState({ quotes: [quote] })
     const { result } = setup({ quote })
     act(() => result.current.actions.openContext())
 

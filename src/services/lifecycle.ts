@@ -1,10 +1,11 @@
-import type { Quote, QuoteStatus } from '../types/quote'
+import { quoteStatus, type Quote, type QuoteStatus } from '../types/quote'
 
 const reviewHour = 6
 const maxIntervalDays = 365
 const moreOftenFactor = 1.5
 const lessOftenFactor = 4
 const lessOftenMinDays = 14
+export const favoriteMaxIntervalDays = 30
 const dayMs = 24 * 60 * 60 * 1000
 
 export function effectiveInterval(quote: Pick<Quote, 'reviewIntervalDays' | 'reviewCount'>): number {
@@ -49,14 +50,49 @@ export function restoreReviewPatch(previous: ReviewSnapshot, now = new Date()): 
   return { ...previous, updatedAt: now.toISOString() }
 }
 
+// A favourite never stays away longer than 30 days; everything else keeps the global maximum.
+function intervalCap(quote: Pick<Quote, 'favorite'>): number {
+  return quote.favorite ? Math.min(maxIntervalDays, favoriteMaxIntervalDays) : maxIntervalDays
+}
+
 export function moreOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
-  const next = Math.min(maxIntervalDays, Math.ceil(effectiveInterval(quote) * moreOftenFactor))
+  const next = Math.min(intervalCap(quote), Math.ceil(effectiveInterval(quote) * moreOftenFactor))
   return { ...reviewedPatch(quote, next, now), likes: quote.likes + 1 }
 }
 
 export function lessOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
-  const next = Math.min(maxIntervalDays, Math.max(lessOftenMinDays, Math.ceil(effectiveInterval(quote) * lessOftenFactor)))
+  const next = Math.min(intervalCap(quote), Math.max(lessOftenMinDays, Math.ceil(effectiveInterval(quote) * lessOftenFactor)))
   return reviewedPatch(quote, next, now)
+}
+
+// Toggling the heart. Becoming a favourite pulls a review that is more than 30 days away in to day 30 (06:00)
+// and caps a longer stored interval; unfavouriting only clears the flag.
+export function favoriteTogglePatch(quote: Quote, now = new Date()): Partial<Quote> {
+  const timestamp = now.toISOString()
+  if (quote.favorite) return { favorite: false, updatedAt: timestamp }
+  return { favorite: true, updatedAt: timestamp, ...favoriteCapPatch(quote, now) }
+}
+
+// The schedule part of becoming a favourite, for every write path that can set the flag (heart, edit form).
+export function favoriteCapPatch(quote: Quote, now = new Date()): Partial<Quote> {
+  const patch: Partial<Quote> = {}
+  // Rest and noise have no due date that matters; wake and clarify set a fresh schedule anyway.
+  if (quoteStatus(quote) !== 'signal') return patch
+  const latest = reviewDateFromInterval(favoriteMaxIntervalDays, now)
+  if (quote.nextReviewAt && new Date(quote.nextReviewAt).getTime() > new Date(latest).getTime()) patch.nextReviewAt = latest
+  if (quote.reviewIntervalDays !== undefined && quote.reviewIntervalDays > favoriteMaxIntervalDays) {
+    patch.reviewIntervalDays = favoriteMaxIntervalDays
+  }
+  return patch
+}
+
+// When a signal is really due. A favourite is never due later than 30 days after its last review (or creation),
+// even if an old or imported row stores a date further away. Stored data is not rewritten.
+export function effectiveDueAt(quote: Quote): string | undefined {
+  if (!quote.favorite || quoteStatus(quote) !== 'signal') return quote.nextReviewAt
+  const capped = reviewDateFromInterval(favoriteMaxIntervalDays, new Date(quote.lastReviewedAt ?? quote.createdAt))
+  if (!quote.nextReviewAt) return undefined
+  return new Date(quote.nextReviewAt).getTime() <= new Date(capped).getTime() ? quote.nextReviewAt : capped
 }
 
 export function restPatch(_quote: Quote, now = new Date()): Partial<Quote> {

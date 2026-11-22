@@ -12,7 +12,6 @@ export function sampleSeed(): SampleSeed {
     id: crypto.randomUUID(),
     title: 'The Story of Philosophy',
     author: 'Will Durant',
-    weight: 'often',
     source: 'manual',
     createdAt: now,
     updatedAt: now
@@ -21,7 +20,6 @@ export function sampleSeed(): SampleSeed {
     id: crypto.randomUUID(),
     title: 'Meditations',
     author: 'Marcus Aurelius',
-    weight: 'normal',
     source: 'manual',
     createdAt: now,
     updatedAt: now
@@ -30,7 +28,6 @@ export function sampleSeed(): SampleSeed {
     id: crypto.randomUUID(),
     title: 'Gravity and Grace',
     author: 'Simone Weil',
-    weight: 'rare',
     source: 'manual',
     createdAt: now,
     updatedAt: now
@@ -50,8 +47,6 @@ export function sampleSeed(): SampleSeed {
       favorite: true,
       likes: 4,
       status: 'signal',
-      signalStrength: 'strong',
-      entryType: 'book_quote',
       createdAt: now,
       updatedAt: now,
       reviewCount: 0
@@ -67,8 +62,6 @@ export function sampleSeed(): SampleSeed {
       favorite: false,
       likes: 1,
       status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'book_quote',
       createdAt: now,
       updatedAt: now,
       reviewCount: 0
@@ -84,8 +77,6 @@ export function sampleSeed(): SampleSeed {
       favorite: true,
       likes: 2,
       status: 'signal',
-      signalStrength: 'quiet',
-      entryType: 'book_quote',
       createdAt: now,
       updatedAt: now,
       reviewCount: 0

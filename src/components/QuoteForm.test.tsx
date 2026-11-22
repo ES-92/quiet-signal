@@ -32,11 +32,13 @@ describe('QuoteForm', () => {
       text: 'Neu',
       tags: [],
       favorite: false,
-      status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'note'
+      status: 'signal'
     })
-    expect(Object.keys(onSubmit.mock.calls[0][0])).toEqual(expect.arrayContaining(['author', 'note', 'people', 'status']))
+    const submitted = Object.keys(onSubmit.mock.calls[0][0])
+    expect(submitted).toEqual(expect.arrayContaining(['author', 'note', 'people', 'status']))
+    expect(submitted).not.toEqual(expect.arrayContaining(['signalStrength']))
+    expect(submitted).not.toEqual(expect.arrayContaining(['entryType']))
+    expect(submitted.some((key) => key.startsWith('location'))).toBe(false)
   })
 
   it('re-enables the save button when the submit fails', async () => {
@@ -66,6 +68,31 @@ describe('QuoteForm', () => {
     // Assert
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit).toHaveBeenCalledWith({ tags: ['b'] })
+  })
+
+  it('zeigt weder Art, Signalstärke noch Ort und lässt gespeicherte Werte beim Bearbeiten unberührt', async () => {
+    // Arrange
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const quote = makeQuote({
+      id: 'q-1',
+      text: 'Alt',
+      signalStrength: 'strong',
+      entryType: 'idea',
+      locationName: 'Eilenriede',
+      locationLatitude: 52.38,
+      locationLongitude: 9.76
+    })
+    const { container } = renderWithProviders(<QuoteForm quote={quote} submitLabel="Go" onSubmit={onSubmit} />)
+
+    // Act
+    fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neu' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+
+    // Assert
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit).toHaveBeenCalledWith({ text: 'Neu' })
+    expect(container.textContent).not.toMatch(/Eilenriede|Location|Signal strength/i)
+    expect(container.querySelectorAll('button[aria-pressed]')).toHaveLength(0)
   })
 
   it('still submits a cleared optional field as undefined', async () => {

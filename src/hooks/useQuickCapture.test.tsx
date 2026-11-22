@@ -53,7 +53,6 @@ describe('useQuickCapture', () => {
     act(() => {
       result.current.setText(' Gedanke ')
       result.current.setTags('x, y')
-      result.current.setSignalStrength('strong')
       result.current.setAudio({ dataUrl: 'data:audio/webm;base64,AAAA', mimeType: 'audio/webm', durationMs: 1200 })
     })
 
@@ -66,16 +65,16 @@ describe('useQuickCapture', () => {
       text: 'Gedanke',
       tags: ['x', 'y'],
       status: 'inbox',
-      signalStrength: 'strong',
       audioMimeType: 'audio/webm',
       audioDurationMs: 1200
     })
+    expect(saved.signalStrength).toBeUndefined()
+    expect(saved.entryType).toBeUndefined()
     expect(onSaved).toHaveBeenCalledWith(translations.en.noiseSaved)
     expect(result.current).toMatchObject({
       text: '',
       tags: '',
       audioDataUrl: undefined,
-      signalStrength: 'quiet',
       canSave: false
     })
   })

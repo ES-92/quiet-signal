@@ -136,12 +136,13 @@ describe('Quotes: Anlegen und Aktualisieren', () => {
       id: created.id,
       likes: 0,
       status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'note',
       people: [],
       tags: ['a', 'b'],
       reviewCount: 0
     })
+    expect(list[0].signalStrength).toBeUndefined()
+    expect(list[0].entryType).toBeUndefined()
+    expect(list[0].locationName).toBeUndefined()
   })
 
   it('normalisiert tags und people beim Aktualisieren', async () => {
@@ -341,7 +342,7 @@ describe('Bücher', () => {
     // Assert
     expect(b.title).toBe('Zebra')
     expect(b.author).toBeUndefined()
-    expect(b.weight).toBe('normal')
+    expect(b.weight).toBeUndefined()
     expect(updated?.title).toBe('Zebra 2')
     expect(sortiert).toEqual(['Apfel', 'Zebra 2'])
     expect((await listBooks()).map((x) => x.title)).toEqual(['Apfel'])
@@ -368,7 +369,9 @@ describe('Legacy-Daten', () => {
     // Assert
     expect(list).toHaveLength(2)
     for (const quote of list) {
-      expect(quote).toMatchObject({ status: 'signal', signalStrength: 'normal', entryType: 'note', likes: 0 })
+      expect(quote).toMatchObject({ status: 'signal', likes: 0 })
+      expect(quote.signalStrength).toBeUndefined()
+      expect(quote.entryType).toBeUndefined()
       expect(quote.people).toEqual([])
     }
   })
@@ -401,11 +404,11 @@ describe('Legacy-Daten', () => {
       id: 'legacy-row',
       text: 'Altes Zitat',
       status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'note',
       likes: 0,
       people: []
     })
+    expect(list[0].signalStrength).toBeUndefined()
+    expect(list[0].entryType).toBeUndefined()
   })
 })
 

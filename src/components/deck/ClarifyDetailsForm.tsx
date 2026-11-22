@@ -1,9 +1,6 @@
 import type { ClarifyDraft } from '../../hooks/useClarifyDraft'
 import { useI18n } from '../../i18n/useI18n'
 import type { Book } from '../../types/book'
-import { EntryTypeControl } from '../EntryTypeControl'
-import { LocationCapture } from '../LocationCapture'
-import { SignalStrengthControl } from '../SignalStrengthControl'
 import { Field } from './Field'
 
 interface ClarifyDetailsFormProps {
@@ -15,7 +12,7 @@ interface ClarifyDetailsFormProps {
   onFinish: () => void
 }
 
-// Edit form for the top card: type, strength, text, note, book or context details, tags.
+// Edit form for the top card: text, note, first thought, book details (when the entry has any), context details, tags.
 export function ClarifyDetailsForm({
   draft,
   books,
@@ -25,9 +22,9 @@ export function ClarifyDetailsForm({
   onFinish
 }: ClarifyDetailsFormProps) {
   const { t } = useI18n()
-  const contextDetails =
-    draft.entryType === 'memory' || draft.entryType === 'conversation' || draft.entryType === 'observation'
-  const bookDetails = draft.entryType === 'book_quote'
+  // Book fields show when the entry already has book data or when a book can be picked.
+  const bookDetails =
+    books.length > 0 || Boolean(draft.bookId || draft.work || draft.author || draft.source || draft.year)
 
   return (
     <div className="quiet-pop grid gap-4 rounded-md border border-line bg-white/30 p-4">
@@ -35,8 +32,6 @@ export function ClarifyDetailsForm({
         <p className="text-xs uppercase tracking-[0.16em] text-graphite">{t('signalDraft')}</p>
         <h3 className="mt-1 font-serif text-2xl">{t('signalDraftTitle')}</h3>
       </div>
-      <EntryTypeControl value={draft.entryType} onChange={(entryType) => onChange({ entryType })} />
-      <SignalStrengthControl value={draft.strength} onChange={(strength) => onChange({ strength })} />
       <label className="grid gap-2">
         <span className="text-sm text-graphite">{t('text')}</span>
         <textarea
@@ -90,40 +85,24 @@ export function ClarifyDetailsForm({
         </div>
       )}
 
-      {(contextDetails || !bookDetails) && (
-        <div className="grid gap-3 rounded-md border border-line bg-paper/60 p-3">
-          <p className="font-serif text-xl">{t('contextDetails')}</p>
-          <label className="grid gap-2">
-            <span className="text-sm text-graphite">{t('occurredAt')}</span>
-            <input
-              className="rounded-md border border-line bg-white/50 px-3 py-3"
-              type="datetime-local"
-              value={draft.occurredAt}
-              onChange={(event) => onChange({ occurredAt: event.target.value })}
-            />
-          </label>
-          <Field
-            label={t('people')}
-            value={draft.people}
-            onChange={(people) => onChange({ people })}
-            placeholder={t('peoplePlaceholder')}
+      <div className="grid gap-3 rounded-md border border-line bg-paper/60 p-3">
+        <p className="font-serif text-xl">{t('contextDetails')}</p>
+        <label className="grid gap-2">
+          <span className="text-sm text-graphite">{t('occurredAt')}</span>
+          <input
+            className="rounded-md border border-line bg-white/50 px-3 py-3"
+            type="datetime-local"
+            value={draft.occurredAt}
+            onChange={(event) => onChange({ occurredAt: event.target.value })}
           />
-          <LocationCapture
-            value={{
-              locationName: draft.locationName,
-              locationLatitude: draft.locationLatitude,
-              locationLongitude: draft.locationLongitude
-            }}
-            onChange={(location) =>
-              onChange({
-                locationName: location.locationName,
-                locationLatitude: location.locationLatitude,
-                locationLongitude: location.locationLongitude
-              })
-            }
-          />
-        </div>
-      )}
+        </label>
+        <Field
+          label={t('people')}
+          value={draft.people}
+          onChange={(people) => onChange({ people })}
+          placeholder={t('peoplePlaceholder')}
+        />
+      </div>
 
       <Field
         label={t('tags')}

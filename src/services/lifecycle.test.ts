@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { makeQuote } from '../test/factories'
 import {
   daysUnclarified,
+  effectiveDueAt,
   effectiveInterval,
+  favoriteTogglePatch,
   lessOftenPatch,
   moreOftenPatch,
   restPatch,
@@ -82,4 +84,82 @@ describe('daysUnclarified', () => {
     expect(daysUnclarified({ createdAt: '2026-11-20T10:01:00+01:00' }, new Date('2026-11-21T10:00:00+01:00'))).toBe(0))
   it('returns 0 for a future createdAt', () =>
     expect(daysUnclarified({ createdAt: '2026-11-25T10:00:00+01:00' }, now)).toBe(0))
+})
+
+describe('30-day cap for favourites', () => {
+  it('caps → at 30 days for a favourite', () => {
+    const patch = moreOftenPatch(makeQuote({ favorite: true, reviewIntervalDays: 27 }), now)
+    expect(patch).toMatchObject({ reviewIntervalDays: 30, nextReviewAt: reviewDateFromInterval(30, now) })
+  })
+  it('keeps growing → for a non-favourite', () =>
+    expect(moreOftenPatch(makeQuote({ reviewIntervalDays: 27 }), now).reviewIntervalDays).toBe(41))
+  it('caps ← at 30 days for a favourite coming from a high interval', () => {
+    const patch = lessOftenPatch(makeQuote({ favorite: true, reviewIntervalDays: 200 }), now)
+    expect(patch).toMatchObject({ reviewIntervalDays: 30, nextReviewAt: reviewDateFromInterval(30, now) })
+  })
+  it('still applies the 14-day minimum of ← below the cap', () =>
+    expect(lessOftenPatch(makeQuote({ favorite: true, reviewIntervalDays: 1 }), now).reviewIntervalDays).toBe(14))
+  it('derives the interval for a legacy favourite without stored interval', () => {
+    const patch = moreOftenPatch(makeQuote({ favorite: true, reviewCount: 9, reviewIntervalDays: undefined }), now)
+    expect(patch.reviewIntervalDays).toBe(11)
+  })
+  it('leaves rest and wake untouched for a favourite', () => {
+    expect(restPatch(makeQuote({ favorite: true, reviewIntervalDays: 90 }), now)).not.toHaveProperty('reviewIntervalDays')
+    expect(wakePatch(makeQuote({ favorite: true, status: 'rest' }), now).reviewIntervalDays).toBe(1)
+  })
+})
+
+describe('favoriteTogglePatch', () => {
+  const far = new Date('2027-03-01T06:00:00+01:00').toISOString()
+  it('pulls a far-away review in to 30 days at 06:00 and caps the interval', () => {
+    const patch = favoriteTogglePatch(makeQuote({ favorite: false, reviewIntervalDays: 120, nextReviewAt: far }), now)
+    expect(patch).toMatchObject({
+      favorite: true,
+      reviewIntervalDays: 30,
+      nextReviewAt: reviewDateFromInterval(30, now),
+      updatedAt: now.toISOString()
+    })
+  })
+  it('leaves a review that is already within 30 days alone', () => {
+    const soon = reviewDateFromInterval(10, now)
+    const patch = favoriteTogglePatch(makeQuote({ reviewIntervalDays: 10, nextReviewAt: soon }), now)
+    expect(patch).toEqual({ favorite: true, updatedAt: now.toISOString() })
+  })
+  it('caps a stored interval above 30 even when the due date is near', () => {
+    const patch = favoriteTogglePatch(makeQuote({ reviewIntervalDays: 90, nextReviewAt: reviewDateFromInterval(5, now) }), now)
+    expect(patch).toMatchObject({ favorite: true, reviewIntervalDays: 30 })
+    expect(patch).not.toHaveProperty('nextReviewAt')
+  })
+  it('only sets the flag on rest and inbox entries, where due dates do not matter', () => {
+    for (const status of ['rest', 'inbox'] as const) {
+      const patch = favoriteTogglePatch(makeQuote({ status, reviewIntervalDays: 120, nextReviewAt: far }), now)
+      expect(patch).toEqual({ favorite: true, updatedAt: now.toISOString() })
+    }
+  })
+  it('unfavouriting changes nothing else', () => {
+    const patch = favoriteTogglePatch(makeQuote({ favorite: true, reviewIntervalDays: 120, nextReviewAt: far }), now)
+    expect(patch).toEqual({ favorite: false, updatedAt: now.toISOString() })
+  })
+})
+
+describe('effectiveDueAt', () => {
+  const far = new Date('2027-03-01T06:00:00+01:00').toISOString()
+  it('caps a legacy favourite signal at 30 days after its last review, 06:00 local', () => {
+    const lastReviewedAt = new Date('2026-10-21T12:00:00+02:00').toISOString()
+    const due = effectiveDueAt(makeQuote({ favorite: true, status: 'signal', lastReviewedAt, nextReviewAt: far }))
+    expect(due).toBe(new Date('2026-11-20T06:00:00+01:00').toISOString())
+  })
+  it('falls back to createdAt when the favourite was never reviewed', () => {
+    const due = effectiveDueAt(makeQuote({ favorite: true, createdAt: '2026-10-01T12:00:00+02:00', nextReviewAt: far }))
+    expect(due).toBe(new Date('2026-10-31T06:00:00+01:00').toISOString())
+  })
+  it('keeps an earlier stored date', () => {
+    const near = reviewDateFromInterval(5, now)
+    expect(effectiveDueAt(makeQuote({ favorite: true, lastReviewedAt: now.toISOString(), nextReviewAt: near }))).toBe(near)
+  })
+  it('does not cap non-favourites or non-signals', () => {
+    expect(effectiveDueAt(makeQuote({ nextReviewAt: far }))).toBe(far)
+    expect(effectiveDueAt(makeQuote({ favorite: true, status: 'rest', nextReviewAt: far }))).toBe(far)
+  })
+  it('is undefined without a stored date', () => expect(effectiveDueAt(makeQuote({ favorite: true }))).toBeUndefined())
 })

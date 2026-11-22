@@ -171,18 +171,6 @@ html.theme-dark .hover\:bg-white\/50:hover {
   background-color: rgb(41 38 34 / 0.78) !important;
 }
 
-@keyframes likePop {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(1.32);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
 @keyframes recordingBar {
   0%,
   100% {
@@ -201,11 +189,6 @@ html.theme-dark .hover\:bg-white\/50:hover {
   50% {
     box-shadow: 0 0 0 10px rgb(var(--color-paper) / 0);
   }
-}
-
-.like-pop {
-  display: inline-block;
-  animation: likePop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes deckTopSettle {
@@ -255,7 +238,6 @@ html.theme-dark .hover\:bg-white\/50:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .like-pop,
   .deck-top-card,
   .quiet-sheet,
   .quiet-pop,

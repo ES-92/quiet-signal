@@ -251,6 +251,32 @@ describe('exportJson und parseJsonImportBundle', () => {
     expect(result.books).toEqual([book])
   })
 
+  it('reicht Stärke, Art, Ort und Buchgewicht im JSON-Roundtrip unverändert durch', () => {
+    // Arrange
+    const book = makeBook({ title: 'The Art of Quiet', weight: 'rare', source: 'kindle' })
+    const quotes = [
+      makeQuote({
+        bookId: book.id,
+        signalStrength: 'quiet',
+        entryType: 'observation',
+        locationName: 'Eilenriede',
+        locationLatitude: 52.38,
+        locationLongitude: 9.76,
+        people: []
+      }),
+      makeQuote({ signalStrength: 'normal', entryType: 'note', people: [] }),
+      makeQuote({ people: [] })
+    ]
+
+    // Act
+    const result = parseJsonImportBundle(exportJson(quotes, [book]))
+
+    // Assert
+    expect(result.quotes).toEqual(quotes)
+    expect(result.books).toEqual([book])
+    expect(result.quotes[2]).not.toHaveProperty('signalStrength', 'normal')
+  })
+
   it('importiert das aktuelle Backup inklusive Buch, Tags und Bild-Data-URL', () => {
     // Arrange
     const content = readFixture('backup-current.json')
@@ -325,10 +351,11 @@ describe('Legacy-Backup', () => {
     // Assert
     expect(quotes).toHaveLength(2)
     expect(books).toHaveLength(1)
-    expect(books[0]).toMatchObject({ id: 'b-legacy-1', title: 'Alte Notizen', weight: 'normal', source: 'manual' })
+    expect(books[0]).toMatchObject({ id: 'b-legacy-1', title: 'Alte Notizen', source: 'manual' })
+    expect(books[0].weight).toBeUndefined()
   })
 
-  it('hält die Ist-Werte der fehlenden Felder fest (status, signalStrength, entryType, people, likes)', () => {
+  it('ergänzt fehlende Felder (status, people, likes), erfindet aber keine Stärke und keine Art', () => {
     // Arrange
     const content = readFixture('backup-legacy.json')
 
@@ -339,15 +366,15 @@ describe('Legacy-Backup', () => {
     // Der Parser setzt selbst schon die Defaults; Task 6 prüft zusätzlich upsertQuotes + listQuotes.
     expect(quotes[0]).toMatchObject({
       status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'note',
       people: [],
       likes: 0,
       favorite: false,
       reviewCount: 0,
       tags: ['alt']
     })
-    expect(quotes[1]).toMatchObject({ status: 'signal', signalStrength: 'normal', entryType: 'note', people: [], likes: 0, favorite: true, reviewCount: 3 })
+    expect(quotes[1]).toMatchObject({ status: 'signal', people: [], likes: 0, favorite: true, reviewCount: 3 })
+    expect(quotes[0].signalStrength).toBeUndefined()
+    expect(quotes[0].entryType).toBeUndefined()
   })
 
   it('setzt fehlende Zeitstempel auf den aktuellen Zeitpunkt', () => {
@@ -676,8 +703,6 @@ describe('exportMarkdown', () => {
       "> Silence is not the absence of sound.
 
       - Jane Doe, The Art of Quiet, 2019
-
-      Type: note
 
       Tags: #stille #fokus
 

@@ -4,10 +4,8 @@ import { useI18n } from '../i18n/useI18n'
 import type { CaptureMode } from '../services/captureEvents'
 import { tapHaptic } from '../services/haptics'
 import { useQuoteStore } from '../store/useQuoteStore'
-import type { SignalStrength } from '../types/quote'
 import { AudioRecorder } from './AudioRecorder'
 import { PhotoCapture } from './PhotoCapture'
-import { SignalStrengthControl } from './SignalStrengthControl'
 
 interface ZeroCaptureSheetProps {
   open: boolean
@@ -28,7 +26,6 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
   const [mode, setMode] = useState<CaptureMode>(initialMode)
   const [text, setText] = useState('')
   const [tags, setTags] = useState('')
-  const [signalStrength, setSignalStrength] = useState<SignalStrength>('quiet')
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>()
   const [imageMimeType, setImageMimeType] = useState<string | undefined>()
@@ -61,8 +58,6 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
       tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       favorite: false,
       status: 'inbox',
-      signalStrength,
-      entryType: 'note',
       people: [],
       imageDataUrl: mode === 'photo' ? imageDataUrl : undefined,
       imageMimeType: mode === 'photo' ? imageMimeType : undefined,
@@ -72,7 +67,6 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
     })
     setText('')
     setTags('')
-    setSignalStrength('quiet')
     setDetailsOpen(false)
     setMode(initialMode)
     setImageDataUrl(undefined)
@@ -165,7 +159,6 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
               value={tags}
               onChange={(event) => setTags(event.target.value)}
             />
-            <SignalStrengthControl value={signalStrength} onChange={setSignalStrength} />
           </div>
         )}
 

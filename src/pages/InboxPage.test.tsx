@@ -329,31 +329,21 @@ describe('InboxPage', () => {
       // Assert
       expect(await screen.findByText(en.noiseSaved)).toBeInTheDocument()
       const saved = (await listQuotes()).find((quote) => quote.text === 'Neuer Gedanke')
-      expect(saved).toMatchObject({
-        status: 'inbox',
-        signalStrength: 'quiet',
-        entryType: 'note',
-        tags: ['eins', 'zwei']
-      })
+      expect(saved).toMatchObject({ status: 'inbox', tags: ['eins', 'zwei'] })
+      expect(saved?.signalStrength).toBeUndefined()
+      expect(saved?.entryType).toBeUndefined()
       expect(screen.getByPlaceholderText(en.noisePlaceholder)).toHaveValue('')
       expect(screen.getByPlaceholderText(en.noiseTagsPlaceholder)).toHaveValue('')
       expect(screen.getByRole('button', { name: en.captureNoise })).toBeDisabled()
     })
 
-    it('übernimmt die gewählte Signalstärke und setzt sie danach auf leise zurück', async () => {
+    it('bietet im Erfassen-Formular keine Signalstärke mehr an', async () => {
       // Arrange
       await renderInbox()
       const form = screen.getByRole('button', { name: en.captureNoise }).closest('form') as HTMLElement
-      fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: 'Stark' } })
-      fireEvent.click(within(form).getByRole('button', { name: en.signalStrength_strong }))
-
-      // Act
-      fireEvent.click(screen.getByRole('button', { name: en.captureNoise }))
 
       // Assert
-      await screen.findByText(en.noiseSaved)
-      expect((await listQuotes()).find((quote) => quote.text === 'Stark')?.signalStrength).toBe('strong')
-      expect(within(form).getByRole('button', { name: en.signalStrength_quiet }).className).toContain('bg-ink')
+      expect(within(form).queryByText(/signal strength/i)).not.toBeInTheDocument()
     })
   })
 
@@ -380,7 +370,6 @@ describe('InboxPage', () => {
       expect(screen.getByText('Eine Anmerkung')).toBeInTheDocument()
       expect(screen.getByText('"Mitte"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
       expect(screen.getByText('"Unten"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
-      expect(screen.getByText(en.entryType_note)).toBeInTheDocument()
     })
 
     it('zeigt für reine Foto- und Sprachnotizen einen Platzhaltertitel', async () => {
@@ -438,32 +427,43 @@ describe('InboxPage', () => {
       expect(screen.queryByLabelText(en.text)).not.toBeInTheDocument()
     })
 
-    it('zeigt Kontextfelder für Notizen und Buchfelder nur für Buchzitate', async () => {
+    it('zeigt Kontextfelder immer und Buchfelder nur mit Buchdaten oder vorhandenen Büchern', async () => {
       // Arrange
       await openDetails()
 
-      // Assert (Notiz)
+      // Assert (Notiz ohne Buchdaten, keine Bücher)
       expect(screen.getByText(en.contextDetails)).toBeInTheDocument()
       expect(screen.queryByText(en.bookDetails)).not.toBeInTheDocument()
+    })
+
+    it('zeigt Buchfelder, wenn der Eintrag bereits Buchdaten trägt', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'w-1', text: 'Zitat', status: 'inbox', work: 'Walden' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
 
       // Act
-      fireEvent.click(screen.getByRole('button', { name: en.entryType_book_quote }))
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
 
-      // Assert (Buchzitat)
-      expect(screen.getByText(en.bookDetails)).toBeInTheDocument()
-      expect(screen.queryByText(en.contextDetails)).not.toBeInTheDocument()
+      // Assert
+      expect(await screen.findByText(en.bookDetails)).toBeInTheDocument()
+      expect(screen.getByLabelText(en.work)).toHaveValue('Walden')
+    })
 
-      // Act
-      fireEvent.click(screen.getByRole('button', { name: en.entryType_memory }))
+    it('bietet in den Details weder Art, Signalstärke noch Ort an', async () => {
+      // Arrange
+      await openDetails()
 
-      // Assert (Erinnerung)
-      expect(screen.queryByText(en.bookDetails)).not.toBeInTheDocument()
-      expect(screen.getByText(en.contextDetails)).toBeInTheDocument()
+      // Assert
+      const form = screen.getByLabelText(en.text).closest('div') as HTMLElement
+      expect(within(form).queryByText(/signal strength/i)).not.toBeInTheDocument()
+      expect(within(form).queryByText(/location/i)).not.toBeInTheDocument()
+      expect(form.querySelectorAll('button[aria-pressed]')).toHaveLength(0)
     })
 
     it('übernimmt Titel und Autor aus dem gewählten Buch', async () => {
       // Arrange
-      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox', entryType: 'book_quote' })])
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
       await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel', author: 'Die Autorin' })])
       await renderInbox()
       await screen.findByRole('blockquote')
@@ -481,7 +481,17 @@ describe('InboxPage', () => {
     it('speichert den bereinigten Entwurf beim Abschluss als Signal', async () => {
       // Arrange
       await upsertQuotes([
-        makeQuote({ id: 'f-1', text: 'Roh', status: 'inbox', nextReviewAt: '2026-02-01T09:00:00.000Z' })
+        makeQuote({
+          id: 'f-1',
+          text: 'Roh',
+          status: 'inbox',
+          nextReviewAt: '2026-02-01T09:00:00.000Z',
+          signalStrength: 'strong',
+          entryType: 'idea',
+          locationName: 'Eilenriede',
+          locationLatitude: 52.38,
+          locationLongitude: 9.76
+        })
       ])
       await renderInbox()
       await screen.findByRole('blockquote')
@@ -491,7 +501,6 @@ describe('InboxPage', () => {
       fireEvent.change(screen.getByLabelText(en.people), { target: { value: 'Anna,  Bob ' } })
       fireEvent.change(screen.getByLabelText(en.note), { target: { value: '   ' } })
       fireEvent.change(screen.getByLabelText(en.occurredAt), { target: { value: '2026-03-04T10:30' } })
-      fireEvent.click(lastButton(en.signalStrength_strong))
 
       // Act
       fireEvent.click(lastButton(en.finishSignal))
@@ -502,9 +511,16 @@ describe('InboxPage', () => {
       expect(saved).toMatchObject({
         text: 'Fertig',
         status: 'signal',
-        signalStrength: 'strong',
         tags: ['gross', 'klein'],
         people: ['Anna', 'Bob']
+      })
+      // Gespeicherte, nicht mehr bearbeitbare Werte bleiben unverändert erhalten.
+      expect(saved).toMatchObject({
+        signalStrength: 'strong',
+        entryType: 'idea',
+        locationName: 'Eilenriede',
+        locationLatitude: 52.38,
+        locationLongitude: 9.76
       })
       expect(saved?.note).toBeUndefined()
       expect(saved?.reviewIntervalDays).toBe(1)

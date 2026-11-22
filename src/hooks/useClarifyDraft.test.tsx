@@ -9,7 +9,7 @@ describe('useClarifyDraft', () => {
     const { result } = renderHook(() => useClarifyDraft(undefined, []))
 
     // Assert
-    expect(result.current.draft).toMatchObject({ text: '', entryType: 'note', strength: 'normal' })
+    expect(result.current.draft).toMatchObject({ text: '' })
     expect(result.current.detailsOpen).toBe(false)
   })
 
@@ -19,10 +19,7 @@ describe('useClarifyDraft', () => {
       text: 'Text',
       tags: ['a', 'b'],
       note: 'N',
-      entryType: 'memory',
-      signalStrength: 'strong',
-      people: ['Anna', 'Bob'],
-      locationName: 'Hannover'
+      people: ['Anna', 'Bob']
     })
 
     // Act
@@ -33,10 +30,7 @@ describe('useClarifyDraft', () => {
       text: 'Text',
       tags: 'a, b',
       note: 'N',
-      entryType: 'memory',
-      strength: 'strong',
-      people: 'Anna, Bob',
-      locationName: 'Hannover'
+      people: 'Anna, Bob'
     })
   })
 
@@ -127,9 +121,11 @@ describe('useClarifyDraft', () => {
       tags: ['foo', 'bar'],
       author: 'Autor',
       people: ['Anna', 'Bob'],
-      status: 'inbox',
-      signalStrength: 'normal'
+      status: 'inbox'
     })
+    expect(patch).not.toHaveProperty('signalStrength')
+    expect(patch).not.toHaveProperty('entryType')
+    expect(patch).not.toHaveProperty('locationName')
     expect(patch).not.toHaveProperty('nextReviewAt')
     expect(patch.note).toBeUndefined()
     expect(patch.work).toBeUndefined()
@@ -149,10 +145,10 @@ describe('useClarifyDraft', () => {
     tomorrow.setHours(6, 0, 0, 0)
 
     // Act
-    const patch = result.current.buildPatch('signal', 'quiet')
+    const patch = result.current.buildPatch('signal')
 
     // Assert
-    expect(patch).toMatchObject({ status: 'signal', signalStrength: 'quiet', reviewIntervalDays: 1 })
+    expect(patch).toMatchObject({ status: 'signal', reviewIntervalDays: 1 })
     expect(patch.nextReviewAt).toBe(tomorrow.toISOString())
     expect(patch).toHaveProperty('snoozedUntil', undefined)
   })

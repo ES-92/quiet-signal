@@ -73,8 +73,6 @@ export function InboxPage() {
           onImageChange={capture.setImage}
           audioDataUrl={capture.audioDataUrl}
           onAudioChange={capture.setAudio}
-          signalStrength={capture.signalStrength}
-          onSignalStrengthChange={capture.setSignalStrength}
           canSave={capture.canSave}
           onSubmit={(event) => void capture.submit(event)}
         />
