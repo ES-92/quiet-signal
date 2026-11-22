@@ -271,6 +271,7 @@ describe('useTodayActions', () => {
       const stored = await getQuote('q')
       expect(stored?.status).toBe('signal')
       expect(stored?.snoozedUntil).toBe(previous)
+      expect(stored?.activity ?? []).toEqual([])
     })
   })
 
@@ -280,9 +281,9 @@ describe('useTodayActions', () => {
     await upsertQuotes([quote])
     await useQuoteStore.getState().loadQuotes()
     const { result, callbacks } = setup({ quote })
-    const { saveQuote } = useQuoteStore.getState()
+    const { undoRest } = useQuoteStore.getState()
     act(() => {
-      useQuoteStore.setState({ saveQuote: () => Promise.reject(new Error('boom')) })
+      useQuoteStore.setState({ undoRest: () => Promise.reject(new Error('boom')) })
     })
     await act(async () => {
       result.current.actions.handleRest()
@@ -297,7 +298,7 @@ describe('useTodayActions', () => {
 
     // Assert
     await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed))
-    useQuoteStore.setState({ saveQuote })
+    useQuoteStore.setState({ undoRest })
     expect(callbacks.hideQuote).toHaveBeenCalledTimes(2)
     expect(callbacks.hideQuote).toHaveBeenLastCalledWith('q')
   })

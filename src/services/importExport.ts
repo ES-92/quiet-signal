@@ -2,6 +2,7 @@ import type { Quote, Thought } from '../types/quote'
 import type { Book } from '../types/book'
 import { normalizeTags } from '../db/database'
 import { csvEscape, parseCsv } from './csv'
+import { normalizeActivity } from './activity'
 
 type ImportRow = Partial<Quote> & {
   tags?: string[] | string
@@ -42,7 +43,8 @@ export function parseCsvImport(content: string): Quote[] {
     })
     // normalizeThoughts validates the parsed lines like the JSON path (ids are generated there).
     const thoughts = parseCsvThoughts(entry.thoughts ?? '') as unknown as Thought[] | undefined
-    return normalizeImportedQuote({ ...entry, thoughts })
+    // CSV carries no activity log; a stray "activity" column is ignored.
+    return { ...normalizeImportedQuote({ ...entry, thoughts }), activity: undefined }
   })
 }
 
@@ -164,7 +166,8 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     lastReviewedAt: optional(row.lastReviewedAt),
     nextReviewAt: optional(row.nextReviewAt),
     reviewIntervalDays: validReviewInterval(row.reviewIntervalDays),
-    thoughts: normalizeThoughts(row.thoughts)
+    thoughts: normalizeThoughts(row.thoughts),
+    activity: normalizeActivity(row.activity)
   }
 }
 

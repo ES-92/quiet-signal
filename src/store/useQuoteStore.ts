@@ -13,6 +13,7 @@ import {
   moreOftenPatch,
   restoreReviewPatch,
   restPatch,
+  undoRestPatch,
   favoriteCapPatch,
   favoriteTogglePatch,
   reviewSnapshot,
@@ -50,6 +51,8 @@ interface QuoteStore {
   lessOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
   restoreReview: (id: string, previous: ReviewSnapshot) => Promise<void>
   restQuote: (id: string) => Promise<void>
+  // Undo of restQuote: back to signal with the previous snooze, and the rest event leaves the activity log.
+  undoRest: (id: string, previousSnooze: string | undefined) => Promise<void>
   wakeQuote: (id: string) => Promise<void>
   addThought: (id: string, text: string) => Promise<void>
   editThought: (id: string, thoughtId: string, text: string) => Promise<void>
@@ -137,12 +140,17 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   },
   restoreReview: async (id, previous) => {
     if (!get().quotes.some((item) => item.id === id)) return
-    await updateQuote(id, () => restoreReviewPatch(previous))
+    await updateQuote(id, (current) => restoreReviewPatch(current, previous))
     await get().loadQuotes()
   },
   restQuote: async (id) => {
     if (!get().quotes.some((item) => item.id === id)) return
     await updateQuote(id, (current) => restPatch(current))
+    await get().loadQuotes()
+  },
+  undoRest: async (id, previousSnooze) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => undoRestPatch(current, previousSnooze))
     await get().loadQuotes()
   },
   wakeQuote: async (id) => {

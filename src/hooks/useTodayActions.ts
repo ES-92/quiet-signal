@@ -20,7 +20,7 @@ interface TodayActionsInput {
 export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
   const { t, tCount } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { saveQuote, toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, undoRest, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
   const [thoughtOpen, setThoughtOpen] = useState(false)
@@ -130,7 +130,7 @@ export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo
       actionLabel: t('undo'),
       onAction: () => {
         showQuote(id)
-        saveQuote(id, { status: 'signal', snoozedUntil: previousSnooze }).catch(() => {
+        undoRest(id, previousSnooze).catch(() => {
           // The undo did not persist: the card stays rested, so take it off the deck again.
           hideQuote(id)
           showToast({ message: t('saveFailed') })

@@ -14,6 +14,69 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('Aktivitätsprotokoll im Import/Export', () => {
+  it('reicht activity im JSON-Rundlauf durch', () => {
+    // Arrange
+    const activity = [
+      { at: '2026-01-05T09:00:00.000Z', type: 'more' as const },
+      { at: '2026-01-06T09:00:00.000Z', type: 'thought' as const }
+    ]
+    const quote = makeQuote({ activity })
+
+    // Act
+    const [result] = parseJsonImport(exportJson([quote]))
+
+    // Assert
+    expect(result.activity).toEqual(activity)
+  })
+
+  it('verwirft ungültige Ereignisse und normalisiert Daten auf ISO', () => {
+    // Arrange
+    const content = JSON.stringify([
+      {
+        text: 'x',
+        activity: [
+          { at: '2026-01-05T10:00:00+01:00', type: 'rest' },
+          { at: 'nie', type: 'more' },
+          { at: '2026-01-05T10:00:00Z', type: 'like' },
+          'more'
+        ]
+      }
+    ])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.activity).toEqual([{ at: '2026-01-05T09:00:00.000Z', type: 'rest' }])
+  })
+
+  it('begrenzt importierte Protokolle auf die letzten 200 Ereignisse', () => {
+    // Arrange
+    const activity = Array.from({ length: 205 }, (_, index) => ({ at: new Date(Date.UTC(2026, 0, 1, index)).toISOString(), type: 'less' }))
+
+    // Act
+    const [result] = parseJsonImport(JSON.stringify([{ text: 'x', activity }]))
+
+    // Assert
+    expect(result.activity).toHaveLength(200)
+    expect(result.activity?.[0].at).toBe(activity[5].at)
+  })
+
+  it('lässt activity im CSV-Export weg und ignoriert eine CSV-Spalte', () => {
+    // Arrange
+    const quote = makeQuote({ activity: [{ at: '2026-01-05T09:00:00.000Z', type: 'more' }] })
+
+    // Act
+    const csv = exportCsv([quote])
+    const [result] = parseCsvImport('text,activity\nZitat,more')
+
+    // Assert
+    expect(csv).not.toContain('activity')
+    expect(result.activity).toBeUndefined()
+  })
+})
+
 describe('Stille und Gedanken im Import/Export', () => {
   const thought = { id: 'th-1', text: 'Noch ein Gedanke', createdAt: '2026-01-05T09:00:00.000Z', fromNote: true }
 

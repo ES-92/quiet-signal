@@ -149,6 +149,65 @@ describe('lifecycle store actions', () => {
     expect(useQuoteStore.getState().quotes[0].reviewIntervalDays).toBeUndefined()
   })
 
+  it('logs →, ↓, wake and a thought in the activity log, encrypted with the entry', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+    await seedLegacyQuote()
+
+    // Act
+    await useQuoteStore.getState().moreOften('legacy')
+    await useQuoteStore.getState().restQuote('legacy')
+    await useQuoteStore.getState().wakeQuote('legacy')
+    await useQuoteStore.getState().addThought('legacy', 'Gedanke')
+    const raw = await db.quotes.get('legacy')
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['more', 'rest', 'wake', 'thought'])
+    expect(raw?.encrypted).toBe(true)
+    expect(raw).not.toHaveProperty('activity')
+    expect(JSON.stringify(raw)).not.toContain('"more"')
+  })
+
+  it('restoreReview drops the more event of the undone →', async () => {
+    // Arrange
+    await seedLegacyQuote()
+    let previous: ReviewSnapshot | undefined
+    await useQuoteStore.getState().moreOften('legacy', (snapshot) => {
+      previous = snapshot
+    })
+    await useQuoteStore.getState().addThought('legacy', 'bleibt')
+
+    // Act
+    await useQuoteStore.getState().restoreReview('legacy', previous as ReviewSnapshot)
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['thought'])
+  })
+
+  it('undoRest puts the entry back and drops the rest event', async () => {
+    // Arrange
+    await seedLegacyQuote({ snoozedUntil: '2026-01-05T05:00:00.000Z' })
+    await useQuoteStore.getState().restQuote('legacy')
+
+    // Act
+    await useQuoteStore.getState().undoRest('legacy', '2026-01-05T05:00:00.000Z')
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0]).toMatchObject({ status: 'signal', snoozedUntil: '2026-01-05T05:00:00.000Z', activity: [] })
+  })
+
+  it('does not log a browse-mode like', async () => {
+    // Arrange
+    await seedLegacyQuote()
+
+    // Act
+    await useQuoteStore.getState().likeQuote('legacy')
+    await useQuoteStore.getState().loadQuotes()
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity).toBeUndefined()
+  })
+
   it('returns undefined and writes nothing for an unknown id', async () => {
     // Arrange
     await seedLegacyQuote()
