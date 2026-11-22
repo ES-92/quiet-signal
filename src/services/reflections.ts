@@ -21,14 +21,13 @@ export interface StripBucket {
   start: Date
   end: Date
   more: number
-  less: number
   rest: number
   thought: boolean
 }
 
+// more / rest count distinct entries (a card swiped → twice is one card); thoughts counts thoughts.
 export interface ReflectionTotals {
   more: number
-  less: number
   rest: number
   thoughts: number
 }
@@ -70,23 +69,23 @@ export function buildReflection(quotes: Quote[], books: Book[], period: Reflecti
   thoughts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
 
   const strip = stripBuckets(period, start, end)
-  const totals: ReflectionTotals = { more: 0, less: 0, rest: 0, thoughts: thoughts.length }
+  const totals: ReflectionTotals = { more: 0, rest: 0, thoughts: thoughts.length }
   const bucketAt = (iso: string) => {
     const time = Date.parse(iso)
     return strip.find((bucket) => time >= bucket.start.getTime() && time <= bucket.end.getTime())
   }
 
   for (const quote of quotes) {
+    const seen = new Set<'more' | 'rest'>()
     for (const event of quote.activity ?? []) {
+      if (event.type !== 'more' && event.type !== 'rest') continue
       const bucket = bucketAt(event.at)
       if (!bucket) continue
-      if (event.type === 'thought') bucket.thought = true
-      else if (event.type === 'more' || event.type === 'less' || event.type === 'rest') {
-        bucket[event.type] += 1
-        totals[event.type] += 1
-      }
+      bucket[event.type] += 1
+      if (!seen.has(event.type)) totals[event.type] += 1
+      seen.add(event.type)
     }
-    // Entries from before the log still have dated thoughts; adopted notes are not new thoughts.
+    // The ring comes from thoughts that still exist (a deleted thought leaves no ring); adopted notes are not new thoughts.
     for (const thought of quote.thoughts ?? []) {
       if (thought.fromNote) continue
       const bucket = bucketAt(thought.createdAt)
@@ -95,6 +94,19 @@ export function buildReflection(quotes: Quote[], books: Book[], period: Reflecti
   }
 
   return { period, start, end, thoughts, strip, totals }
+}
+
+// Cheap count for the Today nudge (no strip, no sorting).
+export function countThoughtsInPeriod(quotes: Quote[], period: ReflectionPeriod, now = new Date()): number {
+  const { start, end } = periodRange(period, now)
+  let count = 0
+  for (const quote of quotes) {
+    for (const thought of quote.thoughts ?? []) {
+      const time = Date.parse(thought.createdAt)
+      if (time >= start.getTime() && time <= end.getTime()) count += 1
+    }
+  }
+  return count
 }
 
 export interface ReflectionMarkdownLabels {
@@ -112,11 +124,21 @@ export function reflectionMarkdown(summary: ReflectionSummary, labels: Reflectio
     const heading = [localDateKey(new Date(thought.createdAt)), attribution, thought.fromNote ? labels.fromNote : '']
       .filter(Boolean)
       .join(' · ')
-    lines.push('', '---', '', `## ${heading}`, '', thought.text)
-    if (thought.quoteText) lines.push('', ...thought.quoteText.split('\n').map((line) => `> ${line}`))
+      .replace(/\s+/g, ' ')
+    lines.push('', '---', '', `## ${heading}`, '', ...escapedLines(thought.text))
+    if (thought.quoteText) lines.push('', ...escapedLines(thought.quoteText).map((line) => `> ${line}`))
   }
 
   return lines.join('\n')
+}
+
+// User text must not turn into headings, rules, lists or quotes of the export: escape a leading block marker per line.
+function escapedLines(text: string) {
+  return text.split(/\r\n|\r|\n/).map((line) =>
+    line.replace(/^(\s*)(?:([#>*+\-=_`~|])|(\d+)([.)]))/, (_match, indent: string, marker?: string, digits?: string, dot?: string) =>
+      marker ? `${indent}\\${marker}` : `${indent}${digits}\\${dot}`
+    )
+  )
 }
 
 export function periodRange(period: ReflectionPeriod, now = new Date()) {
@@ -150,7 +172,7 @@ function stripBuckets(period: ReflectionPeriod, start: Date, end: Date): StripBu
     if (period === 'week') next.setDate(next.getDate() + 1)
     else next.setDate(next.getDate() + (8 - (next.getDay() || 7)))
     const bucketEnd = new Date(Math.min(next.getTime() - 1, end.getTime()))
-    buckets.push({ start: new Date(cursor), end: bucketEnd, more: 0, less: 0, rest: 0, thought: false })
+    buckets.push({ start: new Date(cursor), end: bucketEnd, more: 0, rest: 0, thought: false })
     cursor.setTime(next.getTime())
   }
   return buckets

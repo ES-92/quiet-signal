@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
 import type { ActivityEvent, Thought } from '../types/quote'
-import { buildReflection, periodRange, reflectionMarkdown } from './reflections'
+import { buildReflection, countThoughtsInPeriod, periodRange, reflectionMarkdown } from './reflections'
 
 const NOW = '2026-03-11T10:00:00+01:00' // Mittwoch
 
@@ -119,12 +119,12 @@ describe('buildReflection – Gedanken', () => {
 
     // Assert
     expect(result.thoughts.map((item) => item.text)).toEqual(['legacy'])
-    expect(result.totals).toEqual({ more: 0, less: 0, rest: 0, thoughts: 1 })
+    expect(result.totals).toEqual({ more: 0, rest: 0, thoughts: 1 })
   })
 })
 
 describe('buildReflection – Gezeitenstreifen', () => {
-  it('liefert sieben Tage Mo–So mit Zählern für öfter, seltener und ruhen', () => {
+  it('liefert sieben Tage Mo–So mit Zählern für öfter und ruhen', () => {
     // Arrange
     const a = makeQuote({
       activity: [
@@ -147,21 +147,35 @@ describe('buildReflection – Gezeitenstreifen', () => {
     expect(strip[6].end.getTime()).toBe(new Date('2026-03-15T23:59:59.999+01:00').getTime())
     expect(strip.map((day) => day.more)).toEqual([2, 0, 0, 0, 0, 0, 1])
     expect(strip.map((day) => day.rest)).toEqual([0, 0, 1, 0, 0, 0, 0])
-    expect(strip[0].less).toBe(1)
-    expect(totals).toEqual({ more: 3, less: 1, rest: 1, thoughts: 0 })
+    expect(totals).toEqual({ more: 2, rest: 1, thoughts: 0 })
   })
 
-  it('markiert Tage, an denen ein Gedanke dazukam', () => {
+  it('markiert Tage mit einem vorhandenen Gedanken, nicht mit gelöschten oder übernommenen Notizen', () => {
     // Arrange
-    const logged = makeQuote({ activity: [event('2026-03-10T09:00:00+01:00', 'thought')] })
+    const deleted = makeQuote({ activity: [event('2026-03-10T09:00:00+01:00', 'thought')] }) // Gedanke danach gelöscht
     const legacy = makeQuote({ thoughts: [thought('2026-03-12T21:00:00+01:00')] })
     const adopted = makeQuote({ thoughts: [thought('2026-03-13T21:00:00+01:00', 'alt', { fromNote: true })] })
 
     // Act
-    const { strip } = buildReflection([logged, legacy, adopted], [], 'week', new Date(NOW))
+    const { strip } = buildReflection([deleted, legacy, adopted], [], 'week', new Date(NOW))
 
     // Assert
-    expect(strip.map((day) => day.thought)).toEqual([false, true, false, true, false, false, false])
+    expect(strip.map((day) => day.thought)).toEqual([false, false, false, true, false, false, false])
+  })
+
+  it('zählt in der Summe Karten je Art, nicht Ereignisse, und ignoriert ←', () => {
+    // Arrange
+    const twiceMore = makeQuote({
+      activity: [event('2026-03-09T09:00:00+01:00', 'more'), event('2026-03-10T09:00:00+01:00', 'more'), event('2026-03-10T10:00:00+01:00', 'less')]
+    })
+    const once = makeQuote({ activity: [event('2026-03-10T11:00:00+01:00', 'more'), event('2026-03-11T09:00:00+01:00', 'rest')] })
+
+    // Act
+    const { strip, totals } = buildReflection([twiceMore, once], [], 'week', new Date(NOW))
+
+    // Assert
+    expect(totals).toEqual({ more: 2, rest: 1, thoughts: 0 })
+    expect(strip[1].more).toBe(2)
   })
 
   it('teilt den Monat in Wochen, an den Monatsgrenzen abgeschnitten', () => {
@@ -196,7 +210,41 @@ describe('buildReflection – Gezeitenstreifen', () => {
   })
 })
 
+describe('countThoughtsInPeriod', () => {
+  it('zählt die Gedanken des Zeitraums über alle Einträge', () => {
+    // Arrange
+    const quotes = [
+      makeQuote({ thoughts: [thought('2026-03-09T00:00:00+01:00'), thought('2026-03-08T23:59:00+01:00')] }),
+      makeQuote({ thoughts: [thought('2026-03-15T23:59:00+01:00')] }),
+      makeQuote()
+    ]
+
+    // Act / Assert
+    expect(countThoughtsInPeriod(quotes, 'week', new Date(NOW))).toBe(2)
+  })
+})
+
 describe('reflectionMarkdown', () => {
+  it('maskiert Gedanken- und Zitatzeilen, die die Struktur brechen würden', () => {
+    // Arrange
+    const q = makeQuote({
+      text: '# Kein Titel\n---',
+      thoughts: [thought('2026-03-10T09:00:00+01:00', '# Überschrift?\n---\n- Punkt\n> zitiert\n1. Liste')]
+    })
+    const summary = buildReflection([q], [], 'week', new Date(NOW))
+
+    // Act
+    const lines = reflectionMarkdown(summary, { title: 'T', summary: '', fromNote: '' }).split('\n')
+
+    // Assert
+    expect(lines.filter((line) => line === '---')).toHaveLength(1)
+    expect(lines.filter((line) => /^#/.test(line))).toEqual(['# T', expect.stringMatching(/^## 2026-03-10/)])
+    expect(lines).toContain('\\- Punkt')
+    expect(lines).toContain('\\> zitiert')
+    expect(lines).toContain('1\\. Liste')
+    expect(lines).toContain('> \\# Kein Titel')
+  })
+
   it('enthält die Gedanken des Zeitraums mit Datum und zugehörigem Zitat', () => {
     // Arrange
     const q = makeQuote({

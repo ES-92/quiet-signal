@@ -335,7 +335,7 @@ describe('TodayPage', () => {
     })
     const realRest = useQuoteStore.getState().restQuote
     act(() => {
-      useQuoteStore.setState({ restQuote: async (id) => { await gate; await realRest(id) } })
+      useQuoteStore.setState({ restQuote: async (id) => { await gate; return realRest(id) } })
     })
 
     // Act

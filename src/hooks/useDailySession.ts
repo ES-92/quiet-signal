@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { buildReflection } from '../services/reflections'
+import { countThoughtsInPeriod } from '../services/reflections'
+import { useToday } from './useToday'
 import { selectBrowseStack, selectDailyStack } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -11,7 +12,7 @@ import { localDateKey } from '../utils/date'
 // Loads the library and owns the deck of this visit: stable card order, discarded cards and the current position.
 export function useDailySession() {
   const { quotes, loading, loadQuotes } = useQuoteStore()
-  const { books, loadBooks } = useBookStore()
+  const { loadBooks } = useBookStore()
   const { dailyCount } = useSettingsStore()
   const [index, setIndex] = useState(0)
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
@@ -59,7 +60,8 @@ export function useDailySession() {
         : sessionQuoteIds.map((id) => quoteById.get(id)).filter((quote) => quote !== undefined)
     return stack.filter((quote) => !discardedIds.includes(quote.id))
   }, [browseIds, discardedIds, quotes, selectedDailyQuotes, sessionQuoteIds])
-  const weeklyReflection = useMemo(() => buildReflection(quotes, books, 'week'), [books, quotes])
+  const today = useToday()
+  const weeklyThoughts = useMemo(() => countThoughtsInPeriod(quotes, 'week', today), [quotes, today])
   const inboxCount = useMemo(
     () => quotes.filter((quote) => quoteStatus(quote) === 'inbox' && !quote.deletedAt).length,
     [quotes]
@@ -94,8 +96,8 @@ export function useDailySession() {
     thirdQuote: dailyQuotes[currentIndex + 2],
     stackCompleted: visitHadCards && !currentQuote,
     // The Rückblick is built from the week's thoughts, so the nudge counts those.
-    reflectionCount: weeklyReflection.thoughts.length,
-    showReflectionNudge: weeklyReflection.thoughts.length >= 3,
+    reflectionCount: weeklyThoughts,
+    showReflectionNudge: weeklyThoughts >= 3,
     inboxCount,
     hasSignals,
     libraryEmpty: quotes.length === 0,

@@ -107,14 +107,28 @@ export function restPatch(quote: Quote, now = new Date()): Partial<Quote> {
   return { status: 'rest', snoozedUntil: undefined, updatedAt: now.toISOString(), activity: appendActivity(quote.activity, 'rest', now) }
 }
 
-// Undo of ↓ on the fresh row: back to signal with the previous snooze, without the rest event.
-export function undoRestPatch(quote: Quote, previousSnooze: string | undefined, now = new Date()): Partial<Quote> {
+// Undo of ↓ on the fresh row: back to signal with the previous snooze, without the rest event that ↓ logged (matched by its time).
+export function undoRestPatch(
+  quote: Quote,
+  previousSnooze: string | undefined,
+  restedAt: string | undefined,
+  now = new Date()
+): Partial<Quote> {
   return {
     status: 'signal',
     snoozedUntil: previousSnooze,
-    activity: removeLatestActivity(quote.activity, (event) => event.type === 'rest'),
+    activity: removeLatestActivity(quote.activity, (event) => event.type === 'rest' && event.at === restedAt),
     updatedAt: now.toISOString()
   }
+}
+
+// A status change from a form (edit or clarify) logs going to rest and waking from it; other moves are not logged.
+export function statusActivityPatch(current: Quote, next: QuoteStatus | undefined, now = new Date()): Partial<Quote> {
+  const previous = quoteStatus(current)
+  if (!next || next === previous) return {}
+  if (next === 'rest') return { activity: appendActivity(current.activity, 'rest', now) }
+  if (previous === 'rest' && next === 'signal') return { activity: appendActivity(current.activity, 'wake', now) }
+  return {}
 }
 
 export function wakePatch(quote: Quote, now = new Date()): Partial<Quote> {

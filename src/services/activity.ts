@@ -31,5 +31,6 @@ export function normalizeActivity(value: unknown): ActivityEvent[] | undefined {
     if (!activityTypes.has(type as ActivityType) || Number.isNaN(Date.parse(at))) continue
     events.push({ at: new Date(at).toISOString(), type: type as ActivityType })
   }
-  return events.slice(-maxActivityEvents)
+  // Imported logs may come in any order; keep the newest events, oldest first.
+  return events.sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-maxActivityEvents)
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { makeQuote } from '../test/factories'
 import type { ActivityEvent } from '../types/quote'
 import { appendActivity, maxActivityEvents, normalizeActivity, removeLatestActivity } from './activity'
-import { lessOftenPatch, moreOftenPatch, restoreReviewPatch, restPatch, reviewSnapshot, undoRestPatch, wakePatch } from './lifecycle'
+import { lessOftenPatch, moreOftenPatch, restoreReviewPatch, restPatch, reviewSnapshot, statusActivityPatch, undoRestPatch, wakePatch } from './lifecycle'
 import { addThoughtPatch, adoptNotePatch } from './thoughts'
 
 const now = new Date('2026-11-21T15:00:00+01:00')
@@ -99,6 +99,22 @@ describe('normalizeActivity (import)', () => {
     expect(normalizeActivity({ at: at, type: 'more' })).toBeUndefined()
   })
 
+  it('sorts an imported log by date before keeping the newest 200', () => {
+    // Arrange
+    const newest = { at: '2026-12-31T10:00:00.000Z', type: 'wake' }
+    const many = Array.from({ length: 200 }, (_, index) => ({ at: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(), type: 'more' }))
+    const oldest = { at: '2025-01-01T00:00:00.000Z', type: 'rest' }
+
+    // Act
+    const result = normalizeActivity([newest, ...many, oldest])
+
+    // Assert
+    expect(result).toHaveLength(200)
+    expect(result?.[199]).toEqual(newest)
+    expect(result?.some((event) => event.at === oldest.at)).toBe(false)
+    expect(result?.[0].at).toBe(many[1].at)
+  })
+
   it('caps an imported log to the last 200 events', () => {
     // Arrange
     const many = Array.from({ length: 250 }, (_, index) => ({ at: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(), type: 'more' }))
@@ -150,16 +166,33 @@ describe('lifecycle patches log activity', () => {
     expect(patch.activity).toEqual(before.activity)
   })
 
-  it('undo of rest puts the snooze back and removes the rest event', () => {
+  it('undo of rest puts the snooze back and removes exactly the rest event it created', () => {
     // Arrange
-    const before = makeQuote({ snoozedUntil: '2026-11-22T05:00:00.000Z' })
+    const older = { at: '2026-11-20T10:00:00.000Z', type: 'rest' as const }
+    const before = makeQuote({ snoozedUntil: '2026-11-22T05:00:00.000Z', activity: [older] })
     const rested = { ...before, ...restPatch(before, now) }
+    const later = { ...rested, activity: [...rested.activity!, { at: '2026-11-21T14:30:00.000Z', type: 'rest' as const }] }
 
     // Act
-    const patch = undoRestPatch(rested, before.snoozedUntil, now)
+    const patch = undoRestPatch(later, before.snoozedUntil, at, now)
 
     // Assert
-    expect(patch).toMatchObject({ status: 'signal', snoozedUntil: '2026-11-22T05:00:00.000Z', activity: [] })
+    expect(patch).toMatchObject({ status: 'signal', snoozedUntil: '2026-11-22T05:00:00.000Z' })
+    expect(patch.activity).toEqual([older, { at: '2026-11-21T14:30:00.000Z', type: 'rest' }])
+  })
+
+  it('a status change in the edit form logs rest and wake, nothing else', () => {
+    // Arrange
+    const signal = makeQuote({ status: 'signal' })
+    const resting = makeQuote({ status: 'rest' })
+    const inbox = makeQuote({ status: 'inbox' })
+
+    // Act / Assert
+    expect(statusActivityPatch(signal, 'rest', now)).toEqual({ activity: [{ at, type: 'rest' }] })
+    expect(statusActivityPatch(resting, 'signal', now)).toEqual({ activity: [{ at, type: 'wake' }] })
+    expect(statusActivityPatch(inbox, 'signal', now)).toEqual({})
+    expect(statusActivityPatch(resting, 'rest', now)).toEqual({})
+    expect(statusActivityPatch(signal, undefined, now)).toEqual({})
   })
 })
 

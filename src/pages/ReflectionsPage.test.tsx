@@ -89,16 +89,24 @@ describe('ReflectionsPage', () => {
     // Arrange
     localStorage.setItem('quiet-signal-language', 'de')
     await upsertQuotes([
+      // Distinct cards count: a and b rested (b twice), a, b and c wanted more often (a twice).
       makeQuote({
         id: 'a',
         activity: [
+          { at: minutesAgo(6), type: 'more' },
           { at: minutesAgo(5), type: 'more' },
-          { at: minutesAgo(4), type: 'more' },
-          { at: minutesAgo(3), type: 'rest' },
+          { at: minutesAgo(4), type: 'rest' }
+        ]
+      }),
+      makeQuote({
+        id: 'b',
+        activity: [
+          { at: minutesAgo(3), type: 'more' },
+          { at: minutesAgo(2), type: 'rest' },
           { at: minutesAgo(2), type: 'rest' }
         ]
       }),
-      makeQuote({ id: 'b', activity: [{ at: minutesAgo(1), type: 'more' }] })
+      makeQuote({ id: 'c', activity: [{ at: minutesAgo(1), type: 'more' }] })
     ])
 
     // Act
@@ -136,6 +144,35 @@ describe('ReflectionsPage', () => {
     // Assert
     expect(await screen.findByText(de.reflectionEmptyMonth)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: de.exportMarkdown })).not.toBeInTheDocument()
+  })
+
+  it('bietet keinen Export an, wenn sich nur ← bewegt hat', async () => {
+    // Arrange
+    localStorage.setItem('quiet-signal-language', 'de')
+    await upsertQuotes([makeQuote({ activity: [{ at: minutesAgo(1), type: 'less' }] })])
+
+    // Act
+    renderPage()
+
+    // Assert
+    expect(await screen.findByText(de.reflectionTideQuiet)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: de.exportMarkdown })).not.toBeInTheDocument()
+  })
+
+  it('beschriftet die Wochen der Monatsansicht mit ihrem Tagesbereich', async () => {
+    // Arrange
+    localStorage.setItem('quiet-signal-language', 'de')
+    renderPage()
+    await screen.findByText(de.reflectionEmptyWeek)
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: de.thisMonth }))
+
+    // Assert (März 2026: So 1., dann Mo 2.–So 8. …)
+    const strip = await screen.findByRole('img')
+    expect(within(strip).getByText('1')).toBeInTheDocument()
+    expect(within(strip).getByText('2.–8.')).toBeInTheDocument()
+    expect(within(strip).getByText('30.–31.')).toBeInTheDocument()
   })
 
   it('exportiert die Gedanken des Zeitraums als Markdown', async () => {

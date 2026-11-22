@@ -184,16 +184,29 @@ describe('lifecycle store actions', () => {
     expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['thought'])
   })
 
-  it('undoRest puts the entry back and drops the rest event', async () => {
+  it('undoRest puts the entry back and drops the rest event restQuote reported', async () => {
     // Arrange
     await seedLegacyQuote({ snoozedUntil: '2026-01-05T05:00:00.000Z' })
-    await useQuoteStore.getState().restQuote('legacy')
+    const restedAt = await useQuoteStore.getState().restQuote('legacy')
 
     // Act
-    await useQuoteStore.getState().undoRest('legacy', '2026-01-05T05:00:00.000Z')
+    await useQuoteStore.getState().undoRest('legacy', '2026-01-05T05:00:00.000Z', restedAt)
 
     // Assert
     expect(useQuoteStore.getState().quotes[0]).toMatchObject({ status: 'signal', snoozedUntil: '2026-01-05T05:00:00.000Z', activity: [] })
+  })
+
+  it('logs rest and wake when the status changes through saveQuote (edit form)', async () => {
+    // Arrange
+    await seedLegacyQuote({ status: 'signal' })
+
+    // Act
+    await useQuoteStore.getState().saveQuote('legacy', { status: 'rest' })
+    await useQuoteStore.getState().saveQuote('legacy', { status: 'signal', text: 'neu' })
+    await useQuoteStore.getState().saveQuote('legacy', { text: 'nur Text' })
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['rest', 'wake'])
   })
 
   it('does not log a browse-mode like', async () => {

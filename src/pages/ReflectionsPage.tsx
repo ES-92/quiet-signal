@@ -1,6 +1,7 @@
 import { Download } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useToday } from '../hooks/useToday'
 import { useI18n, type I18nContextValue } from '../i18n/useI18n'
 import { downloadText } from '../services/importExport'
 import {
@@ -17,23 +18,25 @@ import { useQuoteStore } from '../store/useQuoteStore'
 
 // Dots shown per column before the strip stops stacking (the summary line keeps the full count).
 const maxMoreDots = 6
-const maxRestDots = 4
+const maxRestDots = 3
 
 export function ReflectionsPage() {
   const { t, tCount, locale } = useI18n()
   const { quotes, loadQuotes } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
   const [period, setPeriod] = useState<ReflectionPeriod>('week')
+  const today = useToday()
 
   useEffect(() => {
     void loadQuotes()
     void loadBooks()
   }, [loadBooks, loadQuotes])
 
-  const summary = useMemo(() => buildReflection(quotes, books, period), [books, period, quotes])
+  const summary = useMemo(() => buildReflection(quotes, books, period, today), [books, period, quotes, today])
   const summaryLine = useMemo(() => tideSummary(summary.totals, tCount), [summary.totals, tCount])
   const title = period === 'week' ? t('weeklyReflection') : t('monthlyReflection')
-  const hasContent = summary.thoughts.length > 0 || summary.totals.more + summary.totals.less + summary.totals.rest > 0
+  // ← is not shown on the page, so it alone does not make a period worth exporting.
+  const hasContent = summary.thoughts.length > 0 || summary.totals.more + summary.totals.rest > 0
 
   function exportReflection() {
     if (!hasContent) return
@@ -138,10 +141,15 @@ function ThoughtWall({ thoughts, period }: { thoughts: ReflectionThought[]; peri
 // Above the line: one dot per → (ring on top when a thought was added); below: one dot per ↓.
 function TideStrip({ strip, period, label }: { strip: StripBucket[]; period: ReflectionPeriod; label: string }) {
   const { locale } = useI18n()
+  // Week: weekday; month: the days a column covers ("2.–8." in German), a single day when the week is clipped to one.
   const labelFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, period === 'week' ? { weekday: 'short' } : { day: 'numeric' }),
     [locale, period]
   )
+  const columnLabel = (bucket: StripBucket) =>
+    period === 'week' || bucket.start.getDate() === bucket.end.getDate()
+      ? labelFormat.format(bucket.start)
+      : formatDayRange(labelFormat, bucket.start, bucket.end)
 
   return (
     <div
@@ -164,7 +172,7 @@ function TideStrip({ strip, period, label }: { strip: StripBucket[]; period: Ref
               <span key={index} className="h-1.5 w-1.5 rounded-full bg-graphite/45" />
             ))}
           </div>
-          <span className="mt-1 max-w-full truncate text-[0.68rem] text-graphite">{labelFormat.format(bucket.start)}</span>
+          <span className="mt-1 max-w-full truncate text-[0.68rem] text-graphite">{columnLabel(bucket)}</span>
         </div>
       ))}
     </div>
@@ -205,6 +213,13 @@ function excerpt(text: string | undefined) {
   if (!text) return ''
   const line = text.replace(/\s+/g, ' ').trim()
   return line.length > 60 ? `${line.slice(0, 59)}…` : line
+}
+
+// Intl formatRange is not in the ES2020 lib typings; every supported browser has it, the fallback joins both days.
+type RangeFormat = Intl.DateTimeFormat & { formatRange?: (start: Date, end: Date) => string }
+
+function formatDayRange(format: RangeFormat, start: Date, end: Date) {
+  return format.formatRange ? format.formatRange(start, end) : `${format.format(start)}–${format.format(end)}`
 }
 
 function formatRange(start: Date, end: Date, locale: string) {

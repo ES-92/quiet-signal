@@ -13,6 +13,7 @@ import {
   moreOftenPatch,
   restoreReviewPatch,
   restPatch,
+  statusActivityPatch,
   undoRestPatch,
   favoriteCapPatch,
   favoriteTogglePatch,
@@ -50,9 +51,10 @@ interface QuoteStore {
   moreOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
   lessOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
   restoreReview: (id: string, previous: ReviewSnapshot) => Promise<void>
-  restQuote: (id: string) => Promise<void>
-  // Undo of restQuote: back to signal with the previous snooze, and the rest event leaves the activity log.
-  undoRest: (id: string, previousSnooze: string | undefined) => Promise<void>
+  // Resolves with the time of the logged rest event, so an undo can remove exactly that event.
+  restQuote: (id: string) => Promise<string | undefined>
+  // Undo of restQuote: back to signal with the previous snooze, and the rest event logged at restedAt leaves the activity log.
+  undoRest: (id: string, previousSnooze: string | undefined, restedAt: string | undefined) => Promise<void>
   wakeQuote: (id: string) => Promise<void>
   addThought: (id: string, text: string) => Promise<void>
   editThought: (id: string, thoughtId: string, text: string) => Promise<void>
@@ -92,8 +94,18 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     return quote
   },
   saveQuote: async (id, patch) => {
-    // Setting the favourite flag through any form (e.g. the edit form) also applies the 30-day cap.
-    await updateQuote(id, patch.favorite ? (current) => (current.favorite ? patch : { ...favoriteCapPatch(current), ...patch }) : patch)
+    // Setting the favourite flag through any form (e.g. the edit form) also applies the 30-day cap; resting or waking is logged.
+    // Other patches stay plain (a vanished row is then a quiet no-op, as before).
+    await updateQuote(
+      id,
+      patch.favorite || patch.status
+        ? (current) => ({
+            ...(patch.favorite && !current.favorite ? favoriteCapPatch(current) : {}),
+            ...patch,
+            ...statusActivityPatch(current, patch.status)
+          })
+        : patch
+    )
     await get().loadQuotes()
   },
   likeQuote: async (id) => {
@@ -144,13 +156,15 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     await get().loadQuotes()
   },
   restQuote: async (id) => {
-    if (!get().quotes.some((item) => item.id === id)) return
-    await updateQuote(id, (current) => restPatch(current))
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    const now = new Date()
+    await updateQuote(id, (current) => restPatch(current, now))
     await get().loadQuotes()
+    return now.toISOString()
   },
-  undoRest: async (id, previousSnooze) => {
+  undoRest: async (id, previousSnooze, restedAt) => {
     if (!get().quotes.some((item) => item.id === id)) return
-    await updateQuote(id, (current) => undoRestPatch(current, previousSnooze))
+    await updateQuote(id, (current) => undoRestPatch(current, previousSnooze, restedAt))
     await get().loadQuotes()
   },
   wakeQuote: async (id) => {
