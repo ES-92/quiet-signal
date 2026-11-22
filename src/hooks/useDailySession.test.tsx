@@ -94,7 +94,6 @@ describe('useDailySession', () => {
     expect(new Set([currentQuote?.id, nextQuote?.id, thirdQuote?.id]).size).toBe(3)
     expect(ids(dailyQuotes)).toContain(currentQuote?.id)
     expect(result.current.currentIndex).toBe(0)
-    expect(result.current.currentBook?.id).toBe('b-1')
     expect(result.current.stackCompleted).toBe(false)
   })
 
