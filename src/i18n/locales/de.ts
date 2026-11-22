@@ -241,7 +241,6 @@ export const de: Record<keyof typeof en, string> = {
   dangerZone: 'Gefahrenbereich',
   deleteAllLocalData: 'Einträge und Bücher löschen',
   deleteConfirm: 'Alle lokal gespeicherten Einträge und Bücher aus diesem Browser löschen?',
-  deleteQuoteConfirm: 'Diesen Eintrag endgültig löschen?',
   storedLocally: '{count} Einträge lokal gespeichert.',
   storedLocally_one: '{count} Eintrag lokal gespeichert.',
   dailyReview: 'Täglicher Stapel',

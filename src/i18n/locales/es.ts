@@ -241,7 +241,6 @@ export const es: Record<keyof typeof en, string> = {
   dangerZone: 'Zona de riesgo',
   deleteAllLocalData: 'Eliminar entradas y libros',
   deleteConfirm: '¿Eliminar todas las entradas y libros guardados localmente en este navegador?',
-  deleteQuoteConfirm: '¿Eliminar esta entrada definitivamente?',
   storedLocally: '{count} entradas guardadas localmente.',
   storedLocally_one: '{count} entrada guardada localmente.',
   dailyReview: 'Pila diaria',

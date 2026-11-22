@@ -3,7 +3,6 @@ import { requestPersistentStorage } from '../services/persistentStorage'
 import {
   clearQuotes,
   createQuote,
-  deleteQuote,
   emptyTrash as emptyTrashDb,
   listQuotes,
   updateQuote,
@@ -44,7 +43,6 @@ interface QuoteStore {
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
   toggleFavorite: (id: string) => Promise<void>
-  removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
   // onPrevious receives the review values of the row the change was actually applied to (for an undo).
   moreOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
@@ -125,10 +123,6 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   toggleFavorite: async (id) => {
     if (!get().quotes.some((item) => item.id === id)) return
     await updateQuote(id, (current) => favoriteTogglePatch(current))
-    await get().loadQuotes()
-  },
-  removeQuote: async (id) => {
-    await deleteQuote(id)
     await get().loadQuotes()
   },
   snoozeQuote: async (id) => {

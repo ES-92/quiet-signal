@@ -239,7 +239,6 @@ export const en = {
   dangerZone: 'Danger zone',
   deleteAllLocalData: 'Delete entries and books',
   deleteConfirm: 'Delete all locally stored entries and books from this browser?',
-  deleteQuoteConfirm: 'Delete this entry permanently?',
   storedLocally: '{count} entries stored locally.',
   storedLocally_one: '{count} entry stored locally.',
   dailyReview: 'Daily stack',

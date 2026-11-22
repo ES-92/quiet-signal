@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
@@ -797,6 +797,57 @@ describe('QuoteDetailPage', () => {
       expect(stored?.reviewIntervalDays).toBe(1)
       expect(stored?.nextReviewAt).toBe(reviewDateFromInterval(1, new Date('2026-03-10T12:00:00')))
       expect(new Date(stored?.nextReviewAt as string).getHours()).toBe(6)
+    })
+  })
+
+  describe('Löschen', () => {
+    function LocationProbe() {
+      return <output data-testid="location">{useLocation().pathname}</output>
+    }
+
+    async function renderDetailWithLibrary() {
+      renderWithProviders(
+        <>
+          <Routes>
+            <Route path="/quote/:id" element={<QuoteDetailPage />} />
+            <Route path="/library" element={<p>library</p>} />
+          </Routes>
+          <LocationProbe />
+        </>,
+        { route: '/quote/q-1' }
+      )
+      await screen.findByRole('button', { name: en.edit })
+    }
+
+    it('moves the entry to the trash without a permanent-delete confirmation and offers undo', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', text: 'Weg damit' })])
+      await renderDetailWithLibrary()
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.delete }))
+
+      // Assert
+      await waitFor(async () => expect((await getQuote('q-1'))?.deletedAt).toBeTruthy(), SLOW)
+      expect(await db.quotes.get('q-1')).toBeDefined()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(useToastStore.getState().toast).toMatchObject({ message: en.discardedToast, actionLabel: en.undo })
+      await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/library'))
+    })
+
+    it('restores the entry from the trash with undo', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', text: 'Doch behalten' })])
+      await renderDetailWithLibrary()
+      fireEvent.click(screen.getByRole('button', { name: en.delete }))
+      await waitFor(() => expect(useToastStore.getState().toast?.actionLabel).toBe(en.undo), SLOW)
+
+      // Act
+      await act(async () => useToastStore.getState().toast?.onAction?.())
+
+      // Assert
+      await waitFor(async () => expect((await getQuote('q-1'))?.deletedAt).toBeUndefined(), SLOW)
+      await waitFor(() => expect(useQuoteStore.getState().quotes.find((quote) => quote.id === 'q-1')?.deletedAt).toBeUndefined())
     })
   })
 })

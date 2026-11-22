@@ -241,7 +241,6 @@ export const fr: Record<keyof typeof en, string> = {
   dangerZone: 'Zone sensible',
   deleteAllLocalData: 'Supprimer entrées et livres',
   deleteConfirm: 'Supprimer toutes les entrées et tous les livres stockés localement dans ce navigateur ?',
-  deleteQuoteConfirm: 'Supprimer définitivement cette entrée ?',
   storedLocally: '{count} entrées stockées localement.',
   storedLocally_one: '{count} entrée stockée localement.',
   dailyReview: 'Pile quotidienne',
