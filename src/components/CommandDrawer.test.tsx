@@ -21,7 +21,7 @@ beforeEach(async () => {
 describe('CommandDrawer', () => {
   it('rendert nichts, solange es geschlossen ist', () => {
     // Arrange / Act
-    renderWithProviders(<CommandDrawer open={false} onClose={vi.fn()} />)
+    renderWithProviders(<CommandDrawer open={false} onClose={vi.fn()} onSupport={vi.fn()} />)
 
     // Assert
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -29,7 +29,7 @@ describe('CommandDrawer', () => {
 
   it('zeigt beim Öffnen alle Navigationsziele', () => {
     // Arrange / Act
-    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
 
     // Assert
     expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -37,9 +37,30 @@ describe('CommandDrawer', () => {
     expect(screen.getByRole('link', { name: en.today })).toBeInTheDocument()
   })
 
+  it('hat einen Favoriten-Eintrag, der die Bibliothek auf dem Favoriten-Tab öffnet', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
+
+    // Assert
+    expect(screen.getByRole('link', { name: en.favorites })).toHaveAttribute('href', '/library?view=favorites')
+  })
+
+  it('markiert nur einen der Einträge Favoriten und Sammlung als aktiv', () => {
+    // Arrange / Act
+    const { unmount } = renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />, { route: '/library?view=favorites' })
+
+    // Assert
+    expect(screen.getByRole('link', { name: en.favorites })).toHaveClass('bg-ink')
+    expect(screen.getByRole('link', { name: en.library })).not.toHaveClass('bg-ink')
+    unmount()
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />, { route: '/library' })
+    expect(screen.getByRole('link', { name: en.library })).toHaveClass('bg-ink')
+    expect(screen.getByRole('link', { name: en.favorites })).not.toHaveClass('bg-ink')
+  })
+
   it('nutzt für das Suchfeld mindestens 16px auf dem Handy, damit iOS nicht hineinzoomt', () => {
     // Arrange / Act
-    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
 
     // Assert
     const input = screen.getByRole('textbox', { name: en.commandSearchPlaceholder })
@@ -49,7 +70,7 @@ describe('CommandDrawer', () => {
 
   it('filtert die Navigationsziele nach der Suche', () => {
     // Arrange
-    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
 
     // Act
     fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'trash' } })
@@ -61,7 +82,7 @@ describe('CommandDrawer', () => {
 
   it('zeigt einen Hinweis, wenn nichts gefunden wird', () => {
     // Arrange
-    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
 
     // Act
     fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'zzzxqy' } })
@@ -74,7 +95,7 @@ describe('CommandDrawer', () => {
     // Arrange
     await db.quotes.put(makeQuote({ text: 'Schweigen ist Gold' }))
     await db.books.put(makeBook({ title: 'Schweigen lernen' }))
-    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
 
     // Act
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(1))
@@ -92,7 +113,7 @@ describe('CommandDrawer', () => {
       makeQuote({ text: 'Ruhender Eintrag', status: 'rest', thoughts: [{ id: 't-1', text: 'Nebelmorgen', createdAt: '2026-02-01T09:00:00.000Z' }] }),
       makeQuote({ text: 'Nebel im Posteingang', status: 'inbox' })
     ])
-    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
 
     // Act
     await waitFor(() => expect(useQuoteStore.getState().quotes).toHaveLength(2))
@@ -105,15 +126,15 @@ describe('CommandDrawer', () => {
 
   it('leert die Suche beim erneuten Öffnen', () => {
     // Arrange
-    const { rerender } = renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+    const { rerender } = renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
     fireEvent.change(screen.getByRole('textbox', { name: en.commandSearchPlaceholder }), { target: { value: 'trash' } })
 
     // Act
     act(() => {
-      rerender(<CommandDrawer open={false} onClose={vi.fn()} />)
+      rerender(<CommandDrawer open={false} onClose={vi.fn()} onSupport={vi.fn()} />)
     })
     act(() => {
-      rerender(<CommandDrawer open onClose={vi.fn()} />)
+      rerender(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
     })
 
     // Assert
@@ -124,12 +145,26 @@ describe('CommandDrawer', () => {
   it('ruft onClose bei Escape auf', () => {
     // Arrange
     const onClose = vi.fn()
-    renderWithProviders(<CommandDrawer open onClose={onClose} />)
+    renderWithProviders(<CommandDrawer open onClose={onClose} onSupport={vi.fn()} />)
 
     // Act
     fireEvent.keyDown(window, { key: 'Escape' })
 
     // Assert
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the support sheet from the support entry and closes the drawer', () => {
+    // Arrange
+    const onClose = vi.fn()
+    const onSupport = vi.fn()
+    renderWithProviders(<CommandDrawer open onClose={onClose} onSupport={onSupport} />)
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.supportProjectAction }))
+
+    // Assert
+    expect(onSupport).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

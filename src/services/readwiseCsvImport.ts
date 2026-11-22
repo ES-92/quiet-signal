@@ -69,7 +69,6 @@ export function buildReadwiseCsvImport(
         id: crypto.randomUUID(),
         title: row.title,
         author: row.author,
-        weight: 'normal',
         source: 'readwise',
         createdAt: now,
         updatedAt: now
@@ -103,8 +102,6 @@ export function buildReadwiseCsvImport(
       favorite: false,
       likes: 0,
       status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'book_quote',
       createdAt: row.highlightedAt ?? now,
       updatedAt: row.highlightedAt ?? now,
       reviewCount: 0

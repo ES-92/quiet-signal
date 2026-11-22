@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { buildReflection } from '../services/reflections'
-import { selectBrowseStack, selectDailyStack, type BookWeightMap } from '../services/review'
+import { countThoughtsInPeriod } from '../services/reflections'
+import { useToday } from './useToday'
+import { selectBrowseStack, selectDailyStack } from '../services/review'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
@@ -11,7 +12,7 @@ import { localDateKey } from '../utils/date'
 // Loads the library and owns the deck of this visit: stable card order, discarded cards and the current position.
 export function useDailySession() {
   const { quotes, loading, loadQuotes } = useQuoteStore()
-  const { books, loadBooks } = useBookStore()
+  const { loadBooks } = useBookStore()
   const { dailyCount } = useSettingsStore()
   const [index, setIndex] = useState(0)
   const [sessionQuoteIds, setSessionQuoteIds] = useState<string[]>([])
@@ -31,14 +32,9 @@ export function useDailySession() {
     void loadBooks()
   }, [loadQuotes, loadBooks])
 
-  const bookWeights = useMemo<BookWeightMap>(
-    () => Object.fromEntries(books.map((book) => [book.id, book.weight])),
-    [books]
-  )
-
   const selectedDailyQuotes = useMemo(
-    () => selectDailyStack(quotes, { limit: dailyCount, bookWeights }),
-    [bookWeights, dailyCount, quotes]
+    () => selectDailyStack(quotes, { limit: dailyCount }),
+    [dailyCount, quotes]
   )
 
   // Keep the cards of this visit stable while the underlying selection changes (adjusting state while rendering, not in an effect).
@@ -64,7 +60,8 @@ export function useDailySession() {
         : sessionQuoteIds.map((id) => quoteById.get(id)).filter((quote) => quote !== undefined)
     return stack.filter((quote) => !discardedIds.includes(quote.id))
   }, [browseIds, discardedIds, quotes, selectedDailyQuotes, sessionQuoteIds])
-  const weeklyReflection = useMemo(() => buildReflection(quotes, books, 'week'), [books, quotes])
+  const today = useToday()
+  const weeklyThoughts = useMemo(() => countThoughtsInPeriod(quotes, 'week', today), [quotes, today])
   const inboxCount = useMemo(
     () => quotes.filter((quote) => quoteStatus(quote) === 'inbox' && !quote.deletedAt).length,
     [quotes]
@@ -89,7 +86,6 @@ export function useDailySession() {
   const visitHadCards = browseIds ? browseIds.length > 0 : sessionQuoteIds.length > 0
   // A used-up browse deck keeps its list (so undoing the rest of its last card brings the card back); without a card it is not
   // "browsing" any more and the page shows the finished state, where "browse anyway" starts a new round.
-  const currentBook = currentQuote?.bookId ? books.find((book) => book.id === currentQuote.bookId) : undefined
 
   return {
     loading,
@@ -98,12 +94,13 @@ export function useDailySession() {
     currentQuote,
     nextQuote: dailyQuotes[currentIndex + 1],
     thirdQuote: dailyQuotes[currentIndex + 2],
-    currentBook,
     stackCompleted: visitHadCards && !currentQuote,
-    reflectionCount: weeklyReflection.entries.length,
-    showReflectionNudge: weeklyReflection.entries.length >= 3,
+    // The Rückblick is built from the week's thoughts, so the nudge counts those.
+    reflectionCount: weeklyThoughts,
+    showReflectionNudge: weeklyThoughts >= 3,
     inboxCount,
     hasSignals,
+    libraryEmpty: quotes.length === 0,
     browsing: browseIds !== null && Boolean(currentQuote),
     startBrowsing: () => {
       dismissUndoToast()

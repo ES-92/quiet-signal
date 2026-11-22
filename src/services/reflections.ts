@@ -1,95 +1,144 @@
 import type { Book } from '../types/book'
+import type { Quote } from '../types/quote'
 import { localDateKey } from '../utils/date'
-import { entryType, quoteStatus, signalStrength, type Quote } from '../types/quote'
 
 export type ReflectionPeriod = 'week' | 'month'
 
-export interface ReflectionMetric {
-  key: string
-  label: string
-  count: number
+// A thought written in the period, with enough of its entry to place it.
+export interface ReflectionThought {
+  id: string
+  text: string
+  createdAt: string
+  fromNote: boolean
+  quoteId: string
+  quoteText?: string
+  author?: string
+  work?: string
+}
+
+// One column of the tide strip: a day (week view) or a week clipped to the month (month view).
+export interface StripBucket {
+  start: Date
+  end: Date
+  more: number
+  rest: number
+  thought: boolean
+}
+
+// more / rest count distinct entries (a card swiped → twice is one card); thoughts counts thoughts.
+export interface ReflectionTotals {
+  more: number
+  rest: number
+  thoughts: number
 }
 
 export interface ReflectionSummary {
   period: ReflectionPeriod
   start: Date
   end: Date
-  entries: Quote[]
-  signals: Quote[]
-  noise: Quote[]
-  topSignal?: Quote
-  topTags: ReflectionMetric[]
-  topBooks: ReflectionMetric[]
-  topPlaces: ReflectionMetric[]
-  topTypes: ReflectionMetric[]
-  topTime?: ReflectionMetric
+  thoughts: ReflectionThought[]
+  strip: StripBucket[]
+  totals: ReflectionTotals
 }
 
 export function buildReflection(quotes: Quote[], books: Book[], period: ReflectionPeriod, now = new Date()): ReflectionSummary {
   const { start, end } = periodRange(period, now)
   const bookById = new Map(books.map((book) => [book.id, book]))
-  const entries = quotes
-    .filter((quote) => {
-      if (isSavedReflection(quote)) return false
-      const date = entryDate(quote)
-      return date >= start.getTime() && date <= end.getTime()
-    })
-    .sort((a, b) => entryDate(b) - entryDate(a))
-  const signals = entries.filter((quote) => quoteStatus(quote) !== 'inbox')
-  const noise = entries.filter((quote) => quoteStatus(quote) === 'inbox')
-
-  return {
-    period,
-    start,
-    end,
-    entries,
-    signals,
-    noise,
-    topSignal: chooseTopSignal(signals),
-    topTags: topMetrics(entries.flatMap((quote) => quote.tags), 4),
-    topBooks: topMetrics(
-      entries.flatMap((quote) => {
-        if (quote.bookId) {
-          const book = bookById.get(quote.bookId)
-          if (book) return [book.title]
-        }
-        return quote.work ? [quote.work] : []
-      }),
-      3
-    ),
-    topPlaces: topMetrics(entries.flatMap((quote) => (quote.locationName ? [quote.locationName] : [])), 3),
-    topTypes: topMetrics(entries.map((quote) => entryType(quote)), 4),
-    topTime: topMetrics(entries.map((quote) => timeBucket(entryDate(quote))), 1)[0]
+  const inPeriod = (iso: string) => {
+    const time = Date.parse(iso)
+    return time >= start.getTime() && time <= end.getTime()
   }
+
+  const thoughts: ReflectionThought[] = []
+  for (const quote of quotes) {
+    const book = quote.bookId ? bookById.get(quote.bookId) : undefined
+    for (const thought of quote.thoughts ?? []) {
+      if (!inPeriod(thought.createdAt)) continue
+      thoughts.push({
+        id: thought.id,
+        text: thought.text,
+        createdAt: thought.createdAt,
+        fromNote: thought.fromNote === true,
+        quoteId: quote.id,
+        quoteText: quote.text || undefined,
+        author: quote.author ?? book?.author,
+        work: book?.title ?? quote.work
+      })
+    }
+  }
+  thoughts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+
+  const strip = stripBuckets(period, start, end)
+  const totals: ReflectionTotals = { more: 0, rest: 0, thoughts: thoughts.length }
+  const bucketAt = (iso: string) => {
+    const time = Date.parse(iso)
+    return strip.find((bucket) => time >= bucket.start.getTime() && time <= bucket.end.getTime())
+  }
+
+  for (const quote of quotes) {
+    const seen = new Set<'more' | 'rest'>()
+    for (const event of quote.activity ?? []) {
+      if (event.type !== 'more' && event.type !== 'rest') continue
+      const bucket = bucketAt(event.at)
+      if (!bucket) continue
+      bucket[event.type] += 1
+      if (!seen.has(event.type)) totals[event.type] += 1
+      seen.add(event.type)
+    }
+    // The ring comes from thoughts that still exist (a deleted thought leaves no ring); adopted notes are not new thoughts.
+    for (const thought of quote.thoughts ?? []) {
+      if (thought.fromNote) continue
+      const bucket = bucketAt(thought.createdAt)
+      if (bucket) bucket.thought = true
+    }
+  }
+
+  return { period, start, end, thoughts, strip, totals }
 }
 
-export function reflectionMarkdown(summary: ReflectionSummary, letter: string) {
-  const lines = [
-    `# ${summary.period === 'week' ? 'Weekly' : 'Monthly'} Reflection`,
-    '',
-    `${localDateKey(summary.start)} - ${localDateKey(summary.end)}`,
-    '',
-    letter,
-    '',
-    `Entries: ${summary.entries.length}`,
-    `Signals: ${summary.signals.length}`,
-    `Noise: ${summary.noise.length}`
-  ]
+// Cheap count for the Today nudge (no strip, no sorting).
+export function countThoughtsInPeriod(quotes: Quote[], period: ReflectionPeriod, now = new Date()): number {
+  const { start, end } = periodRange(period, now)
+  let count = 0
+  for (const quote of quotes) {
+    for (const thought of quote.thoughts ?? []) {
+      const time = Date.parse(thought.createdAt)
+      if (time >= start.getTime() && time <= end.getTime()) count += 1
+    }
+  }
+  return count
+}
 
-  if (summary.topSignal) {
-    lines.push('', '## Top signal', quoteLine(summary.topSignal))
-  }
-  if (summary.topTags.length) {
-    lines.push('', '## Tags', summary.topTags.map((tag) => `- ${tag.label} (${tag.count})`).join('\n'))
-  }
-  if (summary.topBooks.length) {
-    lines.push('', '## Books', summary.topBooks.map((book) => `- ${book.label} (${book.count})`).join('\n'))
-  }
-  if (summary.topPlaces.length) {
-    lines.push('', '## Places', summary.topPlaces.map((place) => `- ${place.label} (${place.count})`).join('\n'))
+export interface ReflectionMarkdownLabels {
+  title: string
+  summary: string
+  fromNote: string
+}
+
+export function reflectionMarkdown(summary: ReflectionSummary, labels: ReflectionMarkdownLabels) {
+  const lines = [`# ${labels.title}`, '', `${localDateKey(summary.start)} - ${localDateKey(summary.end)}`]
+  if (labels.summary) lines.push('', labels.summary)
+
+  for (const thought of summary.thoughts) {
+    const attribution = [thought.author, thought.work].filter(Boolean).join(', ')
+    const heading = [localDateKey(new Date(thought.createdAt)), attribution, thought.fromNote ? labels.fromNote : '']
+      .filter(Boolean)
+      .join(' · ')
+      .replace(/\s+/g, ' ')
+    lines.push('', '---', '', `## ${heading}`, '', ...escapedLines(thought.text))
+    if (thought.quoteText) lines.push('', ...escapedLines(thought.quoteText).map((line) => `> ${line}`))
   }
 
   return lines.join('\n')
+}
+
+// User text must not turn into headings, rules, lists or quotes of the export: escape a leading block marker per line.
+function escapedLines(text: string) {
+  return text.split(/\r\n|\r|\n/).map((line) =>
+    line.replace(/^(\s*)(?:([#>*+\-=_`~|])|(\d+)([.)]))/, (_match, indent: string, marker?: string, digits?: string, dot?: string) =>
+      marker ? `${indent}\\${marker}` : `${indent}${digits}\\${dot}`
+    )
+  )
 }
 
 export function periodRange(period: ReflectionPeriod, now = new Date()) {
@@ -114,53 +163,17 @@ export function periodRange(period: ReflectionPeriod, now = new Date()) {
   return { start, end }
 }
 
-function chooseTopSignal(signals: Quote[]) {
-  return [...signals].sort((a, b) => signalScore(b) - signalScore(a))[0]
-}
-
-function signalScore(quote: Quote) {
-  const strengthScore = signalStrength(quote) === 'strong' ? 8 : signalStrength(quote) === 'normal' ? 4 : 1
-  return (quote.likes ?? 0) * 5 + (quote.favorite ? 10 : 0) + strengthScore + Math.min(quote.reviewCount ?? 0, 6)
-}
-
-function topMetrics(values: string[], limit: number): ReflectionMetric[] {
-  const counts = new Map<string, ReflectionMetric>()
-  for (const rawValue of values) {
-    const label = normalizeLabel(rawValue)
-    if (!label) continue
-    const key = label.toLowerCase()
-    const current = counts.get(key)
-    counts.set(key, { key, label: current?.label ?? label, count: (current?.count ?? 0) + 1 })
+// Week: one bucket per day. Month: one per Monday–Sunday week, clipped to the month's first and last day.
+function stripBuckets(period: ReflectionPeriod, start: Date, end: Date): StripBucket[] {
+  const buckets: StripBucket[] = []
+  const cursor = new Date(start)
+  while (cursor.getTime() <= end.getTime()) {
+    const next = new Date(cursor)
+    if (period === 'week') next.setDate(next.getDate() + 1)
+    else next.setDate(next.getDate() + (8 - (next.getDay() || 7)))
+    const bucketEnd = new Date(Math.min(next.getTime() - 1, end.getTime()))
+    buckets.push({ start: new Date(cursor), end: bucketEnd, more: 0, rest: 0, thought: false })
+    cursor.setTime(next.getTime())
   }
-  return Array.from(counts.values())
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
-    .slice(0, limit)
-}
-
-function isSavedReflection(quote: Quote) {
-  return quote.tags.includes('reflection') && quote.source === 'Quiet Signal'
-}
-
-function normalizeLabel(value: string) {
-  return value.trim().replace(/\s+/g, ' ')
-}
-
-function entryDate(quote: Quote) {
-  const raw = quote.occurredAt || quote.createdAt
-  const timestamp = new Date(raw).getTime()
-  return Number.isFinite(timestamp) ? timestamp : new Date(quote.createdAt).getTime()
-}
-
-function timeBucket(timestamp: number): 'morning' | 'afternoon' | 'evening' | 'night' {
-  const hour = new Date(timestamp).getHours()
-  if (hour < 5) return 'night'
-  if (hour < 12) return 'morning'
-  if (hour < 18) return 'afternoon'
-  if (hour < 22) return 'evening'
-  return 'night'
-}
-
-function quoteLine(quote: Quote) {
-  const attribution = [quote.author, quote.work].filter(Boolean).join(', ')
-  return `> ${quote.text || quote.note || 'Untitled signal'}${attribution ? `\n\n- ${attribution}` : ''}`
+  return buckets
 }

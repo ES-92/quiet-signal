@@ -53,12 +53,10 @@ export function InboxPage() {
   return (
     <div className="grid gap-5 pt-3 sm:gap-8 sm:pt-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
       <section className="min-w-0">
-        <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('noiseInbox')}</p>
-        <h1 className="mt-2 font-serif text-4xl leading-tight sm:text-5xl">{t('noiseInboxTitle')}</h1>
-        <p className="mt-4 max-w-xl leading-7 text-graphite">{t('noiseInboxIntro')}</p>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-graphite">{t('clarifyQuestion')}</p>
+        <h1 className="font-serif text-4xl leading-tight sm:text-5xl">{t('noiseInboxTitle')}</h1>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-graphite">{t('clarifyQuestion')}</p>
         <button
-          className="mt-5 min-h-[46px] w-full rounded-md bg-ink px-4 py-3 text-sm text-paper shadow-[0_14px_34px_rgba(31,30,28,0.14)] sm:hidden"
+          className="mt-4 inline-flex min-h-[44px] items-center rounded-md bg-ink px-4 py-2 text-sm text-paper sm:hidden"
           onClick={() => openCapture('text')}
         >
           {t('openCapture')}
@@ -73,8 +71,6 @@ export function InboxPage() {
           onImageChange={capture.setImage}
           audioDataUrl={capture.audioDataUrl}
           onAudioChange={capture.setAudio}
-          signalStrength={capture.signalStrength}
-          onSignalStrengthChange={capture.setSignalStrength}
           canSave={capture.canSave}
           onSubmit={(event) => void capture.submit(event)}
         />
@@ -85,23 +81,11 @@ export function InboxPage() {
           <p className="mb-4 rounded-md border border-line bg-paper/80 px-4 py-3 text-sm text-moss">{message}</p>
         )}
         <div className="quiet-sheet classical-panel overflow-hidden rounded-md">
-          <div className="border-b border-line p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-graphite">{t('signalProcessing')}</p>
-                <h2 className="mt-1 font-serif text-3xl">{t('clarifyStack')}</h2>
-              </div>
-              {inboxQuotes.length > 0 && (
-                <span className="shrink-0 rounded border border-line px-2 py-1 text-xs text-graphite">
-                  {t('cardProgress', { current: 1, total: inboxQuotes.length })}
-                </span>
-              )}
-            </div>
-            <p className="mt-2 text-sm leading-6 text-graphite">{t('clarifyIntro')}</p>
-          </div>
-
           {currentQuote ? (
             <div className="grid gap-4 p-4 sm:p-5">
+              <p className="justify-self-end rounded border border-line px-2 py-1 text-xs text-graphite">
+                {t('cardProgress', { current: 1, total: inboxQuotes.length })}
+              </p>
               <ClarifyDeckStack
                 quote={currentQuote}
                 nextQuote={inboxQuotes[1]}

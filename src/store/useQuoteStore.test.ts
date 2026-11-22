@@ -21,6 +21,26 @@ afterEach(() => {
   disableEncryptionRecord()
 })
 
+describe('loadQuotes', () => {
+  it('meldet nach dem ersten Laden bei weiteren Ladevorgängen nie wieder loading', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'a', text: 'Eins' })])
+    useQuoteStore.setState({ quotes: [], loading: true })
+    const states: boolean[] = []
+    const unsubscribe = useQuoteStore.subscribe((state) => states.push(state.loading))
+
+    // Act
+    await useQuoteStore.getState().loadQuotes()
+    await useQuoteStore.getState().loadQuotes()
+    unsubscribe()
+
+    // Assert
+    expect(useQuoteStore.getState().quotes).toHaveLength(1)
+    expect(states.length).toBeGreaterThan(0)
+    expect(states.every((loading) => loading === false)).toBe(true)
+  })
+})
+
 async function seedLegacyQuote(overrides = {}) {
   // Legacy record: no reviewIntervalDays and no thoughts; reviewCount 2 derives an interval of 7.
   const quote = makeQuote({ id: 'legacy', reviewCount: 2, ...overrides })
@@ -127,6 +147,78 @@ describe('lifecycle store actions', () => {
     })
     expect(useQuoteStore.getState().quotes[0]).toMatchObject({ reviewCount: 2, likes: 3, nextReviewAt: '2026-01-03T06:00:00.000Z' })
     expect(useQuoteStore.getState().quotes[0].reviewIntervalDays).toBeUndefined()
+  })
+
+  it('logs →, ↓, wake and a thought in the activity log, encrypted with the entry', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+    await seedLegacyQuote()
+
+    // Act
+    await useQuoteStore.getState().moreOften('legacy')
+    await useQuoteStore.getState().restQuote('legacy')
+    await useQuoteStore.getState().wakeQuote('legacy')
+    await useQuoteStore.getState().addThought('legacy', 'Gedanke')
+    const raw = await db.quotes.get('legacy')
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['more', 'rest', 'wake', 'thought'])
+    expect(raw?.encrypted).toBe(true)
+    expect(raw).not.toHaveProperty('activity')
+    expect(JSON.stringify(raw)).not.toContain('"more"')
+  })
+
+  it('restoreReview drops the more event of the undone →', async () => {
+    // Arrange
+    await seedLegacyQuote()
+    let previous: ReviewSnapshot | undefined
+    await useQuoteStore.getState().moreOften('legacy', (snapshot) => {
+      previous = snapshot
+    })
+    await useQuoteStore.getState().addThought('legacy', 'bleibt')
+
+    // Act
+    await useQuoteStore.getState().restoreReview('legacy', previous as ReviewSnapshot)
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['thought'])
+  })
+
+  it('undoRest puts the entry back and drops the rest event restQuote reported', async () => {
+    // Arrange
+    await seedLegacyQuote({ snoozedUntil: '2026-01-05T05:00:00.000Z' })
+    const restedAt = await useQuoteStore.getState().restQuote('legacy')
+
+    // Act
+    await useQuoteStore.getState().undoRest('legacy', '2026-01-05T05:00:00.000Z', restedAt)
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0]).toMatchObject({ status: 'signal', snoozedUntil: '2026-01-05T05:00:00.000Z', activity: [] })
+  })
+
+  it('logs rest and wake when the status changes through saveQuote (edit form)', async () => {
+    // Arrange
+    await seedLegacyQuote({ status: 'signal' })
+
+    // Act
+    await useQuoteStore.getState().saveQuote('legacy', { status: 'rest' })
+    await useQuoteStore.getState().saveQuote('legacy', { status: 'signal', text: 'neu' })
+    await useQuoteStore.getState().saveQuote('legacy', { text: 'nur Text' })
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['rest', 'wake'])
+  })
+
+  it('does not log a browse-mode like', async () => {
+    // Arrange
+    await seedLegacyQuote()
+
+    // Act
+    await useQuoteStore.getState().likeQuote('legacy')
+    await useQuoteStore.getState().loadQuotes()
+
+    // Assert
+    expect(useQuoteStore.getState().quotes[0].activity).toBeUndefined()
   })
 
   it('returns undefined and writes nothing for an unknown id', async () => {
@@ -266,5 +358,60 @@ describe('lifecycle store actions', () => {
     // Assert
     expect(await db.quotes.count()).toBe(1)
     expect(useQuoteStore.getState().quotes[0].thoughts).toBeUndefined()
+  })
+
+  it('toggleFavorite pulls a far-away review in to 30 days and caps the interval', async () => {
+    // Arrange
+    await seedLegacyQuote({ reviewIntervalDays: 120, nextReviewAt: '2027-06-01T06:00:00.000Z' })
+
+    // Act
+    await useQuoteStore.getState().toggleFavorite('legacy')
+
+    // Assert
+    const stored = await db.quotes.get('legacy')
+    expect(stored?.favorite).toBe(true)
+    expect(stored?.reviewIntervalDays).toBe(30)
+    expect(new Date(stored?.nextReviewAt as string).getTime()).toBeLessThanOrEqual(Date.now() + 31 * 24 * 60 * 60 * 1000)
+    expect(useQuoteStore.getState().quotes[0].favorite).toBe(true)
+  })
+
+  it('toggleFavorite off leaves the schedule alone', async () => {
+    // Arrange
+    await seedLegacyQuote({ favorite: true, reviewIntervalDays: 120, nextReviewAt: '2027-06-01T06:00:00.000Z' })
+
+    // Act
+    await useQuoteStore.getState().toggleFavorite('legacy')
+
+    // Assert
+    const stored = await db.quotes.get('legacy')
+    expect(stored).toMatchObject({ favorite: false, reviewIntervalDays: 120, nextReviewAt: '2027-06-01T06:00:00.000Z' })
+  })
+
+  it('toggleFavorite ignores unknown ids', async () => {
+    // Arrange
+    await seedLegacyQuote()
+
+    // Act
+    await useQuoteStore.getState().toggleFavorite('missing')
+
+    // Assert
+    expect((await db.quotes.get('legacy'))?.favorite).toBe(false)
+  })
+
+  it('saveQuote with favorite true applies the cap once, and not again when already a favourite', async () => {
+    // Arrange
+    await seedLegacyQuote({ reviewIntervalDays: 120, nextReviewAt: '2027-06-01T06:00:00.000Z' })
+
+    // Act
+    await useQuoteStore.getState().saveQuote('legacy', { favorite: true })
+    const capped = await db.quotes.get('legacy')
+    await db.quotes.update('legacy', { reviewIntervalDays: 90, nextReviewAt: '2027-06-01T06:00:00.000Z' })
+    await useQuoteStore.getState().saveQuote('legacy', { favorite: true })
+    const again = await db.quotes.get('legacy')
+
+    // Assert
+    expect(capped?.reviewIntervalDays).toBe(30)
+    expect(again?.reviewIntervalDays).toBe(90)
+    expect(again?.nextReviewAt).toBe('2027-06-01T06:00:00.000Z')
   })
 })

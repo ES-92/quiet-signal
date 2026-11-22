@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { clearBooks, createBook, deleteBook, listBooks, updateBook, upsertBooks } from '../db/database'
-import type { Book, BookInput, BookWeight } from '../types/book'
+import type { Book, BookInput } from '../types/book'
 import { useQuoteStore } from './useQuoteStore'
 
 interface BookStore {
@@ -9,7 +9,6 @@ interface BookStore {
   loadBooks: () => Promise<void>
   addBook: (input: BookInput) => Promise<Book>
   saveBook: (id: string, patch: Partial<Book>) => Promise<void>
-  setWeight: (id: string, weight: BookWeight) => Promise<void>
   removeBook: (id: string) => Promise<void>
   importBooks: (books: Book[]) => Promise<void>
   clearAll: () => Promise<void>
@@ -19,7 +18,7 @@ export const useBookStore = create<BookStore>((set, get) => ({
   books: [],
   loading: true,
   loadBooks: async () => {
-    set({ loading: true })
+    // Like useQuoteStore: `loading` only covers the first load, reloads keep the current list visible.
     set({ books: await listBooks(), loading: false })
   },
   addBook: async (input) => {
@@ -45,11 +44,6 @@ export const useBookStore = create<BookStore>((set, get) => ({
       )
     }
     await get().loadBooks()
-  },
-  setWeight: async (id, weight) => {
-    // Optimistic so the weight control feels instant.
-    set((state) => ({ books: state.books.map((book) => (book.id === id ? { ...book, weight } : book)) }))
-    await updateBook(id, { weight })
   },
   removeBook: async (id) => {
     await deleteBook(id)

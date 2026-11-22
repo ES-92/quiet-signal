@@ -58,6 +58,7 @@ beforeEach(async () => {
   useBookStore.setState({ books: [] })
   useToastStore.setState({ toast: null })
   resetSettings()
+  localStorage.removeItem('quiet-signal-protection-notice-dismissed')
   reminder.isNotificationSupported.mockReturnValue(true)
   reminder.notificationPermission.mockReturnValue('granted')
   reminder.requestNotificationPermission.mockResolvedValue('granted')
@@ -114,21 +115,156 @@ describe('SettingsPage: Sprache, Darstellung, Tagesansicht', () => {
   })
 })
 
-describe('SettingsPage: Statusband und Bibliothek', () => {
-  it('zeigt Signal-, Rausch- und Buchzahlen sowie offenen Schutz', async () => {
+describe('SettingsPage: Hinweise', () => {
+  function notes() {
+    return screen.queryAllByRole('note')
+  }
+
+  async function secureAndBackedUp() {
+    await enableEncryption('passwort-123')
+    localStorage.setItem('quiet-signal-last-backup-at', new Date().toISOString())
+  }
+
+  it('zeigt weder Zähl-Kacheln noch das alte Statusband', async () => {
     // Arrange
-    await upsertQuotes([makeQuote({ status: 'signal' }), makeQuote({ status: 'signal' }), makeQuote({ status: 'rest' }), makeQuote({ status: 'inbox' })])
+    await upsertQuotes([makeQuote({ status: 'signal' }), makeQuote({ status: 'rest' }), makeQuote({ status: 'inbox' })])
     await upsertBooks([makeBook()])
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.storedLocally.replace('{count}', '3'))
+
+    // Assert
+    expect(screen.queryByText(/at rest/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Local status')).not.toBeInTheDocument()
+  })
+
+  it('zeigt keinen Hinweis, wenn ein frisches Backup besteht und der Schutz aktiv ist', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    await secureAndBackedUp()
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.backupToday)
+
+    // Assert
+    expect(notes()).toHaveLength(0)
+  })
+
+  it('warnt vor einem fehlenden Backup und lädt es über die Aktion im Hinweis herunter', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    await enableEncryption('passwort-123')
+    renderWithProviders(<SettingsPage />)
+    const notice = (await screen.findByText(en.noticeNoBackup)).closest('[role="note"]') as HTMLElement
+
+    // Act
+    fireEvent.click(within(notice).getByRole('button', { name: en.backupNow }))
+
+    // Assert
+    expect(download).toHaveBeenCalledTimes(1)
+    expect(getLastBackupAt()).toBeDefined()
+    await waitFor(() => expect(notes()).toHaveLength(0))
+  })
+
+  it('warnt bei einem überfälligen Backup mit dessen Alter', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    await enableEncryption('passwort-123')
+    localStorage.setItem('quiet-signal-last-backup-at', new Date(Date.now() - 20 * 86_400_000).toISOString())
 
     // Act
     renderWithProviders(<SettingsPage />)
 
     // Assert
-    expect(await screen.findByText('2 signals, 1 at rest, 1 noise')).toBeInTheDocument()
-    expect(screen.getByText(en.dataBooksValue_one.replace('{count}', '1'))).toBeInTheDocument()
-    expect(screen.getByText(en.storedLocally.replace('{count}', '4'))).toBeInTheDocument()
-    expect(screen.getByText(en.dataProtectionOpen)).toBeInTheDocument()
-    expect(screen.getByText(en.dataBackupStale)).toBeInTheDocument()
+    expect(await screen.findByText('Your last backup is 20 days old.')).toBeInTheDocument()
+    expect(screen.queryByText(en.noticeNoBackup)).not.toBeInTheDocument()
+  })
+
+  it('warnt nicht vor einem Backup, solange nichts gesammelt wurde', async () => {
+    // Arrange
+    await enableEncryption('passwort-123')
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.backupEmpty)
+
+    // Assert
+    expect(notes()).toHaveLength(0)
+  })
+
+  it('warnt bei fehlendem Schutz und öffnet über die Aktion den Sicherheitsbereich mit Fokus auf dessen Kopf', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    localStorage.setItem('quiet-signal-last-backup-at', new Date().toISOString())
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.noticeProtectionOff)
+    const securityPanel = screen.getByText(en.securityHelp).closest('details') as HTMLDetailsElement
+    expect(securityPanel.open).toBe(false)
+    const notice = screen.getByText(en.noticeProtectionOff).closest('[role="note"]') as HTMLElement
+
+    // Act
+    fireEvent.click(within(notice).getByRole('button', { name: en.openSecurity }))
+
+    // Assert
+    expect(securityPanel.open).toBe(true)
+    expect(securityPanel.querySelector('summary')?.contains(document.activeElement)).toBe(true)
+  })
+
+  it('zeigt die Schutz-Warnung nicht, solange die Bibliothek leer ist', async () => {
+    // Arrange / Act
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.backupEmpty)
+
+    // Assert
+    expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
+  })
+
+  it('blendet die Schutz-Warnung mit „Nicht mehr erinnern“ dauerhaft aus', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    localStorage.setItem('quiet-signal-last-backup-at', new Date().toISOString())
+    const first = renderWithProviders(<SettingsPage />)
+    const notice = (await screen.findByText(en.noticeProtectionOff)).closest('[role="note"]') as HTMLElement
+
+    // Act
+    fireEvent.click(within(notice).getByRole('button', { name: en.noticeDismiss }))
+
+    // Assert
+    expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
+    expect(localStorage.getItem('quiet-signal-protection-notice-dismissed')).toBe('true')
+    first.unmount()
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.storedLocally_one.replace('{count}', '1'))
+    expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
+  })
+
+  it('blendet die Schutz-Warnung aus, sobald eine PIN gesetzt ist', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    renderWithProviders(<SettingsPage />)
+    expect(await screen.findByText(en.noticeProtectionOff)).toBeInTheDocument()
+    fireEvent.change(screen.getByPlaceholderText(en.pinPlaceholder), { target: { value: '1234' } })
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.enablePin }))
+
+    // Assert
+    await waitFor(() => expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument())
+  })
+
+  it('blendet die Schutz-Warnung aus, sobald der Tresor aktiv ist', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    await enableEncryption('passwort-123')
+
+    // Act
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.storedLocally_one.replace('{count}', '1'))
+
+    // Assert
+    expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
   })
 })
 
@@ -149,40 +285,28 @@ describe('SettingsPage: Backup', () => {
     expect(await screen.findByText(expected)).toBeInTheDocument()
   })
 
-  it('zeigt im Statusband ein einzelnes Signal in der Einzahl', async () => {
-    // Arrange
-    await upsertQuotes([makeQuote({ status: 'signal' })])
-
-    // Act
-    renderWithProviders(<SettingsPage />)
-
-    // Assert
-    expect(await screen.findByText('1 signal, 0 at rest, 0 noise')).toBeInTheDocument()
-  })
-
   it('meldet ein leeres Archiv ohne Backup-Hinweis', () => {
     // Arrange / Act
     renderWithProviders(<SettingsPage />)
 
     // Assert
     expect(screen.getByText(en.backupEmpty)).toBeInTheDocument()
-    expect(screen.getByText(en.dataBackupEmpty)).toBeInTheDocument()
+    expect(screen.queryByText(en.noticeNoBackup)).not.toBeInTheDocument()
   })
 
-  it('erstellt ein Backup, merkt sich den Zeitpunkt und aktualisiert das Statusband', async () => {
+  it('erstellt ein Backup und merkt sich den Zeitpunkt', async () => {
     // Arrange
     await upsertQuotes([makeQuote()])
     renderWithProviders(<SettingsPage />)
     expect(await screen.findByText(en.backupMissing)).toBeInTheDocument()
 
     // Act
-    fireEvent.click(screen.getByRole('button', { name: en.backupNow }))
+    fireEvent.click(within(screen.getByText(en.backupMissing).closest('div') as HTMLElement).getByRole('button', { name: en.backupNow }))
 
     // Assert
     expect(download).toHaveBeenCalledTimes(1)
     expect(getLastBackupAt()).toBeDefined()
     expect(screen.getByText(/^Backup created:/)).toBeInTheDocument()
-    expect(screen.getByText(en.dataBackupFresh)).toBeInTheDocument()
     expect(screen.getByText(en.backupToday)).toBeInTheDocument()
   })
 })
@@ -364,7 +488,7 @@ describe('SettingsPage: PIN-Sperre', () => {
     expect(hasPinLock()).toBe(false)
   })
 
-  it('aktiviert die PIN, leert das Feld und passt Schaltflächen und Statusband an', async () => {
+  it('aktiviert die PIN, leert das Feld und und passt die Schaltflächen an', async () => {
     // Arrange
     renderWithProviders(<SettingsPage />)
     const input = screen.getByPlaceholderText(en.pinPlaceholder)
@@ -379,11 +503,11 @@ describe('SettingsPage: PIN-Sperre', () => {
     expect(input).toHaveValue('')
     expect(screen.getByRole('button', { name: en.changePin })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: en.lockNow })).toBeInTheDocument()
-    expect(screen.getByText(en.dataProtectionPinOnly)).toBeInTheDocument()
   })
 
   it('entfernt die PIN wieder', async () => {
     // Arrange
+    await upsertQuotes([makeQuote()])
     renderWithProviders(<SettingsPage />)
     fireEvent.change(screen.getByPlaceholderText(en.pinPlaceholder), { target: { value: '1234' } })
     fireEvent.click(screen.getByRole('button', { name: en.enablePin }))
@@ -395,7 +519,7 @@ describe('SettingsPage: PIN-Sperre', () => {
     // Assert
     expect(await screen.findByText(en.pinDisabled)).toBeInTheDocument()
     expect(hasPinLock()).toBe(false)
-    expect(screen.getByText(en.dataProtectionOpen)).toBeInTheDocument()
+    expect(await screen.findByText(en.noticeProtectionOff)).toBeInTheDocument()
   })
 
   it('sendet beim Sofort-Sperren das Sperr-Ereignis', async () => {
@@ -452,7 +576,6 @@ describe('SettingsPage: Tresor-Verschlüsselung', () => {
     expect(useQuoteStore.getState().quotes.map((quote) => quote.text)).toEqual(['Geheimes Zitat'])
     expect(screen.queryByRole('button', { name: en.enableEncryption })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: en.lockVault })).toBeInTheDocument()
-    expect(screen.getByText(en.dataProtectionVaultOnly)).toBeInTheDocument()
   })
 
   it('zeigt bei einem Fehler einen Toast und lässt die Zeilen im Klartext', async () => {
@@ -557,32 +680,16 @@ describe('SettingsPage: Tresor-Verschlüsselung', () => {
     expect(isEncryptionUnlocked()).toBe(false)
     expect(await screen.findByRole('button', { name: en.vaultLocked })).toBeInTheDocument()
   })
-
-  it('zeigt "PIN und Tresor" im Statusband, wenn beides aktiv ist', async () => {
-    // Arrange
-    await enableEncryption('passwort-123')
-    renderWithProviders(<SettingsPage />)
-    fireEvent.change(screen.getByPlaceholderText(en.pinPlaceholder), { target: { value: '1234' } })
-
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: en.enablePin }))
-
-    // Assert
-    expect(await screen.findByText(en.dataProtectionStrong)).toBeInTheDocument()
-  })
 })
 
 describe('SettingsPage: Daten, Onboarding, Support', () => {
-  it('lädt Beispieldaten in Bücher und Einträge', async () => {
-    // Arrange
+  it('bietet keine Beispieldaten mehr an (die liegen in den Leerzuständen)', () => {
+    // Arrange / Act
     renderWithProviders(<SettingsPage />)
 
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: en.loadSamples }))
-
     // Assert
-    await waitFor(async () => expect((await listQuotes()).length).toBeGreaterThan(0))
-    expect((await listBooks()).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Sample data')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try it with examples' })).not.toBeInTheDocument()
   })
 
   it('löscht erst nach Bestätigung alle Einträge und Bücher', async () => {
@@ -648,16 +755,34 @@ describe('SettingsPage: Daten, Onboarding, Support', () => {
   })
 })
 
-describe('SettingsPage: Release-Status', () => {
-  it('zeigt die Version aus package.json statt eines festen Textes', async () => {
-    // Arrange
+describe('SettingsPage: Versionszeile und entfernte Panels', () => {
+  it('zeigt am Ende genau eine ruhige Versionszeile aus package.json', () => {
+    // Arrange / Act
     renderWithProviders(<SettingsPage />)
 
-    // Act
-    const label = await screen.findByText(en.releaseVersionLabel)
+    // Assert
+    const line = screen.getByText(`Quiet Signal ${pkg.version}`)
+    expect(line.compareDocumentPosition(screen.getByRole('button', { name: en.deleteAllLocalData }))).toBe(
+      Node.DOCUMENT_POSITION_PRECEDING
+    )
+  })
+
+  it('hat weder „Datenschutz & Vertrauen“ noch „Release-Status“', () => {
+    // Arrange / Act
+    renderWithProviders(<SettingsPage />)
 
     // Assert
-    expect(label.parentElement).toHaveTextContent(pkg.version)
+    expect(screen.queryByRole('heading', { name: 'Privacy & trust' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Release status' })).not.toBeInTheDocument()
     expect(screen.queryByText(/Daily Build/)).not.toBeInTheDocument()
+  })
+
+  it('hat keine dekorative Überschrift über dem Titel', () => {
+    // Arrange / Act
+    renderWithProviders(<SettingsPage />)
+
+    // Assert
+    const title = screen.getByRole('heading', { level: 1, name: en.settings })
+    expect(title.previousElementSibling).toBeNull()
   })
 })

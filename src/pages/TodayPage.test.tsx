@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getQuote, upsertBooks, upsertQuotes } from '../db/database'
+import { db, getQuote, listBooks, listQuotes, upsertBooks, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
 import { coachKey } from '../services/coach'
 import { useBookStore } from '../store/useBookStore'
@@ -46,6 +46,15 @@ async function renderToday() {
 // A kept card is persisted asynchronously; wait until the store reflects it so nothing is pending at test end.
 async function expectKeptCount(count: number) {
   await waitFor(() => expect(useQuoteStore.getState().quotes.filter((quote) => (quote.likes ?? 0) > 0)).toHaveLength(count), SLOW)
+}
+
+// Resting and its undo persist in the background (DB write, then a store reload). Waiting for the store to show the new status
+// proves both are done, so no write or reload is still running when the next test resets the database and the stores.
+async function expectStatusSettled(id: string, status: 'rest' | 'signal') {
+  await waitFor(async () => {
+    expect((await getQuote(id))?.status).toBe(status)
+    expect(useQuoteStore.getState().quotes.find((quote) => quote.id === id)?.status).toBe(status)
+  }, SLOW)
 }
 
 function currentText() {
@@ -117,6 +126,31 @@ describe('TodayPage', () => {
     expect(screen.queryByText(en.nothingDueBodyWithSignals)).not.toBeInTheDocument()
   })
 
+  it('bietet bei völlig leerer Bibliothek „Mit Beispielen ausprobieren“ an und lädt die Beispieldaten', async () => {
+    // Arrange
+    await renderToday()
+
+    // Act
+    fireEvent.click(await screen.findByRole('button', { name: en.trySamples }))
+
+    // Assert
+    await waitFor(async () => expect((await listQuotes()).length).toBeGreaterThan(0), SLOW)
+    expect((await listBooks()).length).toBeGreaterThan(0)
+  })
+
+  it('bietet die Beispiele nicht an, sobald die Bibliothek etwas enthält', async () => {
+    // Arrange
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', nextReviewAt: future, reviewIntervalDays: 5, reviewCount: 2 })])
+
+    // Act
+    await renderToday()
+
+    // Assert
+    await screen.findByText(en.nothingDueBodyWithSignals)
+    expect(screen.queryByRole('button', { name: en.trySamples })).not.toBeInTheDocument()
+  })
+
   it('verweist bei vorhandenen Signalen nicht auf Beispieldaten, wenn heute nichts fällig ist', async () => {
     // Arrange
     const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
@@ -141,6 +175,29 @@ describe('TodayPage', () => {
     await screen.findByRole('blockquote')
     expect(Object.keys(idByText)).toContain(currentText())
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
+  })
+
+  it('zeigt auf der Karte ein kleines Herz, wenn sie ein Favorit ist', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', favorite: true })])
+
+    // Act
+    await renderToday()
+
+    // Assert
+    expect(await screen.findByRole('img', { name: en.favorite })).toBeInTheDocument()
+  })
+
+  it('zeigt auf der Karte kein Herz, wenn sie kein Favorit ist', async () => {
+    // Arrange
+    await seedStack()
+
+    // Act
+    await renderToday()
+
+    // Assert
+    await screen.findByRole('blockquote')
+    expect(screen.queryByRole('img', { name: en.favorite })).not.toBeInTheDocument()
   })
 
   it('geht per Wisch nach rechts zur nächsten Karte, stellt öfter und zeigt den Abstand', async () => {
@@ -278,7 +335,7 @@ describe('TodayPage', () => {
     })
     const realRest = useQuoteStore.getState().restQuote
     act(() => {
-      useQuoteStore.setState({ restQuote: async (id) => { await gate; await realRest(id) } })
+      useQuoteStore.setState({ restQuote: async (id) => { await gate; return realRest(id) } })
     })
 
     // Act
@@ -338,26 +395,6 @@ describe('TodayPage', () => {
     // Assert
     await screen.findByText(en.doneForToday, undefined, SLOW)
     await waitFor(() => expect(useQuoteStore.getState().quotes.some((quote) => quote.status === 'rest')).toBe(true), SLOW)
-  })
-
-  it('schließt den Buch-Editor, sobald eine andere Karte oben liegt', async () => {
-    // Arrange
-    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
-    await upsertQuotes([
-      makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' }),
-      makeQuote({ id: 't-2', text: 'Zwei', bookId: 'b-1' })
-    ])
-    await renderToday()
-    await screen.findByRole('blockquote')
-    await longPress()
-    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
-    expect(await screen.findByLabelText(en.bookTitleLabel)).toHaveValue('Das Buch')
-
-    // Act
-    removeFromStore(currentId())
-
-    // Assert
-    await waitFor(() => expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument())
   })
 
   it('beginnt nach einem leeren Stapel wieder bei der ersten neuen Karte', async () => {
@@ -526,55 +563,14 @@ describe('TodayPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(`/quote/${first}`)
   })
 
-  it('speichert Titel und Autor des Buchs über den Buch-Editor', async () => {
-    // Arrange
-    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
-    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
-    await renderToday()
-    await screen.findByRole('blockquote')
-    await longPress()
-    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
-    const title = await screen.findByLabelText(en.bookTitleLabel)
-
-    // Act
-    fireEvent.change(title, { target: { value: '  Neuer Titel ' } })
-    fireEvent.change(screen.getByLabelText(en.bookAuthorLabel), { target: { value: ' Autorin ' } })
-    fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
-
-    // Assert
-    await waitFor(() => expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument(), SLOW)
-    await waitFor(() => {
-      const book = useBookStore.getState().books[0]
-      expect(book?.title).toBe('Neuer Titel')
-      expect(book?.author).toBe('Autorin')
-    }, SLOW)
-  })
-
-  it('schließt den Buch-Editor ohne Speichern über Abbrechen', async () => {
-    // Arrange
-    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
-    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
-    await renderToday()
-    await screen.findByRole('blockquote')
-    await longPress()
-    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
-    fireEvent.change(await screen.findByLabelText(en.bookTitleLabel), { target: { value: 'Anders' } })
-
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: en.cancel }))
-
-    // Assert
-    expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument()
-    expect(useBookStore.getState().books[0]?.title).toBe('Das Buch')
-  })
-
-  it('zeigt den Reflexions-Hinweis ab drei Einträgen dieser Woche und öffnet die Reflexionen', async () => {
+  it('zeigt den Reflexions-Hinweis ab drei Gedanken dieser Woche und öffnet die Reflexionen', async () => {
     // Arrange
     const now = new Date().toISOString()
+    const thought = (id: string) => ({ id, text: id, createdAt: now })
     await upsertQuotes([
-      makeQuote({ id: 't-1', text: 'Eins', createdAt: now, updatedAt: now }),
-      makeQuote({ id: 't-2', text: 'Zwei', createdAt: now, updatedAt: now }),
-      makeQuote({ id: 't-3', text: 'Drei', createdAt: now, updatedAt: now })
+      makeQuote({ id: 't-1', text: 'Eins', createdAt: now, updatedAt: now, thoughts: [thought('a')] }),
+      makeQuote({ id: 't-2', text: 'Zwei', createdAt: now, updatedAt: now, thoughts: [thought('b')] }),
+      makeQuote({ id: 't-3', text: 'Drei', createdAt: now, updatedAt: now, thoughts: [thought('c')] })
     ])
     await renderToday()
     await screen.findByRole('blockquote')
@@ -597,7 +593,7 @@ describe('TodayPage', () => {
     expect(screen.queryByText(/swipe down for noise/i)).not.toBeInTheDocument()
   })
 
-  it('zeigt im Kontextmenü Favorit, Details, Buch bearbeiten und Löschen, aber weder Später noch Nicht mögen', async () => {
+  it('zeigt im Kontextmenü Favorit, Details und Löschen, aber weder Später noch Buch bearbeiten', async () => {
     // Arrange
     await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
     await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
@@ -608,11 +604,11 @@ describe('TodayPage', () => {
     await longPress()
 
     // Assert
-    for (const name of [en.favorite, en.openDetails, en.editBookInline, en.deleteEntry]) {
+    for (const name of [en.favorite, en.openDetails, en.deleteEntry]) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: en.later })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: en.dislike })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit book|buch bearbeiten/i })).not.toBeInTheDocument()
   })
 
   describe('Aktionsleiste', () => {
@@ -921,6 +917,7 @@ describe('TodayPage', () => {
       // Assert
       expect(await screen.findByText(en.doneForToday, undefined, SLOW)).toBeInTheDocument()
       expect(screen.queryByText(en.nothingDueToday)).not.toBeInTheDocument()
+      await expectStatusSettled('t-1', 'rest')
     })
 
     it('zeigt Stapel beendet, wenn die letzte Stöberkarte ruht, und bietet Stöbern weiter an', async () => {
@@ -934,14 +931,18 @@ describe('TodayPage', () => {
       fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
       await screen.findByRole('blockquote')
       const first = currentText()
-      swipe(0, 160)
+      // The first card only moves on (left swipe), so it stays a signal and "browse anyway" is still on offer once the
+      // last card rests. Resting both would leave no signal at all, and the button then (correctly) disappears after the reload.
+      swipe(-160)
       await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+      const lastId = currentId()
 
       // Act
       swipe(0, 160)
 
       // Assert
       expect(await screen.findByText(en.doneForToday, undefined, SLOW)).toBeInTheDocument()
+      await expectStatusSettled(lastId, 'rest')
       expect(screen.getByRole('button', { name: en.browseAnyway })).toBeInTheDocument()
     })
   })
@@ -1088,7 +1089,7 @@ describe('TodayPage', () => {
       await screen.findByRole('blockquote')
       swipe(0, 160)
       await screen.findByText(en.doneForToday, undefined, SLOW)
-      await waitFor(async () => expect((await getQuote('t-1'))?.status).toBe('rest'), SLOW)
+      await expectStatusSettled('t-1', 'rest')
 
       // Act
       act(() => useToastStore.getState().toast?.onAction?.())
@@ -1096,6 +1097,7 @@ describe('TodayPage', () => {
       // Assert
       expect(await screen.findByRole('blockquote', undefined, SLOW)).toHaveTextContent('Eins')
       expect(screen.getByText(en.browsingLabel)).toBeInTheDocument()
+      await expectStatusSettled('t-1', 'signal')
     })
 
     it('blendet beim Wechsel in eine neue Stöberrunde den alten Rückgängig-Hinweis aus', async () => {

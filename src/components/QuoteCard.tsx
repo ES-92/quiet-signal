@@ -1,9 +1,9 @@
-import { BookOpen, Clock, ExternalLink, Heart, MapPin, Sun, UserRound } from 'lucide-react'
+import { BookOpen, Clock, Clock3, ExternalLink, Heart, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
-import { entryType, quoteStatus, signalStrength, type Quote } from '../types/quote'
+import { dueInDays, formatDueIn, overdueDays } from '../services/dueLabel'
+import { quoteStatus, type Quote } from '../types/quote'
 import { AudioPlayer } from './AudioRecorder'
-import { LikeControl } from './LikeControl'
 import { PhotoPreview } from './PhotoCapture'
 
 interface QuoteCardProps {
@@ -11,30 +11,28 @@ interface QuoteCardProps {
   onRead?: (id: string) => void
   onLater?: (id: string) => void
   onFavorite?: (id: string) => void
-  onLike?: (id: string) => void
-  onDislike?: (id: string) => void
   onWake?: (id: string) => void
   compact?: boolean
 }
 
-export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislike, onWake, compact = false }: QuoteCardProps) {
-  const { t } = useI18n()
+export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact = false }: QuoteCardProps) {
+  const { t, tCount, locale } = useI18n()
   const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
-  const strength = signalStrength(quote)
   const status = quoteStatus(quote)
-  const strengthLabels = {
-    quiet: 'signalStrength_quiet',
-    normal: 'signalStrength_normal',
-    strong: 'signalStrength_strong'
-  } as const
-  const typeLabels = {
-    note: 'entryType_note',
-    memory: 'entryType_memory',
-    book_quote: 'entryType_book_quote',
-    idea: 'entryType_idea',
-    conversation: 'entryType_conversation',
-    observation: 'entryType_observation'
-  } as const
+  const thoughtCount = quote.thoughts?.length ?? 0
+  // When it comes back: short and relative. Unsorted entries have no schedule yet, so they show no time.
+  const now = new Date()
+  type Fact = { text: string; label?: string }
+  const thoughts: Fact | undefined = thoughtCount > 0 ? { text: tCount('cardThoughts', thoughtCount) } : undefined
+  let comesBack: Fact | undefined
+  if (status === 'rest') {
+    comesBack = { text: t('cardResting') }
+  } else if (status === 'signal') {
+    const text = overdueDays(quote, now) > 0 ? t('cardOverdue') : formatDueIn(dueInDays(quote, now), locale)
+    // The clock icon and a spoken prefix tell that this is the return time, not just a bare "in 2 days".
+    comesBack = { text, label: t('cardComesBack', { when: text }) }
+  }
+  const facts = [thoughts, comesBack].filter((fact): fact is Fact => fact !== undefined)
 
   return (
     <article className="classical-panel min-w-0 rounded-md p-4 sm:p-6">
@@ -64,23 +62,26 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislik
         </div>
       )}
       {meta && <p className="mt-4 text-sm text-graphite">{meta}</p>}
+      {facts.length > 0 && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-graphite">
+          {facts.map((fact, index) => (
+            <span key={index} className="inline-flex items-center gap-2">
+              {index > 0 && <span aria-hidden="true">·</span>}
+              {fact.label ? (
+                <span role="img" aria-label={fact.label} className="inline-flex items-center gap-1">
+                  <Clock3 size={14} aria-hidden="true" /> {fact.text}
+                </span>
+              ) : (
+                fact.text
+              )}
+            </span>
+          ))}
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="rounded border border-line px-2 py-1 text-xs text-graphite">
-          {t(typeLabels[entryType(quote)])}
-        </span>
-        <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">
-          {status === 'inbox' ? t('entryStatus_inbox') : status === 'rest' ? t('entryStatus_rest') : t(strengthLabels[strength])}
-        </span>
-        {quote.locationName && (
-          <span className="inline-flex items-center gap-1 rounded border border-line px-2 py-1 text-xs text-graphite">
-            <MapPin size={12} /> {quote.locationName}
-          </span>
+        {status === 'inbox' && (
+          <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">{t('entryStatus_inbox')}</span>
         )}
-        {quote.people?.slice(0, 2).map((person) => (
-          <span key={person} className="inline-flex items-center gap-1 rounded border border-line px-2 py-1 text-xs text-graphite">
-            <UserRound size={12} /> {person}
-          </span>
-        ))}
         {quote.tags.map((tag) => (
           <span key={tag} className="rounded border border-line px-2 py-1 text-xs text-graphite">
             {tag}
@@ -118,28 +119,20 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onLike, onDislik
             <Sun size={16} /> <span className={compact ? 'sr-only' : ''}>{t('wake')}</span>
           </button>
         )}
-        {onLike && (
-          <LikeControl
-            likes={quote.likes}
-            onLike={() => onLike(quote.id)}
-            onDislike={() => onDislike?.(quote.id)}
-            compact={compact}
-            className={compact ? 'rounded-full' : undefined}
-          />
-        )}
         {onFavorite && (
           <button
             className={[
               compact
                 ? 'quiet-touch inline-flex h-10 w-10 items-center justify-center rounded-full border'
                 : 'inline-flex min-h-[44px] items-center gap-2 rounded-md border px-3 py-2 text-sm',
-              quote.favorite ? 'border-clay text-clay' : 'border-line text-graphite'
+              quote.favorite ? 'border-clay bg-clay/10 text-clay' : 'border-line text-graphite'
             ].join(' ')}
             onClick={() => onFavorite(quote.id)}
             aria-label={t('favorite')}
+            aria-pressed={Boolean(quote.favorite)}
             title={t('favorite')}
           >
-            <Heart size={16} fill={quote.favorite ? 'currentColor' : 'none'} /> <span className={compact ? 'sr-only' : ''}>{t('favorite')}</span>
+            <Heart size={16} strokeWidth={quote.favorite ? 2.25 : 2} fill={quote.favorite ? 'currentColor' : 'none'} /> <span className={compact ? 'sr-only' : ''}>{t('favorite')}</span>
           </button>
         )}
         <Link

@@ -34,9 +34,7 @@ export function ShareTargetPage() {
       note: url || undefined,
       tags: ['share'],
       favorite: false,
-      status: 'inbox',
-      signalStrength: 'normal',
-      entryType: 'note'
+      status: 'inbox'
     }).then(() => {
       tapHaptic([10, 30, 10])
       setMessage(t('shareImported'))

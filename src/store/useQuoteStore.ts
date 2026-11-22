@@ -13,6 +13,10 @@ import {
   moreOftenPatch,
   restoreReviewPatch,
   restPatch,
+  statusActivityPatch,
+  undoRestPatch,
+  favoriteCapPatch,
+  favoriteTogglePatch,
   reviewSnapshot,
   wakePatch,
   type ReviewSnapshot
@@ -40,14 +44,17 @@ interface QuoteStore {
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
   likeQuote: (id: string) => Promise<void>
-  dislikeQuote: (id: string) => Promise<void>
+  toggleFavorite: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
   // onPrevious receives the review values of the row the change was actually applied to (for an undo).
   moreOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
   lessOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
   restoreReview: (id: string, previous: ReviewSnapshot) => Promise<void>
-  restQuote: (id: string) => Promise<void>
+  // Resolves with the time of the logged rest event, so an undo can remove exactly that event.
+  restQuote: (id: string) => Promise<string | undefined>
+  // Undo of restQuote: back to signal with the previous snooze, and the rest event logged at restedAt leaves the activity log.
+  undoRest: (id: string, previousSnooze: string | undefined, restedAt: string | undefined) => Promise<void>
   wakeQuote: (id: string) => Promise<void>
   addThought: (id: string, text: string) => Promise<void>
   editThought: (id: string, thoughtId: string, text: string) => Promise<void>
@@ -76,8 +83,9 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   filters: emptyFilters,
   loading: true,
   loadedAt: Date.now(),
+  // `loading` stays true only until the first load has finished. Every action reloads afterwards, and flagging those reloads
+  // as loading would swap the deck for the loading placeholder and back, remounting it under the user's hands.
   loadQuotes: async () => {
-    set({ loading: true })
     set({ quotes: await listQuotes(), loading: false, loadedAt: Date.now() })
   },
   addQuote: async (input) => {
@@ -86,7 +94,18 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     return quote
   },
   saveQuote: async (id, patch) => {
-    await updateQuote(id, patch)
+    // Setting the favourite flag through any form (e.g. the edit form) also applies the 30-day cap; resting or waking is logged.
+    // Other patches stay plain (a vanished row is then a quiet no-op, as before).
+    await updateQuote(
+      id,
+      patch.favorite || patch.status
+        ? (current) => ({
+            ...(patch.favorite && !current.favorite ? favoriteCapPatch(current) : {}),
+            ...patch,
+            ...statusActivityPatch(current, patch.status)
+          })
+        : patch
+    )
     await get().loadQuotes()
   },
   likeQuote: async (id) => {
@@ -100,16 +119,10 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     tapHaptic(8)
     await updateQuote(id, { likes: next })
   },
-  dislikeQuote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const next = Math.max(0, (quote.likes ?? 0) - 1)
-    if (next === (quote.likes ?? 0)) return
-    set((state) => ({
-      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
-    }))
-    tapHaptic(12)
-    await updateQuote(id, { likes: next })
+  toggleFavorite: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, (current) => favoriteTogglePatch(current))
+    await get().loadQuotes()
   },
   removeQuote: async (id) => {
     await deleteQuote(id)
@@ -139,12 +152,19 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   },
   restoreReview: async (id, previous) => {
     if (!get().quotes.some((item) => item.id === id)) return
-    await updateQuote(id, () => restoreReviewPatch(previous))
+    await updateQuote(id, (current) => restoreReviewPatch(current, previous))
     await get().loadQuotes()
   },
   restQuote: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return undefined
+    const now = new Date()
+    await updateQuote(id, (current) => restPatch(current, now))
+    await get().loadQuotes()
+    return now.toISOString()
+  },
+  undoRest: async (id, previousSnooze, restedAt) => {
     if (!get().quotes.some((item) => item.id === id)) return
-    await updateQuote(id, (current) => restPatch(current))
+    await updateQuote(id, (current) => undoRestPatch(current, previousSnooze, restedAt))
     await get().loadQuotes()
   },
   wakeQuote: async (id) => {

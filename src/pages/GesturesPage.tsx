@@ -23,8 +23,7 @@ export function GesturesPage() {
   return (
     <div className="grid gap-6 pt-3 sm:gap-8 sm:pt-10">
       <section>
-        <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('gestures')}</p>
-        <h1 className="mt-2 font-serif text-4xl leading-tight sm:text-5xl">{t('gestures')}</h1>
+        <h1 className="font-serif text-4xl leading-tight sm:text-5xl">{t('gestures')}</h1>
         <p className="mt-4 max-w-xl leading-7 text-graphite">{t('gesturesIntro')}</p>
       </section>
 

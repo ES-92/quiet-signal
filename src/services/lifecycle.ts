@@ -1,10 +1,12 @@
-import type { Quote, QuoteStatus } from '../types/quote'
+import { quoteStatus, type Quote, type QuoteStatus } from '../types/quote'
+import { appendActivity, removeLatestActivity } from './activity'
 
 const reviewHour = 6
 const maxIntervalDays = 365
 const moreOftenFactor = 1.5
 const lessOftenFactor = 4
 const lessOftenMinDays = 14
+export const favoriteMaxIntervalDays = 30
 const dayMs = 24 * 60 * 60 * 1000
 
 export function effectiveInterval(quote: Pick<Quote, 'reviewIntervalDays' | 'reviewCount'>): number {
@@ -45,31 +47,98 @@ export function reviewSnapshot(quote: Quote): ReviewSnapshot {
   }
 }
 
-export function restoreReviewPatch(previous: ReviewSnapshot, now = new Date()): Partial<Quote> {
-  return { ...previous, updatedAt: now.toISOString() }
+// Undo of → / ← on the fresh row: puts the review values back and drops the more/less event that action logged
+// (it carries the review's timestamp, current.lastReviewedAt), so events logged since stay.
+export function restoreReviewPatch(current: Quote, previous: ReviewSnapshot, now = new Date()): Partial<Quote> {
+  const reviewedAt = current.lastReviewedAt
+  const activity = removeLatestActivity(
+    current.activity,
+    (event) => (event.type === 'more' || event.type === 'less') && event.at === reviewedAt
+  )
+  return { ...previous, ...(activity !== current.activity ? { activity } : {}), updatedAt: now.toISOString() }
+}
+
+// A favourite never stays away longer than 30 days; everything else keeps the global maximum.
+function intervalCap(quote: Pick<Quote, 'favorite'>): number {
+  return quote.favorite ? Math.min(maxIntervalDays, favoriteMaxIntervalDays) : maxIntervalDays
 }
 
 export function moreOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
-  const next = Math.min(maxIntervalDays, Math.ceil(effectiveInterval(quote) * moreOftenFactor))
-  return { ...reviewedPatch(quote, next, now), likes: quote.likes + 1 }
+  const next = Math.min(intervalCap(quote), Math.ceil(effectiveInterval(quote) * moreOftenFactor))
+  return { ...reviewedPatch(quote, next, now), likes: quote.likes + 1, activity: appendActivity(quote.activity, 'more', now) }
 }
 
 export function lessOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
-  const next = Math.min(maxIntervalDays, Math.max(lessOftenMinDays, Math.ceil(effectiveInterval(quote) * lessOftenFactor)))
-  return reviewedPatch(quote, next, now)
+  const next = Math.min(intervalCap(quote), Math.max(lessOftenMinDays, Math.ceil(effectiveInterval(quote) * lessOftenFactor)))
+  return { ...reviewedPatch(quote, next, now), activity: appendActivity(quote.activity, 'less', now) }
 }
 
-export function restPatch(_quote: Quote, now = new Date()): Partial<Quote> {
-  return { status: 'rest', snoozedUntil: undefined, updatedAt: now.toISOString() }
+// Toggling the heart. Becoming a favourite pulls a review that is more than 30 days away in to day 30 (06:00)
+// and caps a longer stored interval; unfavouriting only clears the flag.
+export function favoriteTogglePatch(quote: Quote, now = new Date()): Partial<Quote> {
+  const timestamp = now.toISOString()
+  if (quote.favorite) return { favorite: false, updatedAt: timestamp }
+  return { favorite: true, updatedAt: timestamp, ...favoriteCapPatch(quote, now) }
 }
 
-export function wakePatch(_quote: Quote, now = new Date()): Partial<Quote> {
+// The schedule part of becoming a favourite, for every write path that can set the flag (heart, edit form).
+export function favoriteCapPatch(quote: Quote, now = new Date()): Partial<Quote> {
+  const patch: Partial<Quote> = {}
+  // Rest and noise have no due date that matters; wake and clarify set a fresh schedule anyway.
+  if (quoteStatus(quote) !== 'signal') return patch
+  const latest = reviewDateFromInterval(favoriteMaxIntervalDays, now)
+  if (quote.nextReviewAt && new Date(quote.nextReviewAt).getTime() > new Date(latest).getTime()) patch.nextReviewAt = latest
+  if (quote.reviewIntervalDays !== undefined && quote.reviewIntervalDays > favoriteMaxIntervalDays) {
+    patch.reviewIntervalDays = favoriteMaxIntervalDays
+  }
+  return patch
+}
+
+// When a signal is really due. A favourite is never due later than 30 days after its last review (or creation),
+// even if an old or imported row stores a date further away. Stored data is not rewritten.
+export function effectiveDueAt(quote: Quote): string | undefined {
+  if (!quote.favorite || quoteStatus(quote) !== 'signal') return quote.nextReviewAt
+  const capped = reviewDateFromInterval(favoriteMaxIntervalDays, new Date(quote.lastReviewedAt ?? quote.createdAt))
+  if (!quote.nextReviewAt) return undefined
+  return new Date(quote.nextReviewAt).getTime() <= new Date(capped).getTime() ? quote.nextReviewAt : capped
+}
+
+export function restPatch(quote: Quote, now = new Date()): Partial<Quote> {
+  return { status: 'rest', snoozedUntil: undefined, updatedAt: now.toISOString(), activity: appendActivity(quote.activity, 'rest', now) }
+}
+
+// Undo of ↓ on the fresh row: back to signal with the previous snooze, without the rest event that ↓ logged (matched by its time).
+export function undoRestPatch(
+  quote: Quote,
+  previousSnooze: string | undefined,
+  restedAt: string | undefined,
+  now = new Date()
+): Partial<Quote> {
+  return {
+    status: 'signal',
+    snoozedUntil: previousSnooze,
+    activity: removeLatestActivity(quote.activity, (event) => event.type === 'rest' && event.at === restedAt),
+    updatedAt: now.toISOString()
+  }
+}
+
+// A status change from a form (edit or clarify) logs going to rest and waking from it; other moves are not logged.
+export function statusActivityPatch(current: Quote, next: QuoteStatus | undefined, now = new Date()): Partial<Quote> {
+  const previous = quoteStatus(current)
+  if (!next || next === previous) return {}
+  if (next === 'rest') return { activity: appendActivity(current.activity, 'rest', now) }
+  if (previous === 'rest' && next === 'signal') return { activity: appendActivity(current.activity, 'wake', now) }
+  return {}
+}
+
+export function wakePatch(quote: Quote, now = new Date()): Partial<Quote> {
   return {
     status: 'signal',
     reviewIntervalDays: 1,
     nextReviewAt: reviewDateFromInterval(1, now),
     snoozedUntil: undefined,
-    updatedAt: now.toISOString()
+    updatedAt: now.toISOString(),
+    activity: appendActivity(quote.activity, 'wake', now)
   }
 }
 

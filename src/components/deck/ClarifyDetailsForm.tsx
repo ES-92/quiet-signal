@@ -1,9 +1,8 @@
+import { ChevronDown } from 'lucide-react'
+import { useState } from 'react'
 import type { ClarifyDraft } from '../../hooks/useClarifyDraft'
 import { useI18n } from '../../i18n/useI18n'
 import type { Book } from '../../types/book'
-import { EntryTypeControl } from '../EntryTypeControl'
-import { LocationCapture } from '../LocationCapture'
-import { SignalStrengthControl } from '../SignalStrengthControl'
 import { Field } from './Field'
 
 interface ClarifyDetailsFormProps {
@@ -15,7 +14,7 @@ interface ClarifyDetailsFormProps {
   onFinish: () => void
 }
 
-// Edit form for the top card: type, strength, text, note, book or context details, tags.
+// Edit form for the top card. Text, author, book, tags and first thought are always shown; the rarely used fields sit behind "More details", which opens by itself when any of them already has a value or gets a value other than the picked book's title.
 export function ClarifyDetailsForm({
   draft,
   books,
@@ -25,18 +24,29 @@ export function ClarifyDetailsForm({
   onFinish
 }: ClarifyDetailsFormProps) {
   const { t } = useI18n()
-  const contextDetails =
-    draft.entryType === 'memory' || draft.entryType === 'conversation' || draft.entryType === 'observation'
-  const bookDetails = draft.entryType === 'book_quote'
+  const hasRareValues = Boolean(
+    draft.people.trim() || draft.occurredAt || draft.work || draft.year || draft.note.trim() || draft.source
+  )
+  // Decided when the form opens, so clearing a field never makes the others jump away.
+  const [moreOpen, setMoreOpen] = useState(hasRareValues)
+  // While collapsed the user cannot edit these fields, so a change means the app filled one (adjusting state while rendering).
+  // Picking a book fills Werk with the book's title; that is expected and does not open the disclosure.
+  const bookTitle = books.find((book) => book.id === draft.bookId)?.title
+  const work = draft.work === bookTitle ? '' : draft.work
+  const autoFields = [draft.people, draft.occurredAt, work, draft.year, draft.note, draft.source]
+  const rareKey = autoFields.join('\u0001')
+  const [seenRareKey, setSeenRareKey] = useState(rareKey)
+  if (rareKey !== seenRareKey) {
+    setSeenRareKey(rareKey)
+    if (autoFields.some((value) => value.trim())) setMoreOpen(true)
+  }
 
   return (
     <div className="quiet-pop grid gap-4 rounded-md border border-line bg-white/30 p-4">
       <div>
         <p className="text-xs uppercase tracking-[0.16em] text-graphite">{t('signalDraft')}</p>
-        <h3 className="mt-1 font-serif text-2xl">{t('signalDraftTitle')}</h3>
+        <h2 className="mt-1 font-serif text-2xl">{t('signalDraftTitle')}</h2>
       </div>
-      <EntryTypeControl value={draft.entryType} onChange={(entryType) => onChange({ entryType })} />
-      <SignalStrengthControl value={draft.strength} onChange={(strength) => onChange({ strength })} />
       <label className="grid gap-2">
         <span className="text-sm text-graphite">{t('text')}</span>
         <textarea
@@ -45,15 +55,31 @@ export function ClarifyDetailsForm({
           onChange={(event) => onChange({ text: event.target.value })}
         />
       </label>
-      <label className="grid gap-2">
-        <span className="text-sm text-graphite">{t('note')}</span>
-        <textarea
-          className="min-h-24 rounded-md border border-line bg-white/50 p-3"
-          value={draft.note}
-          onChange={(event) => onChange({ note: event.target.value })}
-        />
-      </label>
 
+      <Field label={t('author')} value={draft.author} onChange={(author) => onChange({ author })} />
+      {books.length > 0 && (
+        <label className="grid gap-2">
+          <span className="text-sm text-graphite">{t('book')}</span>
+          <select
+            className="rounded-md border border-line bg-white/50 px-3 py-3"
+            value={draft.bookId}
+            onChange={(event) => onBookChange(event.target.value)}
+          >
+            <option value="">{t('noBookOption')}</option>
+            {books.map((book) => (
+              <option key={book.id} value={book.id}>
+                {book.author ? `${book.title} - ${book.author}` : book.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <Field
+        label={t('tags')}
+        value={draft.tags}
+        onChange={(tags) => onChange({ tags })}
+        placeholder={t('noiseTagsPlaceholder')}
+      />
       <label className="grid gap-2">
         <span className="text-sm text-graphite">{t('firstThoughtLabel')}</span>
         <textarea
@@ -63,36 +89,23 @@ export function ClarifyDetailsForm({
         />
       </label>
 
-      {bookDetails && (
+      <button
+        type="button"
+        className="flex min-h-[44px] items-center gap-2 text-left text-sm text-graphite"
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen((open) => !open)}
+      >
+        <ChevronDown size={16} className={moreOpen ? 'rotate-180' : ''} aria-hidden="true" />
+        {t('moreDetails')}
+      </button>
+      {moreOpen && (
         <div className="grid gap-3 rounded-md border border-line bg-paper/60 p-3 sm:grid-cols-2">
-          <p className="font-serif text-xl sm:col-span-2">{t('bookDetails')}</p>
-          {books.length > 0 && (
-            <label className="grid gap-2 sm:col-span-2">
-              <span className="text-sm text-graphite">{t('book')}</span>
-              <select
-                className="rounded-md border border-line bg-white/50 px-3 py-3"
-                value={draft.bookId}
-                onChange={(event) => onBookChange(event.target.value)}
-              >
-                <option value="">{t('noBookOption')}</option>
-                {books.map((book) => (
-                  <option key={book.id} value={book.id}>
-                    {book.author ? `${book.title} - ${book.author}` : book.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <Field label={t('author')} value={draft.author} onChange={(author) => onChange({ author })} />
-          <Field label={t('work')} value={draft.work} onChange={(work) => onChange({ work })} />
-          <Field label={t('source')} value={draft.source} onChange={(source) => onChange({ source })} />
-          <Field label={t('year')} value={draft.year} onChange={(year) => onChange({ year })} />
-        </div>
-      )}
-
-      {(contextDetails || !bookDetails) && (
-        <div className="grid gap-3 rounded-md border border-line bg-paper/60 p-3">
-          <p className="font-serif text-xl">{t('contextDetails')}</p>
+          <Field
+            label={t('people')}
+            value={draft.people}
+            onChange={(people) => onChange({ people })}
+            placeholder={t('peoplePlaceholder')}
+          />
           <label className="grid gap-2">
             <span className="text-sm text-graphite">{t('occurredAt')}</span>
             <input
@@ -102,35 +115,19 @@ export function ClarifyDetailsForm({
               onChange={(event) => onChange({ occurredAt: event.target.value })}
             />
           </label>
-          <Field
-            label={t('people')}
-            value={draft.people}
-            onChange={(people) => onChange({ people })}
-            placeholder={t('peoplePlaceholder')}
-          />
-          <LocationCapture
-            value={{
-              locationName: draft.locationName,
-              locationLatitude: draft.locationLatitude,
-              locationLongitude: draft.locationLongitude
-            }}
-            onChange={(location) =>
-              onChange({
-                locationName: location.locationName,
-                locationLatitude: location.locationLatitude,
-                locationLongitude: location.locationLongitude
-              })
-            }
-          />
+          <Field label={t('work')} value={draft.work} onChange={(work) => onChange({ work })} />
+          <Field label={t('year')} value={draft.year} onChange={(year) => onChange({ year })} />
+          <Field label={t('source')} value={draft.source} onChange={(source) => onChange({ source })} />
+          <label className="grid gap-2 sm:col-span-2">
+            <span className="text-sm text-graphite">{t('note')}</span>
+            <textarea
+              className="min-h-24 rounded-md border border-line bg-white/50 p-3"
+              value={draft.note}
+              onChange={(event) => onChange({ note: event.target.value })}
+            />
+          </label>
         </div>
       )}
-
-      <Field
-        label={t('tags')}
-        value={draft.tags}
-        onChange={(tags) => onChange({ tags })}
-        placeholder={t('noiseTagsPlaceholder')}
-      />
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"

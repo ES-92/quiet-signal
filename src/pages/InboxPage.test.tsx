@@ -71,6 +71,48 @@ afterEach(() => {
 })
 
 describe('InboxPage', () => {
+  describe('Kopf', () => {
+    it('zeigt Titel, Klär-Frage und dann direkt den Stapel', async () => {
+      // Arrange
+      await seedInbox()
+
+      // Act
+      await renderInbox()
+      const card = await screen.findByRole('blockquote')
+
+      // Assert
+      const title = screen.getByRole('heading', { level: 1, name: en.noiseInboxTitle })
+      const question = screen.getByText(en.clarifyQuestion)
+      expect(title.previousElementSibling).toBeNull()
+      expect(title.compareDocumentPosition(question)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+      expect(question.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('hat keine doppelte Überschrift und keine Erklärtexte mehr', async () => {
+      // Arrange
+      await seedInbox()
+
+      // Act
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      expect(screen.getAllByRole('heading')).toHaveLength(1)
+      expect(screen.queryByText('Clarify noise')).not.toBeInTheDocument()
+      expect(screen.queryByText('Clarifying stack')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Capture raw thoughts, photos/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Work through raw moments one by one/)).not.toBeInTheDocument()
+    })
+
+    it('behält die Aktion „Rauschen erfassen“', async () => {
+      // Arrange / Act
+      await renderInbox()
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.openCapture })).toBeInTheDocument()
+    })
+  })
+
   it('zeigt die Klär-Frage im Kopf der Klären-Seite', async () => {
     // Arrange / Act
     await renderInbox()
@@ -251,7 +293,7 @@ describe('InboxPage', () => {
     await renderInbox()
     await screen.findByRole('blockquote')
     fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
-    fireEvent.change(await screen.findByLabelText(en.note), { target: { value: 'Mein Entwurf' } })
+    fireEvent.change(await screen.findByLabelText(en.firstThoughtLabel), { target: { value: 'Mein Entwurf' } })
 
     // Act
     await act(async () => {
@@ -259,7 +301,7 @@ describe('InboxPage', () => {
     })
 
     // Assert
-    expect(screen.getByLabelText(en.note)).toHaveValue('Mein Entwurf')
+    expect(screen.getByLabelText(en.firstThoughtLabel)).toHaveValue('Mein Entwurf')
   })
 
   it('schließt die Details und setzt den Entwurf zurück, wenn ein anderer Eintrag oben liegt', async () => {
@@ -329,31 +371,21 @@ describe('InboxPage', () => {
       // Assert
       expect(await screen.findByText(en.noiseSaved)).toBeInTheDocument()
       const saved = (await listQuotes()).find((quote) => quote.text === 'Neuer Gedanke')
-      expect(saved).toMatchObject({
-        status: 'inbox',
-        signalStrength: 'quiet',
-        entryType: 'note',
-        tags: ['eins', 'zwei']
-      })
+      expect(saved).toMatchObject({ status: 'inbox', tags: ['eins', 'zwei'] })
+      expect(saved?.signalStrength).toBeUndefined()
+      expect(saved?.entryType).toBeUndefined()
       expect(screen.getByPlaceholderText(en.noisePlaceholder)).toHaveValue('')
       expect(screen.getByPlaceholderText(en.noiseTagsPlaceholder)).toHaveValue('')
       expect(screen.getByRole('button', { name: en.captureNoise })).toBeDisabled()
     })
 
-    it('übernimmt die gewählte Signalstärke und setzt sie danach auf leise zurück', async () => {
+    it('bietet im Erfassen-Formular keine Signalstärke mehr an', async () => {
       // Arrange
       await renderInbox()
       const form = screen.getByRole('button', { name: en.captureNoise }).closest('form') as HTMLElement
-      fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: 'Stark' } })
-      fireEvent.click(within(form).getByRole('button', { name: en.signalStrength_strong }))
-
-      // Act
-      fireEvent.click(screen.getByRole('button', { name: en.captureNoise }))
 
       // Assert
-      await screen.findByText(en.noiseSaved)
-      expect((await listQuotes()).find((quote) => quote.text === 'Stark')?.signalStrength).toBe('strong')
-      expect(within(form).getByRole('button', { name: en.signalStrength_quiet }).className).toContain('bg-ink')
+      expect(within(form).queryByText(/signal strength/i)).not.toBeInTheDocument()
     })
   })
 
@@ -380,7 +412,6 @@ describe('InboxPage', () => {
       expect(screen.getByText('Eine Anmerkung')).toBeInTheDocument()
       expect(screen.getByText('"Mitte"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
       expect(screen.getByText('"Unten"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
-      expect(screen.getByText(en.entryType_note)).toBeInTheDocument()
     })
 
     it('zeigt für reine Foto- und Sprachnotizen einen Platzhaltertitel', async () => {
@@ -438,32 +469,85 @@ describe('InboxPage', () => {
       expect(screen.queryByLabelText(en.text)).not.toBeInTheDocument()
     })
 
-    it('zeigt Kontextfelder für Notizen und Buchfelder nur für Buchzitate', async () => {
+    it('zeigt Text, Autor, Tags und Ersten Gedanken sofort und versteckt die seltenen Felder', async () => {
+      // Arrange / Act
+      await openDetails()
+
+      // Assert
+      expect(screen.getByLabelText(en.text)).toBeInTheDocument()
+      expect(screen.getByLabelText(en.author)).toBeInTheDocument()
+      expect(screen.getByLabelText(en.tags)).toBeInTheDocument()
+      expect(screen.getByLabelText(en.firstThoughtLabel)).toBeInTheDocument()
+      for (const label of [en.people, en.occurredAt, en.work, en.year, en.note, en.source]) {
+        expect(screen.queryByLabelText(label)).not.toBeInTheDocument()
+      }
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    it('zeigt das Buch-Feld sofort, sobald Bücher vorhanden sind', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel', author: 'Die Autorin' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+
+      // Assert
+      expect(await screen.findByLabelText(en.book)).toBeInTheDocument()
+    })
+
+    it('blendet die seltenen Felder über „Mehr Details“ ein und wieder aus', async () => {
       // Arrange
       await openDetails()
 
-      // Assert (Notiz)
-      expect(screen.getByText(en.contextDetails)).toBeInTheDocument()
-      expect(screen.queryByText(en.bookDetails)).not.toBeInTheDocument()
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+
+      // Assert
+      for (const label of [en.people, en.occurredAt, en.work, en.year, en.note]) {
+        expect(screen.getByLabelText(label)).toBeInTheDocument()
+      }
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+      expect(screen.queryByLabelText(en.people)).not.toBeInTheDocument()
+    })
+
+    it.each([
+      ['Werk', { work: 'Walden' }, () => en.work, 'Walden'],
+      ['Jahr', { year: '1854' }, () => en.year, '1854'],
+      ['Beschreibung', { note: 'Etwas dazu' }, () => en.note, 'Etwas dazu'],
+      ['Personen', { people: ['Anna'] }, () => en.people, 'Anna'],
+      ['Datum', { occurredAt: '2026-03-04T09:30:00.000Z' }, () => en.occurredAt, '2026-03-04T10:30'],
+      ['Quelle', { source: 'Brief' }, () => en.source, 'Brief']
+    ])('öffnet „Mehr Details“ automatisch, wenn %s schon einen Wert hat', async (_name, fields, label, value) => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'w-1', text: 'Zitat', status: 'inbox', ...fields })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
 
       // Act
-      fireEvent.click(screen.getByRole('button', { name: en.entryType_book_quote }))
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
 
-      // Assert (Buchzitat)
-      expect(screen.getByText(en.bookDetails)).toBeInTheDocument()
-      expect(screen.queryByText(en.contextDetails)).not.toBeInTheDocument()
+      // Assert
+      expect(await screen.findByLabelText(label())).toHaveValue(value)
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'true')
+    })
 
-      // Act
-      fireEvent.click(screen.getByRole('button', { name: en.entryType_memory }))
+    it('bietet in den Details weder Art, Signalstärke noch Ort an', async () => {
+      // Arrange
+      await openDetails()
 
-      // Assert (Erinnerung)
-      expect(screen.queryByText(en.bookDetails)).not.toBeInTheDocument()
-      expect(screen.getByText(en.contextDetails)).toBeInTheDocument()
+      // Assert
+      const form = screen.getByLabelText(en.text).closest('div') as HTMLElement
+      expect(within(form).queryByText(/signal strength/i)).not.toBeInTheDocument()
+      expect(within(form).queryByText(/location/i)).not.toBeInTheDocument()
+      expect(form.querySelectorAll('button[aria-pressed]')).toHaveLength(0)
     })
 
     it('übernimmt Titel und Autor aus dem gewählten Buch', async () => {
       // Arrange
-      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox', entryType: 'book_quote' })])
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
       await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel', author: 'Die Autorin' })])
       await renderInbox()
       await screen.findByRole('blockquote')
@@ -473,25 +557,85 @@ describe('InboxPage', () => {
       fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
 
       // Assert
-      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
       expect(screen.getByLabelText(en.author)).toHaveValue('Die Autorin')
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
       expect(screen.getByRole('option', { name: 'Der Titel - Die Autorin' })).toBeInTheDocument()
+    })
+
+    it('lässt „Mehr Details“ zu, wenn die Buchwahl nur Werk mit dem Buchtitel füllt', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
+
+      // Act
+      fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.getByLabelText(en.author)).toBeInTheDocument()
+    })
+
+    it('behält die Überschriften-Reihenfolge h1, h2 auch mit geöffneten Details', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+
+      // Assert
+      const levels = screen.getAllByRole('heading').map((heading) => heading.tagName)
+      expect(levels).toEqual(['H1', 'H2'])
+    })
+
+    it('klappt „Mehr Details“ nach der Buchwahl per Klick ein und aus', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+      fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
     })
 
     it('speichert den bereinigten Entwurf beim Abschluss als Signal', async () => {
       // Arrange
       await upsertQuotes([
-        makeQuote({ id: 'f-1', text: 'Roh', status: 'inbox', nextReviewAt: '2026-02-01T09:00:00.000Z' })
+        makeQuote({
+          id: 'f-1',
+          text: 'Roh',
+          status: 'inbox',
+          nextReviewAt: '2026-02-01T09:00:00.000Z',
+          signalStrength: 'strong',
+          entryType: 'idea',
+          locationName: 'Eilenriede',
+          locationLatitude: 52.38,
+          locationLongitude: 9.76
+        })
       ])
       await renderInbox()
       await screen.findByRole('blockquote')
       fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
       fireEvent.change(await screen.findByLabelText(en.text), { target: { value: '  Fertig  ' } })
       fireEvent.change(screen.getByLabelText(en.tags), { target: { value: 'Gross, KLEIN' } })
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
       fireEvent.change(screen.getByLabelText(en.people), { target: { value: 'Anna,  Bob ' } })
       fireEvent.change(screen.getByLabelText(en.note), { target: { value: '   ' } })
       fireEvent.change(screen.getByLabelText(en.occurredAt), { target: { value: '2026-03-04T10:30' } })
-      fireEvent.click(lastButton(en.signalStrength_strong))
 
       // Act
       fireEvent.click(lastButton(en.finishSignal))
@@ -502,9 +646,16 @@ describe('InboxPage', () => {
       expect(saved).toMatchObject({
         text: 'Fertig',
         status: 'signal',
-        signalStrength: 'strong',
         tags: ['gross', 'klein'],
         people: ['Anna', 'Bob']
+      })
+      // Gespeicherte, nicht mehr bearbeitbare Werte bleiben unverändert erhalten.
+      expect(saved).toMatchObject({
+        signalStrength: 'strong',
+        entryType: 'idea',
+        locationName: 'Eilenriede',
+        locationLatitude: 52.38,
+        locationLongitude: 9.76
       })
       expect(saved?.note).toBeUndefined()
       expect(saved?.reviewIntervalDays).toBe(1)
@@ -520,6 +671,7 @@ describe('InboxPage', () => {
       await renderInbox()
       await screen.findByRole('blockquote')
       fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.click(await screen.findByRole('button', { name: en.moreDetails }))
       fireEvent.change(await screen.findByLabelText(en.note), { target: { value: 'Notiz dazu' } })
 
       // Act

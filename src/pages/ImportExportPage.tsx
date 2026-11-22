@@ -81,8 +81,7 @@ export function ImportExportPage() {
   return (
     <div className="grid gap-6 pt-3 sm:gap-8 sm:pt-10 lg:grid-cols-2">
       <section className="min-w-0">
-        <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('files')}</p>
-        <h1 className="mt-2 font-serif text-4xl leading-tight sm:text-5xl">{t('importExport')}</h1>
+        <h1 className="font-serif text-4xl leading-tight sm:text-5xl">{t('importExport')}</h1>
         <p className="mt-4 max-w-xl leading-7 text-graphite">{t('importExportIntro')}</p>
       </section>
       <section className="grid gap-5">

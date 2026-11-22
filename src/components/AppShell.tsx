@@ -1,4 +1,4 @@
-import { Heart, Loader2, Menu } from 'lucide-react'
+import { Loader2, Menu } from 'lucide-react'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
@@ -6,6 +6,7 @@ import { captureEventName, isCaptureMode, type CaptureMode } from '../services/c
 import { tapHaptic } from '../services/haptics'
 import { CommandDrawer } from './CommandDrawer'
 import { InstallPrompt } from './InstallPrompt'
+import { UpdateNotice } from './UpdateNotice'
 import { Onboarding } from './Onboarding'
 import { SupportSheet } from './SupportSheet'
 import { Toast } from './Toast'
@@ -110,19 +111,6 @@ export function AppShell() {
           </span>
         </NavLink>
         <div className="flex items-center gap-2">
-          {!isToday && (
-            <button
-              type="button"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper/70 text-graphite transition hover:border-ink/40 hover:text-ink"
-              onClick={() => {
-                tapHaptic(8)
-                setSupportOpen(true)
-              }}
-              aria-label={t('supportAriaLabel')}
-            >
-              <Heart size={18} />
-            </button>
-          )}
           <button
             type="button"
             className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper/70 text-graphite transition hover:border-ink/40 hover:text-ink"
@@ -137,6 +125,7 @@ export function AppShell() {
         </div>
       </header>
       <InstallPrompt />
+      <UpdateNotice />
       {isToday && (
         <>
           <div className="pointer-events-none fixed left-0 top-[32dvh] z-20 h-28 w-3 rounded-r-full border-y border-r border-line bg-paper/50 opacity-70 transition" />
@@ -155,7 +144,7 @@ export function AppShell() {
           <Outlet />
         </Suspense>
       </main>
-      <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onSupport={() => setSupportOpen(true)} />
       <ZeroCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} initialMode={captureMode} />
       <Onboarding />
       <Toast />

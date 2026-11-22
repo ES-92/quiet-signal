@@ -5,14 +5,26 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
 ### Added
+- Update notice (#43): the app registers its service worker itself and, once a new version has taken over, shows a calm, non-blocking "Neue Version da · Neu laden" notice below the header (never an automatic reload). While open it checks for updates every hour and whenever it becomes visible again.
+- Release notes for 0.4.0 in the "What's new" sheet (#43), and a documented release routine in CONTRIBUTING.md.
 - Signal lifecycle: a signal can be let go quiet (new status *Rest* / *Stille*) and woken again, restarting at a 1-day interval. Rested entries keep their thoughts and appear under a "Rest" filter in the library.
 - Dated thoughts on every signal (add, edit, delete), a resurfacing hint on cards, and "Keep as thought" to turn the former note into a dated thought (with undo).
 - "Browse anyway" on an empty daily stack: shuffles through all signals without changing any interval or due date.
 - Action bar on the Today deck (less often, thought, rest, more often) next to the swipe gestures; the gesture help page and onboarding now explain noise, signal and rest.
 - Age hint for noise that has been waiting unclarified for a week or more (never deleted automatically), a first-thought field and a clarifying question on the Clarify page.
+- Favourites (#35): a "Favoriten" tab first in the library (with its own empty state), a "Favoriten" entry in the tools drawer that opens it, a filled accent heart on library cards and a small heart on the Today card.
 
 ### Changed
+- Rückblick rebuilt around your thoughts (#38): "Was du gedacht hast" shows the thoughts written in the week/month as loose notes (newest first, weekday and the entry's author/book, tap opens the entry, "aus früherer Notiz" for adopted notes), with an empty hint for quiet periods. Below, a small tide strip (days, or weeks in the month view): dots above the line for →, a ring on days with a new thought, dots below for ↓, plus one line like „2 durften ruhen · 5 wolltest du öfter sehen“ (counting cards, not swipes). The month view labels each column with its days and the page rolls over at midnight. Markdown export now contains the period's thoughts with dates and their quote. The Today nudge counts the week's thoughts.
+- Activity log per entry (#38): →, ←, ↓, wake (also resting or waking via the edit form) and new thoughts are recorded inside the entry (encrypted with it under the vault, last 200 events); undo of →/←/↓ removes exactly the event it logged. JSON import/export carries it (validated, sorted, capped); CSV ignores it. Markdown export escapes thought and quote lines that would otherwise become headings, rules, lists or quotes.
+- Settings (#40): "Lokaler Zustand" is now two quiet notices that only appear when needed (no or overdue backup with a download action, no PIN/vault with a shortcut to the security section); a single version line ("Quiet Signal 0.3.0") closes the page.
+- Sample data (#40) moved from Settings to the empty states: Today (empty library) and Sammlung (empty collection) offer "Mit Beispielen ausprobieren".
+- One way to capture (#39): the "Eintrag erfassen" page is gone. `/add` now redirects to Today and opens the capture sheet; shortcuts, share target and the + button all start as noise. The detail page's edit form is unchanged.
+- Clarify details form (#39): shows Text, Autor, Buch, Tags and Erster Gedanke; Personen, Zeitpunkt, Werk, Jahr, Quelle and Beschreibung sit behind "Mehr Details", which opens by itself when one of them already has a value or gets one other than the picked book's title (picking a book alone keeps it closed).
+- A favourite never stays away longer than 30 days (#35): → and ← cap its interval at 30 days (← still at least 14), and marking an entry as favourite pulls a review further away than 30 days in to day 30. Resting and waking are unchanged. Older favourites whose stored date lies further away are treated as due 30 days after their last review (stored data is not rewritten).
 - Today gestures: → more often (interval ×1.5), ← less often (×4, at least 14 days), ↑ add a thought, ↓ let it rest; long-press opens the actions menu. Clarify gestures are unchanged.
 - Intervals are now adaptive per entry (`reviewIntervalDays`, 1 to 365 days) instead of a fixed table; the next review is set to 06:00 local time.
 - The daily stack shows only due signals and is no longer padded from the backlog, so it can be empty.
@@ -22,7 +34,13 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Dependency updates: React 19.3, Dexie 4.4.7, Zustand 5.1 and other minor/patch updates (#19); Vite 8 (#21); lucide-react 1.x (#22).
 
 ### Removed
+- Rückblick (#38): the generated letter, signal/noise count tiles, time pattern, top tag, tag and book lists, "Satz der Zeit" and "Als Signal speichern" (already saved reflections stay as entries).
+- Trim pass (#40): the Klären page shows only the title, the clarify question and the stack (no eyebrow, intro or duplicated "Rauschen klären / Klärungsstapel" header); Settings drops the "Lokaler Zustand" count tiles, "Datenschutz & Vertrauen", "Release-Status" and the sample-data panel; the support heart button leaves the page header (support stays in the tools drawer and Settings); decorative eyebrows above the page titles are gone.
 - The random daily mode and the `dailyMode` setting.
+- Unused weighting knobs (#34): signal strength, book frequency ("how often a book resurfaces"), entry kind ("Was ist es?") and location capture are gone from all forms, cards, detail pages, book pages, settings and the reflections ("Arten", "Orte"). They no longer influence the daily stack or the reflections' top signal. Likes and their score bonus stay.
+- The like counter with its minus button on library and book cards; the like count now shows quietly as "♥ N" on the detail page.
+- Existing stored values for strength, kind, location and book weight are kept untouched in rows and backups and pass through import/export unchanged; no schema change (merging duplicate books carries the strongest stored weight to the kept book).
+- Like and unlike buttons in the library and on the detail page: a like now only comes from swiping → on the Today deck (#34).
 
 ## [0.3.0] - 2026-11-20
 

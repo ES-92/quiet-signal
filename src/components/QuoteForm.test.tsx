@@ -17,32 +17,22 @@ beforeEach(async () => {
 })
 
 describe('QuoteForm', () => {
-  it('submits every field when creating a new entry', async () => {
+  it('shows the status select directly, outside the collapsed details block', () => {
     // Arrange
-    const onSubmit = vi.fn().mockResolvedValue(undefined)
-    renderWithProviders(<QuoteForm submitLabel="Go" onSubmit={onSubmit} />)
+    renderWithProviders(<QuoteForm quote={makeQuote({ id: 'q-1' })} submitLabel="Go" onSubmit={vi.fn()} />)
 
     // Act
-    fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neu' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+    const select = screen.getByLabelText(en.entryStatus)
 
     // Assert
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({
-      text: 'Neu',
-      tags: [],
-      favorite: false,
-      status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'note'
-    })
-    expect(Object.keys(onSubmit.mock.calls[0][0])).toEqual(expect.arrayContaining(['author', 'note', 'people', 'status']))
+    expect(select.closest('details')).toBeNull()
+    expect(screen.getByLabelText(en.author).closest('details')).not.toBeNull()
   })
 
   it('re-enables the save button when the submit fails', async () => {
     // Arrange
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
-    renderWithProviders(<QuoteForm submitLabel="Go" onSubmit={onSubmit} />)
+    renderWithProviders(<QuoteForm quote={makeQuote({ id: 'q-1', text: 'Alt' })} submitLabel="Go" onSubmit={onSubmit} />)
     fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neu' } })
 
     // Act
@@ -66,6 +56,31 @@ describe('QuoteForm', () => {
     // Assert
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit).toHaveBeenCalledWith({ tags: ['b'] })
+  })
+
+  it('zeigt weder Art, Signalstärke noch Ort und lässt gespeicherte Werte beim Bearbeiten unberührt', async () => {
+    // Arrange
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const quote = makeQuote({
+      id: 'q-1',
+      text: 'Alt',
+      signalStrength: 'strong',
+      entryType: 'idea',
+      locationName: 'Eilenriede',
+      locationLatitude: 52.38,
+      locationLongitude: 9.76
+    })
+    const { container } = renderWithProviders(<QuoteForm quote={quote} submitLabel="Go" onSubmit={onSubmit} />)
+
+    // Act
+    fireEvent.change(screen.getByLabelText(en.text), { target: { value: 'Neu' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+
+    // Assert
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit).toHaveBeenCalledWith({ text: 'Neu' })
+    expect(container.textContent).not.toMatch(/Eilenriede|Location|Signal strength/i)
+    expect(container.querySelectorAll('button[aria-pressed]')).toHaveLength(0)
   })
 
   it('still submits a cleared optional field as undefined', async () => {

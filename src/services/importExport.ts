@@ -2,6 +2,7 @@ import type { Quote, Thought } from '../types/quote'
 import type { Book } from '../types/book'
 import { normalizeTags } from '../db/database'
 import { csvEscape, parseCsv } from './csv'
+import { normalizeActivity } from './activity'
 
 type ImportRow = Partial<Quote> & {
   tags?: string[] | string
@@ -42,7 +43,8 @@ export function parseCsvImport(content: string): Quote[] {
     })
     // normalizeThoughts validates the parsed lines like the JSON path (ids are generated there).
     const thoughts = parseCsvThoughts(entry.thoughts ?? '') as unknown as Thought[] | undefined
-    return normalizeImportedQuote({ ...entry, thoughts })
+    // CSV carries no activity log; a stray "activity" column is ignored.
+    return { ...normalizeImportedQuote({ ...entry, thoughts }), activity: undefined }
   })
 }
 
@@ -84,8 +86,8 @@ export function exportCsv(quotes: Quote[]) {
       quote.favorite ? 'true' : 'false',
       String(quote.likes ?? 0),
       quote.status ?? 'signal',
-      quote.signalStrength ?? 'normal',
-      quote.entryType ?? 'note',
+      quote.signalStrength ?? '',
+      quote.entryType ?? '',
       quote.occurredAt ?? '',
       quote.people?.join(', ') ?? '',
       quote.locationName ?? '',
@@ -151,7 +153,7 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     favorite: row.favorite === true || String(row.favorite).toLowerCase() === 'true',
     likes: Number(row.likes ?? 0) || 0,
     status: row.status === 'inbox' || row.status === 'rest' ? row.status : 'signal',
-    signalStrength: row.signalStrength === 'quiet' || row.signalStrength === 'strong' ? row.signalStrength : 'normal',
+    signalStrength: row.signalStrength === 'quiet' || row.signalStrength === 'normal' || row.signalStrength === 'strong' ? row.signalStrength : undefined,
     entryType: normalizeEntryType(row.entryType),
     occurredAt: optional(row.occurredAt),
     people: Array.isArray(row.people) ? row.people : String(row.people ?? '').split(/[;,]/).map((person) => person.trim()).filter(Boolean),
@@ -164,7 +166,8 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     lastReviewedAt: optional(row.lastReviewedAt),
     nextReviewAt: optional(row.nextReviewAt),
     reviewIntervalDays: validReviewInterval(row.reviewIntervalDays),
-    thoughts: normalizeThoughts(row.thoughts)
+    thoughts: normalizeThoughts(row.thoughts),
+    activity: normalizeActivity(row.activity)
   }
 }
 
@@ -217,7 +220,7 @@ function normalizeThoughts(value: unknown): Thought[] | undefined {
 
 function normalizeImportedBook(row: BookImportRow): Book {
   const timestamp = new Date().toISOString()
-  const weight = row.weight === 'rare' || row.weight === 'often' ? row.weight : 'normal'
+  const weight = row.weight === 'rare' || row.weight === 'normal' || row.weight === 'often' ? row.weight : undefined
   const source = row.source === 'kindle' || row.source === 'readwise' ? row.source : 'manual'
 
   return {
@@ -268,8 +271,10 @@ function optionalNumber(value: unknown) {
 }
 
 function normalizeEntryType(value: unknown): Quote['entryType'] {
-  if (value === 'memory' || value === 'book_quote' || value === 'idea' || value === 'conversation' || value === 'observation') {
+  if (
+    value === 'note' || value === 'memory' || value === 'book_quote' || value === 'idea' || value === 'conversation' || value === 'observation'
+  ) {
     return value
   }
-  return 'note'
+  return undefined
 }

@@ -3,15 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { tapHaptic } from '../services/haptics'
 import type { ReviewSnapshot } from '../services/lifecycle'
-import type { Book } from '../types/book'
 import type { Quote } from '../types/quote'
-import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { dismissUndoToast, useToastStore } from '../store/useToastStore'
 
 interface TodayActionsInput {
   currentQuote: Quote | undefined
-  currentBook: Book | undefined
   browsing: boolean
   advanceIndex: () => void
   rewindTo: (id: string) => void
@@ -19,18 +16,14 @@ interface TodayActionsInput {
   showQuote: (id: string) => void
 }
 
-// Card actions of the daily deck (more/less often, rest with undo, thought, discard with undo, context menu, inline book editor).
-export function useTodayActions({ currentQuote, currentBook, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
+// Card actions of the daily deck (more/less often, rest with undo, thought, discard with undo, context menu).
+export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
   const { t, tCount } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
-  const { saveBook } = useBookStore()
+  const { toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, undoRest, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
   const [thoughtOpen, setThoughtOpen] = useState(false)
-  const [bookEditorOpen, setBookEditorOpen] = useState(false)
-  const [bookTitle, setBookTitle] = useState('')
-  const [bookAuthor, setBookAuthor] = useState('')
 
   // Close the card-level popups whenever a different card comes to the top (adjusting state while rendering, not in an effect).
   const currentQuoteId = currentQuote?.id
@@ -39,7 +32,6 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     setPopupQuoteId(currentQuoteId)
     setContextOpen(false)
     setThoughtOpen(false)
-    setBookEditorOpen(false)
   }
 
   // Counts deck actions, so an answer that arrives late can tell whether a newer action has taken over the toast slot.
@@ -128,9 +120,11 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     const id = currentQuote.id
     const previousSnooze = currentQuote.snoozedUntil
     beginDeckAction()
-    restQuote(id).catch(() => {
+    // The time of the logged rest event (null when resting failed), so the undo removes exactly that event.
+    const restedAt = restQuote(id).catch(() => {
       showQuote(id)
       showToast({ message: t('restFailed') })
+      return null
     })
     hideQuote(id)
     showToast({
@@ -138,11 +132,13 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
       actionLabel: t('undo'),
       onAction: () => {
         showQuote(id)
-        saveQuote(id, { status: 'signal', snoozedUntil: previousSnooze }).catch(() => {
-          // The undo did not persist: the card stays rested, so take it off the deck again.
-          hideQuote(id)
-          showToast({ message: t('saveFailed') })
-        })
+        restedAt
+          .then((at) => (at === null ? undefined : undoRest(id, previousSnooze, at)))
+          .catch(() => {
+            // The undo did not persist: the card stays rested, so take it off the deck again.
+            hideQuote(id)
+            showToast({ message: t('saveFailed') })
+          })
       }
     })
     // No advance: hiding the rested quote moves the next card into this slot.
@@ -175,8 +171,13 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   async function handleFavoriteToggle() {
     if (!currentQuote) return
     tapHaptic(10)
-    await saveQuote(currentQuote.id, { favorite: !currentQuote.favorite })
-    setContextOpen(false)
+    try {
+      await toggleFavorite(currentQuote.id)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    } finally {
+      setContextOpen(false)
+    }
   }
 
   function handleContextDiscard() {
@@ -193,35 +194,10 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     navigate(`/quote/${currentQuote.id}`)
   }
 
-  function openBookEditor() {
-    if (!currentBook) return
-    tapHaptic(8)
-    setBookTitle(currentBook.title)
-    setBookAuthor(currentBook.author ?? '')
-    setBookEditorOpen(true)
-    setContextOpen(false)
-  }
-
-  async function handleSaveBook() {
-    if (!currentBook || !bookTitle.trim()) return
-    tapHaptic([8, 28, 8])
-    await saveBook(currentBook.id, {
-      title: bookTitle.trim(),
-      author: bookAuthor.trim() || undefined
-    })
-    setBookEditorOpen(false)
-  }
-
   return {
     contextOpen,
     openContext: () => setContextOpen(true),
     closeContext: () => setContextOpen(false),
-    bookEditorOpen,
-    closeBookEditor: () => setBookEditorOpen(false),
-    bookTitle,
-    setBookTitle,
-    bookAuthor,
-    setBookAuthor,
     handleMoreOften,
     handleLessOften,
     handleRest,
@@ -230,8 +206,6 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
     closeThought: () => setThoughtOpen(false),
     handleFavoriteToggle,
     handleContextDiscard,
-    handleOpenDetails,
-    openBookEditor,
-    handleSaveBook
+    handleOpenDetails
   }
 }

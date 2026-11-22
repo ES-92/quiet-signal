@@ -5,17 +5,18 @@ import { BookCover } from '../components/BookCover'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EmptyState } from '../components/EmptyState'
 import { QuoteCard } from '../components/QuoteCard'
-import { WeightControl } from '../components/WeightControl'
 import { useI18n } from '../i18n/useI18n'
+import { useToastStore } from '../store/useToastStore'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 
 export function BookDetailPage() {
   const { t, tCount } = useI18n()
+  const { showToast } = useToastStore()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { books, loadBooks, saveBook, setWeight, removeBook } = useBookStore()
-  const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote } = useQuoteStore()
+  const { books, loadBooks, saveBook, removeBook } = useBookStore()
+  const { quotes, loadQuotes, toggleFavorite } = useQuoteStore()
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [savingBook, setSavingBook] = useState(false)
@@ -128,12 +129,6 @@ export function BookDetailPage() {
             <p className="text-sm leading-6 text-graphite sm:col-span-3">{bookMessage || t('bookEditHelp')}</p>
           </form>
 
-          <div className="mt-5 rounded-md border border-line bg-white/30 p-4">
-            <p className="text-sm uppercase tracking-[0.16em] text-graphite">{t('frequency')}</p>
-            <p className="mt-1 text-sm leading-6 text-graphite">{t('frequencyHelp')}</p>
-            <WeightControl className="mt-3" value={book.weight} onChange={(weight) => void setWeight(book.id, weight)} />
-          </div>
-
           <button
             className="mt-4 inline-flex items-center gap-2 rounded-md border border-clay px-3 py-2 text-sm text-clay"
             onClick={() => void handleDelete()}
@@ -150,9 +145,7 @@ export function BookDetailPage() {
               key={quote.id}
               quote={quote}
               compact
-              onFavorite={(quoteId) => void saveQuote(quoteId, { favorite: !quote.favorite })}
-              onLike={(quoteId) => void likeQuote(quoteId)}
-              onDislike={(quoteId) => void dislikeQuote(quoteId)}
+              onFavorite={(quoteId) => void toggleFavorite(quoteId).catch(() => showToast({ message: t('saveFailed') }))}
             />
           ))}
         </div>

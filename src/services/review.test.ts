@@ -279,12 +279,12 @@ describe('selectDailyStack – Determinismus', () => {
 })
 
 describe('selectDailyStack – Autoren-Dedupe', () => {
-  // strong (x1.38) und nie gelesen → Score ≥ 1380, normal ≤ 1180 (Zufall < 180): Reihenfolge ist deterministisch.
+  // Nie gelesen → Score ≥ 1000; 40 Tage her → 400–580; 5 Tage her → 50–230: Reihenfolge ist deterministisch.
   it('nimmt pro Autor nur ein Zitat, solange genug Alternativen existieren', () => {
     // Arrange
-    const first = makeQuote({ author: 'Seneca', signalStrength: 'strong' })
-    const second = makeQuote({ author: 'seneca ', signalStrength: 'normal' })
-    const other = makeQuote({ author: 'Epiktet', lastReviewedAt: inDays(-20), nextReviewAt: inDays(-1) })
+    const first = makeQuote({ author: 'Seneca' })
+    const second = makeQuote({ author: 'seneca ', lastReviewedAt: inDays(-40), nextReviewAt: inDays(-1) })
+    const other = makeQuote({ author: 'Epiktet', lastReviewedAt: inDays(-5), nextReviewAt: inDays(-1) })
 
     // Act
     const result = ids(selectDailyStack([first, second, other], { limit: 2 }))
@@ -293,36 +293,32 @@ describe('selectDailyStack – Autoren-Dedupe', () => {
     expect(result).toEqual([first.id, other.id])
   })
 
-  it("erlaubt mehrere Zitate desselben Autors bei Buchgewicht 'often'", () => {
-    // Arrange
-    const first = makeQuote({ author: 'Seneca', signalStrength: 'strong', bookId: 'b-often' })
-    const second = makeQuote({ author: 'Seneca', signalStrength: 'normal', bookId: 'b-often' })
-    const other = makeQuote({ author: 'Epiktet', lastReviewedAt: inDays(-20), nextReviewAt: inDays(-1) })
-
-    // Act
-    const result = ids(
-      selectDailyStack([first, second, other], {
-        limit: 2,
-        bookWeights: { 'b-often': 'often' }
-      })
-    )
-
-    // Assert
-    // Beide Seneca-Zitate liegen in einem 'often'-Buch und werden nicht dedupliziert.
-    // Die Dedupe-Ausnahme gilt je Kandidat, nicht für den Autor insgesamt.
-    expect(result).toEqual([first.id, second.id])
-  })
-
   it('füllt mit Autoren-Duplikaten auf, wenn sonst das limit nicht erreicht würde', () => {
     // Arrange
-    const first = makeQuote({ author: 'Seneca', signalStrength: 'strong' })
-    const second = makeQuote({ author: 'Seneca' })
+    const first = makeQuote({ author: 'Seneca' })
+    const second = makeQuote({ author: 'Seneca', lastReviewedAt: inDays(-40), nextReviewAt: inDays(-1) })
 
     // Act
     const result = ids(selectDailyStack([first, second], { limit: 2 }))
 
     // Assert
     expect(result).toEqual([first.id, second.id])
+  })
+})
+
+describe('selectDailyStack – gespeicherte Stärke', () => {
+  it('ignoriert eine gespeicherte Signalstärke bei der Auswahl', () => {
+    // Arrange
+    const strengths = ['strong', 'quiet', 'normal', 'strong', 'quiet', 'normal', undefined, 'strong'] as const
+    const plain = strengths.map((_, index) => makeQuote({ id: `q-${index}`, author: `Autor ${index}` }))
+    const withStrength = plain.map((quote, index) => ({ ...quote, signalStrength: strengths[index] }))
+
+    // Act
+    const expected = ids(selectDailyStack(plain, { limit: 8 }))
+    const result = ids(selectDailyStack(withStrength, { limit: 8 }))
+
+    // Assert
+    expect(result).toEqual(expected)
   })
 })
 
@@ -365,5 +361,35 @@ describe('selectDailyStack – Zeitzone um Mitternacht', () => {
 
     // Assert
     expect(result).toEqual([])
+  })
+})
+
+describe('selectDailyStack – Favoriten', () => {
+  it('bevorzugt Favoriten, wenn mehr Zitate fällig sind als angezeigt werden', () => {
+    // Arrange
+    const favorite = makeQuote({ author: 'A', favorite: true, lastReviewedAt: inDays(-20), nextReviewAt: inDays(-1) })
+    const others = Array.from({ length: 6 }, (_, index) =>
+      makeQuote({ author: `B${index}`, lastReviewedAt: inDays(-20), nextReviewAt: inDays(-1) })
+    )
+
+    // Act
+    const result = ids(selectDailyStack([...others, favorite], { limit: 3 }))
+
+    // Assert
+    expect(result).toContain(favorite.id)
+  })
+})
+
+describe('selectDailyStack – Favoriten mit weit entferntem Datum', () => {
+  it('holt einen alten Favoriten nach 30 Tagen seit der letzten Wiederholung wieder heraus', () => {
+    // Arrange
+    const legacy = makeQuote({ favorite: true, lastReviewedAt: inDays(-31), nextReviewAt: inDays(120) })
+    const plain = makeQuote({ lastReviewedAt: inDays(-31), nextReviewAt: inDays(120) })
+
+    // Act
+    const result = ids(selectDailyStack([legacy, plain], { limit: 5 }))
+
+    // Assert
+    expect(result).toEqual([legacy.id])
   })
 })

@@ -139,8 +139,6 @@ function withQuoteDefaults(quote: Quote): Quote {
     ...quote,
     likes: quote.likes ?? 0,
     status: quote.status ?? 'signal',
-    signalStrength: quote.signalStrength ?? 'normal',
-    entryType: quote.entryType ?? 'note',
     people: quote.people ?? []
   }
 }
@@ -196,8 +194,6 @@ async function insertQuote(input: QuoteInput) {
     favorite: input.favorite ?? false,
     likes: 0,
     status,
-    signalStrength: input.signalStrength ?? 'normal',
-    entryType: input.entryType ?? 'note',
     people: input.people ?? [],
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -346,7 +342,6 @@ async function insertBook(input: BookInput) {
     id: crypto.randomUUID(),
     title: input.title.trim(),
     author: input.author?.trim() || undefined,
-    weight: input.weight ?? 'normal',
     createdAt: timestamp,
     updatedAt: timestamp
   }

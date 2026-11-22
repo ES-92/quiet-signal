@@ -14,6 +14,69 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('Aktivitätsprotokoll im Import/Export', () => {
+  it('reicht activity im JSON-Rundlauf durch', () => {
+    // Arrange
+    const activity = [
+      { at: '2026-01-05T09:00:00.000Z', type: 'more' as const },
+      { at: '2026-01-06T09:00:00.000Z', type: 'thought' as const }
+    ]
+    const quote = makeQuote({ activity })
+
+    // Act
+    const [result] = parseJsonImport(exportJson([quote]))
+
+    // Assert
+    expect(result.activity).toEqual(activity)
+  })
+
+  it('verwirft ungültige Ereignisse und normalisiert Daten auf ISO', () => {
+    // Arrange
+    const content = JSON.stringify([
+      {
+        text: 'x',
+        activity: [
+          { at: '2026-01-05T10:00:00+01:00', type: 'rest' },
+          { at: 'nie', type: 'more' },
+          { at: '2026-01-05T10:00:00Z', type: 'like' },
+          'more'
+        ]
+      }
+    ])
+
+    // Act
+    const [result] = parseJsonImport(content)
+
+    // Assert
+    expect(result.activity).toEqual([{ at: '2026-01-05T09:00:00.000Z', type: 'rest' }])
+  })
+
+  it('begrenzt importierte Protokolle auf die letzten 200 Ereignisse', () => {
+    // Arrange
+    const activity = Array.from({ length: 205 }, (_, index) => ({ at: new Date(Date.UTC(2026, 0, 1, index)).toISOString(), type: 'less' }))
+
+    // Act
+    const [result] = parseJsonImport(JSON.stringify([{ text: 'x', activity }]))
+
+    // Assert
+    expect(result.activity).toHaveLength(200)
+    expect(result.activity?.[0].at).toBe(activity[5].at)
+  })
+
+  it('lässt activity im CSV-Export weg und ignoriert eine CSV-Spalte', () => {
+    // Arrange
+    const quote = makeQuote({ activity: [{ at: '2026-01-05T09:00:00.000Z', type: 'more' }] })
+
+    // Act
+    const csv = exportCsv([quote])
+    const [result] = parseCsvImport('text,activity\nZitat,more')
+
+    // Assert
+    expect(csv).not.toContain('activity')
+    expect(result.activity).toBeUndefined()
+  })
+})
+
 describe('Stille und Gedanken im Import/Export', () => {
   const thought = { id: 'th-1', text: 'Noch ein Gedanke', createdAt: '2026-01-05T09:00:00.000Z', fromNote: true }
 
@@ -251,6 +314,32 @@ describe('exportJson und parseJsonImportBundle', () => {
     expect(result.books).toEqual([book])
   })
 
+  it('reicht Stärke, Art, Ort und Buchgewicht im JSON-Roundtrip unverändert durch', () => {
+    // Arrange
+    const book = makeBook({ title: 'The Art of Quiet', weight: 'rare', source: 'kindle' })
+    const quotes = [
+      makeQuote({
+        bookId: book.id,
+        signalStrength: 'quiet',
+        entryType: 'observation',
+        locationName: 'Eilenriede',
+        locationLatitude: 52.38,
+        locationLongitude: 9.76,
+        people: []
+      }),
+      makeQuote({ signalStrength: 'normal', entryType: 'note', people: [] }),
+      makeQuote({ people: [] })
+    ]
+
+    // Act
+    const result = parseJsonImportBundle(exportJson(quotes, [book]))
+
+    // Assert
+    expect(result.quotes).toEqual(quotes)
+    expect(result.books).toEqual([book])
+    expect(result.quotes[2]).not.toHaveProperty('signalStrength', 'normal')
+  })
+
   it('importiert das aktuelle Backup inklusive Buch, Tags und Bild-Data-URL', () => {
     // Arrange
     const content = readFixture('backup-current.json')
@@ -325,10 +414,11 @@ describe('Legacy-Backup', () => {
     // Assert
     expect(quotes).toHaveLength(2)
     expect(books).toHaveLength(1)
-    expect(books[0]).toMatchObject({ id: 'b-legacy-1', title: 'Alte Notizen', weight: 'normal', source: 'manual' })
+    expect(books[0]).toMatchObject({ id: 'b-legacy-1', title: 'Alte Notizen', source: 'manual' })
+    expect(books[0].weight).toBeUndefined()
   })
 
-  it('hält die Ist-Werte der fehlenden Felder fest (status, signalStrength, entryType, people, likes)', () => {
+  it('ergänzt fehlende Felder (status, people, likes), erfindet aber keine Stärke und keine Art', () => {
     // Arrange
     const content = readFixture('backup-legacy.json')
 
@@ -339,15 +429,15 @@ describe('Legacy-Backup', () => {
     // Der Parser setzt selbst schon die Defaults; Task 6 prüft zusätzlich upsertQuotes + listQuotes.
     expect(quotes[0]).toMatchObject({
       status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'note',
       people: [],
       likes: 0,
       favorite: false,
       reviewCount: 0,
       tags: ['alt']
     })
-    expect(quotes[1]).toMatchObject({ status: 'signal', signalStrength: 'normal', entryType: 'note', people: [], likes: 0, favorite: true, reviewCount: 3 })
+    expect(quotes[1]).toMatchObject({ status: 'signal', people: [], likes: 0, favorite: true, reviewCount: 3 })
+    expect(quotes[0].signalStrength).toBeUndefined()
+    expect(quotes[0].entryType).toBeUndefined()
   })
 
   it('setzt fehlende Zeitstempel auf den aktuellen Zeitpunkt', () => {
@@ -676,8 +766,6 @@ describe('exportMarkdown', () => {
       "> Silence is not the absence of sound.
 
       - Jane Doe, The Art of Quiet, 2019
-
-      Type: note
 
       Tags: #stille #fokus
 

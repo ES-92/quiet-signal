@@ -25,7 +25,8 @@ describe('buildReadwiseCsvImport', () => {
     expect(plan.skippedCount).toBe(2) // Duplikat + Zeile ohne Titel
     expect(plan.bookCount).toBe(2)
     expect(plan.newBooks.map((b) => b.title)).toEqual(['The Art of Quiet', 'Notes on Signal'])
-    expect(plan.newBooks[0]).toMatchObject({ author: 'Jane Doe', source: 'readwise', weight: 'normal' })
+    expect(plan.newBooks[0]).toMatchObject({ author: 'Jane Doe', source: 'readwise' })
+    expect(plan.newBooks[0].weight).toBeUndefined()
     expect(plan.newQuotes[0]).toMatchObject({
       text: 'Silence is not the absence of sound.',
       author: 'Jane Doe',
@@ -33,8 +34,6 @@ describe('buildReadwiseCsvImport', () => {
       source: 'The Art of Quiet',
       bookId: plan.newBooks[0].id,
       status: 'signal',
-      signalStrength: 'normal',
-      entryType: 'book_quote',
       createdAt: '2025-03-03T09:15:00.000Z',
       updatedAt: '2025-03-03T09:15:00.000Z'
     })
