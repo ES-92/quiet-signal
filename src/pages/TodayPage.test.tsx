@@ -363,26 +363,6 @@ describe('TodayPage', () => {
     await waitFor(() => expect(useQuoteStore.getState().quotes.some((quote) => quote.status === 'rest')).toBe(true), SLOW)
   })
 
-  it('schließt den Buch-Editor, sobald eine andere Karte oben liegt', async () => {
-    // Arrange
-    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
-    await upsertQuotes([
-      makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' }),
-      makeQuote({ id: 't-2', text: 'Zwei', bookId: 'b-1' })
-    ])
-    await renderToday()
-    await screen.findByRole('blockquote')
-    await longPress()
-    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
-    expect(await screen.findByLabelText(en.bookTitleLabel)).toHaveValue('Das Buch')
-
-    // Act
-    removeFromStore(currentId())
-
-    // Assert
-    await waitFor(() => expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument())
-  })
-
   it('beginnt nach einem leeren Stapel wieder bei der ersten neuen Karte', async () => {
     // Arrange
     await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins' })])
@@ -549,48 +529,6 @@ describe('TodayPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(`/quote/${first}`)
   })
 
-  it('speichert Titel und Autor des Buchs über den Buch-Editor', async () => {
-    // Arrange
-    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
-    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
-    await renderToday()
-    await screen.findByRole('blockquote')
-    await longPress()
-    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
-    const title = await screen.findByLabelText(en.bookTitleLabel)
-
-    // Act
-    fireEvent.change(title, { target: { value: '  Neuer Titel ' } })
-    fireEvent.change(screen.getByLabelText(en.bookAuthorLabel), { target: { value: ' Autorin ' } })
-    fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
-
-    // Assert
-    await waitFor(() => expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument(), SLOW)
-    await waitFor(() => {
-      const book = useBookStore.getState().books[0]
-      expect(book?.title).toBe('Neuer Titel')
-      expect(book?.author).toBe('Autorin')
-    }, SLOW)
-  })
-
-  it('schließt den Buch-Editor ohne Speichern über Abbrechen', async () => {
-    // Arrange
-    await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
-    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
-    await renderToday()
-    await screen.findByRole('blockquote')
-    await longPress()
-    fireEvent.click(screen.getByRole('button', { name: en.editBookInline }))
-    fireEvent.change(await screen.findByLabelText(en.bookTitleLabel), { target: { value: 'Anders' } })
-
-    // Act
-    fireEvent.click(screen.getByRole('button', { name: en.cancel }))
-
-    // Assert
-    expect(screen.queryByLabelText(en.bookTitleLabel)).not.toBeInTheDocument()
-    expect(useBookStore.getState().books[0]?.title).toBe('Das Buch')
-  })
-
   it('zeigt den Reflexions-Hinweis ab drei Einträgen dieser Woche und öffnet die Reflexionen', async () => {
     // Arrange
     const now = new Date().toISOString()
@@ -620,7 +558,7 @@ describe('TodayPage', () => {
     expect(screen.queryByText(/swipe down for noise/i)).not.toBeInTheDocument()
   })
 
-  it('zeigt im Kontextmenü Favorit, Details, Buch bearbeiten und Löschen, aber nicht Später', async () => {
+  it('zeigt im Kontextmenü Favorit, Details und Löschen, aber weder Später noch Buch bearbeiten', async () => {
     // Arrange
     await upsertBooks([makeBook({ id: 'b-1', title: 'Das Buch' })])
     await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', bookId: 'b-1' })])
@@ -631,10 +569,11 @@ describe('TodayPage', () => {
     await longPress()
 
     // Assert
-    for (const name of [en.favorite, en.openDetails, en.editBookInline, en.deleteEntry]) {
+    for (const name of [en.favorite, en.openDetails, en.deleteEntry]) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: en.later })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit book|buch bearbeiten/i })).not.toBeInTheDocument()
   })
 
   describe('Aktionsleiste', () => {

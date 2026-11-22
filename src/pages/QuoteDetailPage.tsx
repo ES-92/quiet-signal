@@ -1,8 +1,9 @@
-import { BookMarked, Heart, Sun, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { BookMarked, Heart, Pencil, Sun, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
 import { ConfirmSheet } from '../components/ConfirmSheet'
+import { EntryInfoLine } from '../components/EntryInfoLine'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { QuoteForm } from '../components/QuoteForm'
 import { ThoughtList } from '../components/thoughts/ThoughtList'
@@ -15,7 +16,7 @@ import { useToastStore } from '../store/useToastStore'
 import { quoteStatus, type QuoteInput, type Thought } from '../types/quote'
 
 export function QuoteDetailPage() {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
   const { quotes, loadQuotes, saveQuote, toggleFavorite, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
@@ -23,20 +24,28 @@ export function QuoteDetailPage() {
   const { books, loadBooks } = useBookStore()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [thoughtSheetOpen, setThoughtSheetOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const editButtonRef = useRef<HTMLButtonElement>(null)
+  const editFormRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     void loadQuotes()
     void loadBooks()
   }, [loadQuotes, loadBooks])
 
+  // Opening the form moves focus to its first field.
+  useEffect(() => {
+    if (editing) editFormRef.current?.querySelector<HTMLElement>('textarea, input, select')?.focus()
+  }, [editing])
+
+  // Collapsing the form (toggle or saved) puts focus back on the button that opened it, so it is not lost with the removed form.
+  function closeEditing() {
+    setEditing(false)
+    editButtonRef.current?.focus()
+  }
+
   const quote = quotes.find((item) => item.id === id)
   const book = quote?.bookId ? books.find((item) => item.id === quote.bookId) : undefined
-  const statusLabels = {
-    inbox: 'entryStatus_inbox',
-    signal: 'entryStatus_signal',
-    rest: 'entryStatus_rest'
-  } as const
-
   if (!quote) {
     return (
       <div className="pt-10">
@@ -55,8 +64,8 @@ export function QuoteDetailPage() {
     // Moving between states (e.g. noise to signal) carries the matching schedule fields; only a status the user actually changed counts.
     const previous = useQuoteStore.getState().quotes.find((item) => item.id === id)
     const patch = changes.status && previous ? statusChangePatch(quoteStatus(previous), changes.status) : {}
-    // The form keeps its values on failure; the toast tells the user the save did not happen.
-    await attempt(() => saveQuote(id, { ...changes, ...patch }))
+    // The form keeps its values and stays open on failure; the toast tells the user the save did not happen. A saved form collapses.
+    if (await attempt(() => saveQuote(id, { ...changes, ...patch }))) closeEditing()
   }
 
   // Runs a store action and reports failure with a toast instead of an unhandled rejection.
@@ -116,7 +125,7 @@ export function QuoteDetailPage() {
   }
 
   return (
-    <div className="grid gap-6 pt-3 sm:gap-8 sm:pt-10 lg:grid-cols-[minmax(0,1fr)_25rem]">
+    <div className="grid max-w-3xl gap-6 pt-3 sm:gap-8 sm:pt-10">
       <section className="grid min-w-0 gap-5 sm:gap-6">
         <div className="min-w-0">
           <p className="text-sm uppercase tracking-[0.2em] text-graphite">{quote.imageDataUrl && !quote.text ? t('photoNote') : quote.audioDataUrl && !quote.text ? t('voiceNote') : t('quote')}</p>
@@ -131,11 +140,6 @@ export function QuoteDetailPage() {
             <h1 className="mt-3 break-words font-serif text-3xl leading-tight sm:text-5xl">{quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}</h1>
           )}
           <p className="mt-4 text-graphite">{[quote.author, quote.work, quote.year].filter(Boolean).join(', ')}</p>
-          {quote.likes > 0 && (
-            <p className="mt-2 text-sm tabular-nums text-graphite" title={t('likesLabel')} aria-label={`${t('likesLabel')}: ${quote.likes}`}>
-              ♥ {quote.likes}
-            </p>
-          )}
           {book && (
             <Link
               to={`/books/${book.id}`}
@@ -179,12 +183,7 @@ export function QuoteDetailPage() {
             {t('addThought')}
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-sm text-graphite">
-          <Metric label={t('favorite')} value={quote.favorite ? t('yes') : t('no')} />
-          <Metric label={t('entryStatus')} value={t(statusLabels[quoteStatus(quote)])} />
-          {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString(locale)} />}
-          {quote.people?.length ? <Metric label={t('people')} value={quote.people.join(', ')} /> : null}
-        </div>
+        <EntryInfoLine quote={quote} />
         <div className="flex flex-wrap items-center gap-2">
           {quoteStatus(quote) === 'rest' && (
             <button
@@ -204,14 +203,22 @@ export function QuoteDetailPage() {
           <button className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-clay px-3 py-2 text-sm text-clay" onClick={() => void handleDelete()}>
             <Trash2 size={16} /> {t('delete')}
           </button>
+          <button
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
+            aria-expanded={editing}
+            aria-controls={editing ? 'quote-edit-form' : undefined}
+            ref={editButtonRef}
+            onClick={() => (editing ? closeEditing() : setEditing(true))}
+          >
+            <Pencil size={16} /> {t('edit')}
+          </button>
         </div>
       </section>
-      <aside className="rounded-md border border-line bg-white/30 p-5">
-        <h2 className="font-serif text-3xl">{t('edit')}</h2>
-        <div className="mt-5">
+      {editing && (
+        <section id="quote-edit-form" ref={editFormRef} className="rounded-md border border-line bg-white/30 p-5">
           <QuoteForm quote={quote} submitLabel={t('saveChanges')} onSubmit={handleSubmit} />
-        </div>
-      </aside>
+        </section>
+      )}
       {thoughtSheetOpen && <ThoughtSheet thoughts={sortedThoughts} onSave={saveThought} onClose={() => setThoughtSheetOpen(false)} />}
       <ConfirmSheet
         open={deleteConfirmOpen}
@@ -222,15 +229,6 @@ export function QuoteDetailPage() {
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={confirmDeleteQuote}
       />
-    </div>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-line bg-white/30 p-3">
-      <p className="text-xs uppercase tracking-[0.16em]">{label}</p>
-      <p className="mt-2 text-ink">{value}</p>
     </div>
   )
 }

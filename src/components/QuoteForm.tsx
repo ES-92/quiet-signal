@@ -198,6 +198,18 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
           className="min-h-28 rounded-md border border-line bg-white/50 p-3"
         />
       </label>
+      <label className="grid gap-2">
+        <span className="text-sm text-graphite">{t('entryStatus')}</span>
+        <select
+          value={status}
+          onChange={(event) => setStatus(event.target.value as QuoteInput['status'])}
+          className="rounded-md border border-line bg-white/50 px-3 py-3"
+        >
+          <option value="inbox">{t('entryStatus_inbox')}</option>
+          <option value="signal">{t('entryStatus_signal')}</option>
+          <option value="rest">{t('entryStatus_rest')}</option>
+        </select>
+      </label>
       <details className="rounded-md border border-line bg-white/30 p-4">
         <summary className="cursor-pointer font-serif text-xl sm:text-2xl">{t('details')}</summary>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -232,18 +244,6 @@ export function QuoteForm({ quote, onSubmit, submitLabel, defaultStatus = 'signa
             />
           </label>
           <Field label={t('people')} value={people} onChange={setPeople} placeholder={t('peoplePlaceholder')} />
-          <label className="grid gap-2 sm:col-span-2">
-            <span className="text-sm text-graphite">{t('entryStatus')}</span>
-            <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value as QuoteInput['status'])}
-              className="rounded-md border border-line bg-white/50 px-3 py-3"
-            >
-              <option value="inbox">{t('entryStatus_inbox')}</option>
-              <option value="signal">{t('entryStatus_signal')}</option>
-              <option value="rest">{t('entryStatus_rest')}</option>
-            </select>
-          </label>
         </div>
       </details>
       <label className="flex items-center gap-3 text-sm text-graphite">

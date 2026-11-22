@@ -84,7 +84,6 @@ export function useDailySession() {
   const visitHadCards = browseIds ? browseIds.length > 0 : sessionQuoteIds.length > 0
   // A used-up browse deck keeps its list (so undoing the rest of its last card brings the card back); without a card it is not
   // "browsing" any more and the page shows the finished state, where "browse anyway" starts a new round.
-  const currentBook = currentQuote?.bookId ? books.find((book) => book.id === currentQuote.bookId) : undefined
 
   return {
     loading,
@@ -93,7 +92,6 @@ export function useDailySession() {
     currentQuote,
     nextQuote: dailyQuotes[currentIndex + 1],
     thirdQuote: dailyQuotes[currentIndex + 2],
-    currentBook,
     stackCompleted: visitHadCards && !currentQuote,
     reflectionCount: weeklyReflection.entries.length,
     showReflectionNudge: weeklyReflection.entries.length >= 3,

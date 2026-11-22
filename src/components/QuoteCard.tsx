@@ -1,6 +1,7 @@
-import { BookOpen, Clock, ExternalLink, Heart, Sun, UserRound } from 'lucide-react'
+import { BookOpen, Clock, Clock3, ExternalLink, Heart, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
+import { dueInDays, formatDueIn, overdueDays } from '../services/dueLabel'
 import { quoteStatus, type Quote } from '../types/quote'
 import { AudioPlayer } from './AudioRecorder'
 import { PhotoPreview } from './PhotoCapture'
@@ -15,9 +16,23 @@ interface QuoteCardProps {
 }
 
 export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact = false }: QuoteCardProps) {
-  const { t } = useI18n()
+  const { t, tCount, locale } = useI18n()
   const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
   const status = quoteStatus(quote)
+  const thoughtCount = quote.thoughts?.length ?? 0
+  // When it comes back: short and relative. Unsorted entries have no schedule yet, so they show no time.
+  const now = new Date()
+  type Fact = { text: string; label?: string }
+  const thoughts: Fact | undefined = thoughtCount > 0 ? { text: tCount('cardThoughts', thoughtCount) } : undefined
+  let comesBack: Fact | undefined
+  if (status === 'rest') {
+    comesBack = { text: t('cardResting') }
+  } else if (status === 'signal') {
+    const text = overdueDays(quote, now) > 0 ? t('cardOverdue') : formatDueIn(dueInDays(quote, now), locale)
+    // The clock icon and a spoken prefix tell that this is the return time, not just a bare "in 2 days".
+    comesBack = { text, label: t('cardComesBack', { when: text }) }
+  }
+  const facts = [thoughts, comesBack].filter((fact): fact is Fact => fact !== undefined)
 
   return (
     <article className="classical-panel min-w-0 rounded-md p-4 sm:p-6">
@@ -47,17 +62,26 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact 
         </div>
       )}
       {meta && <p className="mt-4 text-sm text-graphite">{meta}</p>}
+      {facts.length > 0 && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-graphite">
+          {facts.map((fact, index) => (
+            <span key={index} className="inline-flex items-center gap-2">
+              {index > 0 && <span aria-hidden="true">·</span>}
+              {fact.label ? (
+                <span role="img" aria-label={fact.label} className="inline-flex items-center gap-1">
+                  <Clock3 size={14} aria-hidden="true" /> {fact.text}
+                </span>
+              ) : (
+                fact.text
+              )}
+            </span>
+          ))}
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap gap-2">
-        {status !== 'signal' && (
-          <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">
-            {status === 'inbox' ? t('entryStatus_inbox') : t('entryStatus_rest')}
-          </span>
+        {status === 'inbox' && (
+          <span className="rounded border border-clay/60 px-2 py-1 text-xs text-clay">{t('entryStatus_inbox')}</span>
         )}
-        {quote.people?.slice(0, 2).map((person) => (
-          <span key={person} className="inline-flex items-center gap-1 rounded border border-line px-2 py-1 text-xs text-graphite">
-            <UserRound size={12} /> {person}
-          </span>
-        ))}
         {quote.tags.map((tag) => (
           <span key={tag} className="rounded border border-line px-2 py-1 text-xs text-graphite">
             {tag}
