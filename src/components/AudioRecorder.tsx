@@ -13,6 +13,8 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
   const recorderRef = useRef<MediaRecorder | null>(null)
   const startedAtRef = useRef(0)
   const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
+  const unmountedRef = useRef(false)
   const [recording, setRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState('')
@@ -25,6 +27,30 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
     return () => window.clearInterval(interval)
   }, [recording])
 
+  // Closing the sheet mid-recording must release the microphone: stop the recorder without saving and stop
+  // every track. A stream that arrives after unmount is released in startRecording.
+  useEffect(() => {
+    unmountedRef.current = false
+    return () => {
+      unmountedRef.current = true
+      const recorder = recorderRef.current
+      recorderRef.current = null
+      if (recorder) {
+        recorder.ondataavailable = null
+        recorder.onstop = null
+        if (recorder.state !== 'inactive') {
+          try {
+            recorder.stop()
+          } catch {
+            // Already stopped.
+          }
+        }
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+  }, [])
+
   async function startRecording() {
     setError('')
 
@@ -35,6 +61,11 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (unmountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
+      streamRef.current = stream
       chunksRef.current = []
       const recorder = new MediaRecorder(stream)
       recorderRef.current = recorder
@@ -47,6 +78,7 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop())
+        if (streamRef.current === stream) streamRef.current = null
         const mimeType = recorder.mimeType || 'audio/webm'
         const blob = new Blob(chunksRef.current, { type: mimeType })
         const dataUrl = await blobToDataUrl(blob)
@@ -57,6 +89,8 @@ export function AudioRecorder({ audioDataUrl, onChange }: AudioRecorderProps) {
       tapHaptic(10)
       setRecording(true)
     } catch {
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
       setError(t('microphoneDenied'))
     }
   }
