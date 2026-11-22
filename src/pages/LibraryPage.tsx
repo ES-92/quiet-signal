@@ -11,8 +11,8 @@ import { quoteStatus } from '../types/quote'
 type LibraryView = 'signal' | 'rest' | 'all'
 
 export function LibraryPage() {
-  const { t } = useI18n()
-  const { quotes, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
+  const { t, tCount } = useI18n()
+  const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [view, setView] = useState<LibraryView>('signal')
   const { showToast } = useToastStore()
@@ -49,7 +49,9 @@ export function LibraryPage() {
           <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('archive')}</p>
           <h1 className="mt-2 truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
         </div>
-        <p className="text-sm text-graphite">{t('countOfQuotes', { shown: results.length, total: viewQuotes.length })}</p>
+        {viewQuotes.length > 0 && (
+          <p className="text-sm text-graphite">{tCount('countOfQuotes', viewQuotes.length, { shown: results.length, total: viewQuotes.length })}</p>
+        )}
       </section>
 
       <div className="flex gap-2" role="group" aria-label={t('library')}>
@@ -130,6 +132,13 @@ export function LibraryPage() {
             />
           ))}
         </div>
+      ) : loading && quotes.length === 0 ? (
+        // Cold load: the empty state would claim there is nothing yet while the library is still being read.
+        <p className="py-10 text-center text-graphite">{t('loadingLibrary')}</p>
+      ) : viewQuotes.length === 0 ? (
+        <EmptyState title={view === 'rest' ? t('emptyRestTitle') : t('emptyCollectionTitle')}>
+          {view === 'rest' ? t('emptyRestBody') : t('emptyCollectionBody')}
+        </EmptyState>
       ) : (
         <EmptyState title={t('noMatches')}>
           {t('noMatchesBody')}

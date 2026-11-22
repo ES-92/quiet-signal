@@ -11,7 +11,7 @@ import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 
 export function BookDetailPage() {
-  const { t } = useI18n()
+  const { t, tCount } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
   const { books, loadBooks, saveBook, setWeight, removeBook } = useBookStore()
@@ -100,7 +100,7 @@ export function BookDetailPage() {
             )}
           </div>
           {book.author && <p className="mt-2 text-lg text-graphite">{book.author}</p>}
-          <p className="mt-1 text-sm text-graphite">{count === 1 ? t('oneQuote') : t('quotesCount', { count })}</p>
+          <p className="mt-1 text-sm text-graphite">{tCount('quotesCount', count)}</p>
 
           <form className="mt-5 grid gap-3 rounded-md border border-line bg-white/30 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end" onSubmit={(event) => void handleSaveBook(event)}>
             <label className="grid gap-2">

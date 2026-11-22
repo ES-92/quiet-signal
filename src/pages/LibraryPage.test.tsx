@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -31,6 +31,20 @@ beforeEach(async () => {
 })
 
 describe('LibraryPage', () => {
+  it('shows the loading state instead of the empty state while the library is still loading', () => {
+    // Arrange
+    const loadQuotes = useQuoteStore.getState().loadQuotes
+    useQuoteStore.setState({ quotes: [], loading: true, loadQuotes: vi.fn().mockResolvedValue(undefined) })
+
+    // Act
+    renderWithProviders(<LibraryPage />)
+
+    // Assert
+    expect(screen.getByText(en.loadingLibrary)).toBeInTheDocument()
+    expect(screen.queryByText(en.emptyCollectionTitle)).not.toBeInTheDocument()
+    useQuoteStore.setState({ loadQuotes })
+  })
+
   it('shows only signals by default', async () => {
     // Arrange / Act
     await renderLibrary()
@@ -114,5 +128,44 @@ describe('LibraryPage', () => {
     // Assert
     await waitFor(() => expect(screen.queryByText('"Signaltext"')).not.toBeInTheDocument())
     expect(screen.getByText('"Stilletext"')).toBeInTheDocument()
+  })
+
+  it('zeigt bei leerer Sammlung die Leer-Meldung statt "Keine Treffer" und keinen 0-von-0-Zähler', async () => {
+    // Arrange
+    await db.quotes.clear()
+
+    // Act
+    await renderLibrary()
+
+    // Assert
+    expect(await screen.findByText(en.emptyCollectionTitle)).toBeInTheDocument()
+    expect(screen.queryByText(en.noMatches)).not.toBeInTheDocument()
+    expect(screen.queryByText(/0 of 0/)).not.toBeInTheDocument()
+  })
+
+  it('zeigt in der leeren Stille-Ansicht die Stille-Meldung', async () => {
+    // Arrange
+    await db.quotes.update('l-2', { status: 'signal' })
+    await renderLibrary()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.libraryViewRest }))
+
+    // Assert
+    expect(await screen.findByText(en.emptyRestTitle)).toBeInTheDocument()
+    expect(screen.queryByText(en.noMatches)).not.toBeInTheDocument()
+  })
+
+  it('behält "Keine Treffer", wenn Suche oder Filter nichts finden', async () => {
+    // Arrange
+    await renderLibrary()
+    await screen.findByText('"Signaltext"')
+
+    // Act
+    fireEvent.change(screen.getAllByPlaceholderText(en.searchPlaceholder)[0], { target: { value: 'gibtesnicht' } })
+
+    // Assert
+    expect(await screen.findByText(en.noMatches)).toBeInTheDocument()
+    expect(screen.queryByText(en.emptyCollectionTitle)).not.toBeInTheDocument()
   })
 })

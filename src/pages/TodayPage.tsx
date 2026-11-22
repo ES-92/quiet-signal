@@ -28,6 +28,7 @@ export function TodayPage() {
     currentBook,
     browsing: session.browsing,
     advanceIndex: session.advanceIndex,
+    rewindTo: session.rewindTo,
     hideQuote: session.hideQuote,
     showQuote: session.showQuote
   })

@@ -1,6 +1,6 @@
 import type { TranslationKey } from '../i18n/translations'
 
-export const APP_VERSION = '0.3.0'
+export const APP_VERSION = __APP_VERSION__
 
 const versionKey = 'quiet-signal-last-seen-version'
 
@@ -39,7 +39,7 @@ export function notesSince(seen: string | null): ReleaseNote[] {
   return releaseNotes.filter((note) => compareVersions(note.version, seen) > 0)
 }
 
-function compareVersions(a: string, b: string) {
+export function compareVersions(a: string, b: string) {
   const pa = a.split('.').map(Number)
   const pb = b.split('.').map(Number)
   for (let index = 0; index < Math.max(pa.length, pb.length); index += 1) {

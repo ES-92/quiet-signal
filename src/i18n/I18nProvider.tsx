@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { I18nContext, type I18nContextValue } from './useI18n'
+import { localeFor, pluralKey } from './plural'
 import { defaultLanguage, languages, translations, type LanguageCode } from './translations'
 
 const storageKey = 'quiet-signal-language'
@@ -13,11 +14,17 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [language])
 
   const value = useMemo<I18nContextValue>(
-    () => ({
-      language,
-      setLanguage: setLanguageState,
-      t: (key, values) => interpolate(translations[language][key] ?? translations.en[key], values)
-    }),
+    () => {
+      const t: I18nContextValue['t'] = (key, values) =>
+        interpolate(translations[language][key] ?? translations.en[key], values)
+      return {
+        language,
+        locale: localeFor(language),
+        setLanguage: setLanguageState,
+        t,
+        tCount: (key, count, values) => t(pluralKey(language, key, count), { count, ...values })
+      }
+    },
     [language]
   )
 

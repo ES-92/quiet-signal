@@ -4,6 +4,7 @@ import { selectBrowseStack, selectDailyStack, type BookWeightMap } from '../serv
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 import { useSettingsStore } from '../store/useSettingsStore'
+import { dismissUndoToast } from '../store/useToastStore'
 import { quoteStatus, type Quote } from '../types/quote'
 import { localDateKey } from '../utils/date'
 
@@ -20,7 +21,7 @@ export function useDailySession() {
   const [browseIds, setBrowseIds] = useState<string[] | null>(null)
   const [browseRound, setBrowseRound] = useState(0)
   // Position in the daily deck while browsing, so "done" returns to where the visit was.
-  const dailyIndexBeforeBrowse = useRef(0)
+  const [dailyIndexBeforeBrowse, setDailyIndexBeforeBrowse] = useState(0)
 
   // Original deck position of each hidden card, so undo can put it back after the reload dropped its id.
   const hiddenPositions = useRef(new Map<string, number>())
@@ -74,12 +75,20 @@ export function useDailySession() {
     [quotes]
   )
 
+  // Latest deck for callbacks that outlive a render (undo toasts).
+  const dailyQuotesRef = useRef(dailyQuotes)
+  useEffect(() => {
+    dailyQuotesRef.current = dailyQuotes
+  })
+
   if (index > dailyQuotes.length) setIndex(dailyQuotes.length)
 
   const currentIndex = Math.min(index, dailyQuotes.length)
   const currentQuote = dailyQuotes[currentIndex]
   // The visit had cards (also when all were rested or deleted since), so an empty deck means "finished", not "nothing due".
   const visitHadCards = browseIds ? browseIds.length > 0 : sessionQuoteIds.length > 0
+  // A used-up browse deck keeps its list (so undoing the rest of its last card brings the card back); without a card it is not
+  // "browsing" any more and the page shows the finished state, where "browse anyway" starts a new round.
   const currentBook = currentQuote?.bookId ? books.find((book) => book.id === currentQuote.bookId) : undefined
 
   return {
@@ -95,10 +104,11 @@ export function useDailySession() {
     showReflectionNudge: weeklyReflection.entries.length >= 3,
     inboxCount,
     hasSignals,
-    browsing: browseIds !== null,
+    browsing: browseIds !== null && Boolean(currentQuote),
     startBrowsing: () => {
+      dismissUndoToast()
       const round = browseRound + 1
-      if (browseIds === null) dailyIndexBeforeBrowse.current = index
+      if (browseIds === null) setDailyIndexBeforeBrowse(index)
       setBrowseRound(round)
       setBrowseIds(
         selectBrowseStack(quotes, { limit: dailyCount, seed: `${localDateKey(new Date())}:browse:${round}` }).map(
@@ -108,10 +118,16 @@ export function useDailySession() {
       setIndex(0)
     },
     stopBrowsing: () => {
+      dismissUndoToast()
       setBrowseIds(null)
-      setIndex(dailyIndexBeforeBrowse.current)
+      setIndex(dailyIndexBeforeBrowse)
     },
     advanceIndex: () => setIndex((value) => Math.min(value + 1, dailyQuotes.length)),
+    // Puts the card with this id on top again; a card that is not in the current deck leaves the position alone.
+    rewindTo: (id: string) => {
+      const position = dailyQuotesRef.current.findIndex((quote) => quote.id === id)
+      if (position >= 0) setIndex(position)
+    },
     hideQuote: (id: string) => {
       const position = sessionQuoteIds.indexOf(id)
       if (!browseIds && position >= 0) hiddenPositions.current.set(id, position)

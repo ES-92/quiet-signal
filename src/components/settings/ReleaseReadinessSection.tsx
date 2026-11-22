@@ -1,4 +1,5 @@
 import { useI18n } from '../../i18n/useI18n'
+import { APP_VERSION } from '../../services/release'
 import { Panel } from './Panel'
 
 export function ReleaseReadinessSection() {
@@ -8,7 +9,7 @@ export function ReleaseReadinessSection() {
     <Panel title={t('releaseReadiness')}>
       <p className="text-sm leading-6 text-graphite">{t('releaseReadinessBody')}</p>
       <div className="mt-4 grid gap-2">
-        <ReleaseFact label={t('releaseVersionLabel')} value={t('releaseVersionValue')} />
+        <ReleaseFact label={t('releaseVersionLabel')} value={t('releaseVersionValue', { version: APP_VERSION })} />
         <ReleaseFact label={t('releaseStorageLabel')} value={t('releaseStorageValue')} />
         <ReleaseFact label={t('releaseBackupLabel')} value={t('releaseBackupValue')} />
       </div>

@@ -8,7 +8,15 @@ import {
   updateQuote,
   upsertQuotes
 } from '../db/database'
-import { lessOftenPatch, moreOftenPatch, restPatch, wakePatch } from '../services/lifecycle'
+import {
+  lessOftenPatch,
+  moreOftenPatch,
+  restoreReviewPatch,
+  restPatch,
+  reviewSnapshot,
+  wakePatch,
+  type ReviewSnapshot
+} from '../services/lifecycle'
 import { nextMorningISO } from '../services/review'
 import {
   addThoughtPatch,
@@ -35,8 +43,10 @@ interface QuoteStore {
   dislikeQuote: (id: string) => Promise<void>
   removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
-  moreOften: (id: string) => Promise<number | undefined>
-  lessOften: (id: string) => Promise<number | undefined>
+  // onPrevious receives the review values of the row the change was actually applied to (for an undo).
+  moreOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
+  lessOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
+  restoreReview: (id: string, previous: ReviewSnapshot) => Promise<void>
   restQuote: (id: string) => Promise<void>
   wakeQuote: (id: string) => Promise<void>
   addThought: (id: string, text: string) => Promise<void>
@@ -109,17 +119,28 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     await updateQuote(id, { snoozedUntil: nextMorningISO() })
     await get().loadQuotes()
   },
-  moreOften: async (id) => {
+  moreOften: async (id, onPrevious) => {
     if (!get().quotes.some((item) => item.id === id)) return undefined
-    const updated = await updateQuote(id, (current) => moreOftenPatch(current))
+    const updated = await updateQuote(id, (current) => {
+      onPrevious?.(reviewSnapshot(current))
+      return moreOftenPatch(current)
+    })
     await get().loadQuotes()
     return updated?.reviewIntervalDays
   },
-  lessOften: async (id) => {
+  lessOften: async (id, onPrevious) => {
     if (!get().quotes.some((item) => item.id === id)) return undefined
-    const updated = await updateQuote(id, (current) => lessOftenPatch(current))
+    const updated = await updateQuote(id, (current) => {
+      onPrevious?.(reviewSnapshot(current))
+      return lessOftenPatch(current)
+    })
     await get().loadQuotes()
     return updated?.reviewIntervalDays
+  },
+  restoreReview: async (id, previous) => {
+    if (!get().quotes.some((item) => item.id === id)) return
+    await updateQuote(id, () => restoreReviewPatch(previous))
+    await get().loadQuotes()
   },
   restQuote: async (id) => {
     if (!get().quotes.some((item) => item.id === id)) return

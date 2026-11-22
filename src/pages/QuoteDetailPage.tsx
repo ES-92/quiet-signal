@@ -16,7 +16,7 @@ import { useToastStore } from '../store/useToastStore'
 import { entryType, quoteStatus, signalStrength, type QuoteInput, type Thought } from '../types/quote'
 
 export function QuoteDetailPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
   const { quotes, loadQuotes, saveQuote, likeQuote, dislikeQuote, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
@@ -194,7 +194,7 @@ export function QuoteDetailPage() {
           <Metric label={t('entryKind')} value={t(typeLabels[entryType(quote)])} />
           <Metric label={t('entryStatus')} value={t(statusLabels[quoteStatus(quote)])} />
           <Metric label={t('signalStrength')} value={t(strengthLabels[signalStrength(quote)])} />
-          {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString()} />}
+          {quote.occurredAt && <Metric label={t('occurredAt')} value={new Date(quote.occurredAt).toLocaleString(locale)} />}
           {quote.locationName && <Metric label={t('locationLabel')} value={quote.locationName} />}
           {quote.people?.length ? <Metric label={t('people')} value={quote.people.join(', ')} /> : null}
         </div>

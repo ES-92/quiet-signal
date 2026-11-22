@@ -78,4 +78,20 @@ describe('TrashPage', () => {
     expect(await screen.findByText(en.trashEmptyTitle)).toBeInTheDocument()
     expect(await listTrashed()).toHaveLength(0)
   })
+
+  it('stapelt den Leeren-Button unter den Einleitungstext und ordnet ihn ab sm nebeneinander an', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ text: 'Gelöscht', deletedAt: DELETED_AT })])
+
+    // Act
+    renderWithProviders(<TrashPage />)
+    const button = await screen.findByRole('button', { name: en.emptyTrash })
+
+    // Assert
+    const header = button.closest('section') as HTMLElement
+    expect(header.className).toContain('flex-col')
+    expect(header.className).toContain('sm:flex-row')
+    expect(header.className).not.toMatch(/(^|\s)items-end/)
+    expect(button.className).toContain('self-start')
+  })
 })

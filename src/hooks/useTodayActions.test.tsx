@@ -27,7 +27,7 @@ interface Props {
 }
 
 function setup(props: Props) {
-  const callbacks = { advanceIndex: vi.fn(), hideQuote: vi.fn(), showQuote: vi.fn() }
+  const callbacks = { advanceIndex: vi.fn(), rewindTo: vi.fn(), hideQuote: vi.fn(), showQuote: vi.fn() }
   const hook = renderHook(
     (current: Props) => ({
       actions: useTodayActions({ currentQuote: current.quote, currentBook: current.book, browsing: current.browsing ?? false, ...callbacks }),
@@ -112,6 +112,87 @@ describe('useTodayActions', () => {
     expect(callbacks.advanceIndex).toHaveBeenCalledTimes(1)
     expect(useToastStore.getState().toast?.message).toBe('Comes back in 14 days')
     expect((await getQuote('q'))?.reviewIntervalDays).toBe(14)
+  })
+
+  it.each([
+    ['handleMoreOften', { reviewIntervalDays: 3, likes: 2 }],
+    ['handleLessOften', { reviewIntervalDays: 93, likes: 2 }]
+  ] as const)('macht %s per Rückgängig exakt rückgängig und holt die Karte zurück', async (handler, seed) => {
+    // Arrange
+    const quote = makeQuote({
+      id: 'q',
+      ...seed,
+      reviewCount: 4,
+      lastReviewedAt: '2026-01-02T08:00:00.000Z',
+      nextReviewAt: '2026-01-05T06:00:00.000Z'
+    })
+    await upsertQuotes([quote])
+    await useQuoteStore.getState().loadQuotes()
+    const { result, callbacks } = setup({ quote })
+    await act(async () => {
+      await result.current.actions[handler]()
+    })
+    const toast = useToastStore.getState().toast
+    expect(toast?.actionLabel).toBe(en.undo)
+    expect((await getQuote('q'))?.reviewCount).toBe(5)
+
+    // Act
+    await act(async () => {
+      toast?.onAction?.()
+    })
+
+    // Assert
+    expect(callbacks.rewindTo).toHaveBeenCalledExactlyOnceWith('q')
+    await waitFor(async () => {
+      const stored = await getQuote('q')
+      expect(stored).toMatchObject({
+        reviewIntervalDays: seed.reviewIntervalDays,
+        nextReviewAt: '2026-01-05T06:00:00.000Z',
+        reviewCount: 4,
+        lastReviewedAt: '2026-01-02T08:00:00.000Z',
+        likes: 2
+      })
+    })
+  })
+
+  it('stellt beim Rückgängig auch fehlende Werte (Altdaten ohne Abstand und Prüfdatum) wieder her', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', reviewCount: 2 })
+    await upsertQuotes([quote])
+    await useQuoteStore.getState().loadQuotes()
+    const { result } = setup({ quote })
+    await act(async () => {
+      await result.current.actions.handleMoreOften()
+    })
+
+    // Act
+    await act(async () => {
+      useToastStore.getState().toast?.onAction?.()
+    })
+
+    // Assert
+    await waitFor(async () => {
+      const stored = await getQuote('q')
+      expect(stored?.reviewIntervalDays).toBeUndefined()
+      expect(stored?.nextReviewAt).toBeUndefined()
+      expect(stored?.lastReviewedAt).toBeUndefined()
+      expect(stored?.reviewCount).toBe(2)
+    })
+  })
+
+  it('zeigt beim Stöbern keinen Toast und damit kein Rückgängig', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', reviewIntervalDays: 3 })
+    const { result } = setup({ quote, browsing: true })
+
+    // Act
+    await act(async () => {
+      await result.current.actions.handleMoreOften()
+      await result.current.actions.handleLessOften()
+    })
+
+    // Assert
+    expect(useToastStore.getState().toast).toBeNull()
   })
 
   it('zeigt keinen Intervall-Toast, wenn der Store keinen Abstand liefert', async () => {
@@ -246,9 +327,38 @@ describe('useTodayActions', () => {
       // Arrange / Act
       await restThenAct(props, next)
 
-      // Assert
-      expect(useToastStore.getState().toast?.actionLabel).toBeUndefined()
+      // Assert: the rest toast is gone (→/← may leave their own interval toast with its own undo).
+      expect(useToastStore.getState().toast?.message).not.toBe(en.restedToast)
     })
+
+    it('is dismissed by ↑ (thought) without leaving another toast', async () => {
+      // Arrange / Act
+      await restThenAct({}, (a) => a.openThought())
+
+      // Assert
+      expect(useToastStore.getState().toast).toBeNull()
+    })
+  })
+
+  it('lässt einen späten Abstands-Toast von → nicht den Ruhen-Toast einer neueren Karte überschreiben', async () => {
+    // Arrange
+    const a = makeQuote({ id: 'a', reviewIntervalDays: 3 })
+    const b = makeQuote({ id: 'b', reviewIntervalDays: 3 })
+    await upsertQuotes([a, b])
+    await useQuoteStore.getState().loadQuotes()
+    const { result, rerender } = setup({ quote: a })
+    let pendingA: Promise<void> | undefined
+
+    // Act
+    await act(async () => {
+      pendingA = result.current.actions.handleMoreOften()
+      rerender({ quote: b })
+      result.current.actions.handleRest()
+      await pendingA
+    })
+
+    // Assert
+    expect(useToastStore.getState().toast?.message).toBe(en.restedToast)
   })
 
   it('blendet die Karte wieder ein und zeigt einen Fehler, wenn das Ruhenlassen scheitert', async () => {

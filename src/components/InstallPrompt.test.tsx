@@ -142,4 +142,22 @@ describe('InstallPrompt', () => {
     expect(screen.getByText(en.installIosHint)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: en.installAction })).not.toBeInTheDocument()
   })
+
+  it('lässt den iOS-Hinweis vollständig umbrechen und überdeckt die Aktionsleiste nicht', () => {
+    // Arrange
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iosUserAgent)
+    renderWithProviders(<InstallPrompt />)
+
+    // Act
+    const hint = screen.getByText(en.installIosHint)
+
+    // Assert
+    expect(hint.className).not.toContain('truncate')
+    expect(hint.className).toContain('break-words')
+    // In normal flow below the header: nothing is overlaid, so the Today action bar stays reachable.
+    const wrapper = hint.closest('[data-install-prompt]') as HTMLElement
+    expect(wrapper).not.toBeNull()
+    expect(wrapper.className).not.toContain('fixed')
+    expect(wrapper.className).toContain('shrink-0')
+  })
 })

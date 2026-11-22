@@ -32,6 +32,23 @@ function reviewedPatch(quote: Quote, intervalDays: number, now: Date): Partial<Q
   }
 }
 
+// The review bookkeeping a → or ← changes, so an undo can put it back exactly (undefined values included).
+export type ReviewSnapshot = Pick<Quote, 'reviewIntervalDays' | 'nextReviewAt' | 'reviewCount' | 'lastReviewedAt' | 'likes'>
+
+export function reviewSnapshot(quote: Quote): ReviewSnapshot {
+  return {
+    reviewIntervalDays: quote.reviewIntervalDays,
+    nextReviewAt: quote.nextReviewAt,
+    reviewCount: quote.reviewCount,
+    lastReviewedAt: quote.lastReviewedAt,
+    likes: quote.likes
+  }
+}
+
+export function restoreReviewPatch(previous: ReviewSnapshot, now = new Date()): Partial<Quote> {
+  return { ...previous, updatedAt: now.toISOString() }
+}
+
 export function moreOftenPatch(quote: Quote, now = new Date()): Partial<Quote> {
   const next = Math.min(maxIntervalDays, Math.ceil(effectiveInterval(quote) * moreOftenFactor))
   return { ...reviewedPatch(quote, next, now), likes: quote.likes + 1 }

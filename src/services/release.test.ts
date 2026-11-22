@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import packageJson from '../../package.json'
 import {
   APP_VERSION,
+  compareVersions,
   ensureVersionInitialized,
   lastSeenVersion,
   markVersionSeen,
@@ -66,6 +67,16 @@ describe('notesSince', () => {
 
     // Assert
     expect(notes).toEqual(releaseNotes)
+  })
+})
+
+describe('releaseNotes', () => {
+  it('enthält Hinweise für die aktuelle App-Version', () => {
+    // Arrange / Act
+    const newest = releaseNotes[0].version
+
+    // Assert
+    expect(compareVersions(newest, APP_VERSION)).toBeGreaterThanOrEqual(0)
   })
 })
 

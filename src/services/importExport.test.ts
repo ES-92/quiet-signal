@@ -40,8 +40,71 @@ describe('Stille und Gedanken im Import/Export', () => {
     // Assert
     expect(result).toMatchObject({ status: 'rest', reviewIntervalDays: 8 })
     expect(csv).toContain(`${thought.createdAt} ${thought.text}\n${second.createdAt} ${second.text}`)
-    // Thoughts only survive losslessly via JSON; the CSV import does not read them back.
-    expect(result.thoughts).toBeUndefined()
+    expect(result.thoughts).toEqual([
+      { id: expect.stringMatching(uuidPattern), text: thought.text, createdAt: thought.createdAt },
+      { id: expect.stringMatching(uuidPattern), text: second.text, createdAt: second.createdAt }
+    ])
+  })
+
+  it('liest CSV-Gedanken mit Leerzeichen und Anführungszeichen zurück und überspringt Zeilen ohne Datum oder Text', () => {
+    // Arrange
+    const field = [
+      '2026-01-05T09:00:00.000Z Ein Gedanke, mit ""Zitat""',
+      'ohne Datum',
+      '2026-01-06T09:00:00.000Z   ',
+      '2026-01-07T09:00:00.000Z Letzter'
+    ].join('\n')
+    const content = `text,thoughts\nZitat,"${field}"`
+
+    // Act
+    const [result] = parseCsvImport(content)
+
+    // Assert
+    expect(result.thoughts?.map((item) => [item.createdAt, item.text])).toEqual([
+      ['2026-01-05T09:00:00.000Z', 'Ein Gedanke, mit "Zitat"\nohne Datum'],
+      ['2026-01-07T09:00:00.000Z', 'Letzter']
+    ])
+  })
+
+  it('behält mehrzeilige Gedanken mit Zahlenzeilen im Roundtrip exakt bei', () => {
+    // Arrange
+    const multiline = { id: 'th-9', text: 'Drei Dinge:\n1. Punkt\n2024\n3.\n\n1/2 Rest', createdAt: '2026-01-05T09:00:00.000Z' }
+    const next = { id: 'th-10', text: 'Danach', createdAt: '2026-01-06T09:00:00.000Z' }
+    const quote = makeQuote({ thoughts: [multiline, next] })
+
+    // Act
+    const [result] = parseCsvImport(exportCsv([quote]))
+
+    // Assert
+    expect(result.thoughts?.map((item) => [item.createdAt, item.text])).toEqual([
+      [multiline.createdAt, multiline.text],
+      [next.createdAt, next.text]
+    ])
+  })
+
+  it('wendet auf CSV-Gedanken dieselbe Obergrenze an wie beim JSON-Import', () => {
+    // Arrange
+    const many = Array.from({ length: 600 }, (_, index) => {
+      const day = new Date(Date.UTC(2026, 0, 1) + index * 86_400_000).toISOString()
+      return `${day} g${index}`
+    }).join('\n')
+
+    // Act
+    const [result] = parseCsvImport(`text,thoughts\nx,"${many}"`)
+
+    // Assert
+    expect(result.thoughts).toHaveLength(500)
+  })
+
+  it('behält Gedanken im Roundtrip exportCsv und parseCsvImport (Text und createdAt)', () => {
+    // Arrange
+    const quote = makeQuote({ thoughts: [thought] })
+
+    // Act
+    const [result] = parseCsvImport(exportCsv([quote]))
+
+    // Assert
+    expect(result.thoughts).toMatchObject([{ text: thought.text, createdAt: thought.createdAt }])
   })
 
   it('fällt bei unbekanntem Status auf signal zurück', () => {

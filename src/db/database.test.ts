@@ -94,6 +94,34 @@ describe('Normalisierung', () => {
 })
 
 describe('Quotes: Anlegen und Aktualisieren', () => {
+  it('startet neue Signale morgen um 06:00 mit Abstand 1', async () => {
+    // Arrange
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 5, 10, 15, 30))
+
+    // Act
+    const created = await createQuote({ text: 'Neu', tags: [], favorite: false, status: 'signal' } as never)
+
+    // Assert
+    vi.useRealTimers()
+    expect(created.reviewIntervalDays).toBe(1)
+    expect(created.nextReviewAt).toBe(new Date(2026, 5, 11, 6, 0, 0, 0).toISOString())
+    expect((await getQuote(created.id))?.nextReviewAt).toBe(created.nextReviewAt)
+  })
+
+  it('lässt Eingang und Ruhe ohne Fälligkeit und achtet einen vorgegebenen Abstand', async () => {
+    // Act
+    const inbox = await createQuote({ text: 'a', tags: [], favorite: false, status: 'inbox' } as never)
+    const rest = await createQuote({ text: 'b', tags: [], favorite: false, status: 'rest' } as never)
+    const custom = await createQuote({ text: 'c', tags: [], favorite: false, status: 'signal', reviewIntervalDays: 7 } as never)
+
+    // Assert
+    expect(inbox.nextReviewAt).toBeUndefined()
+    expect(inbox.reviewIntervalDays).toBeUndefined()
+    expect(rest.nextReviewAt).toBeUndefined()
+    expect(custom.reviewIntervalDays).toBe(7)
+  })
+
   it('legt ein Zitat mit Standardwerten an und listet es', async () => {
     // Arrange
     const input = { text: 'Hallo', tags: ['A, b'], favorite: false }
