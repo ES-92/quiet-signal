@@ -5,6 +5,9 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed
+- README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
+
 ## [0.4.0] - 2026-11-22
 
 ### Added
@@ -30,7 +33,6 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - The daily stack shows only due signals and is no longer padded from the backlog, so it can be empty.
 - The entry's "note" is now shown as "Description".
 - Onboarding tagline and terminology: Rauschen / Signal / Stille (Noise / Signal / Rest), each with its guiding question; README documents the lifecycle.
-- README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
 - Dependency updates: React 19.3, Dexie 4.4.7, Zustand 5.1 and other minor/patch updates (#19); Vite 8 (#21); lucide-react 1.x (#22).
 
 ### Removed
