@@ -39,7 +39,7 @@ export function notesSince(seen: string | null): ReleaseNote[] {
   return releaseNotes.filter((note) => compareVersions(note.version, seen) > 0)
 }
 
-function compareVersions(a: string, b: string) {
+export function compareVersions(a: string, b: string) {
   const pa = a.split('.').map(Number)
   const pb = b.split('.').map(Number)
   for (let index = 0; index < Math.max(pa.length, pb.length); index += 1) {

@@ -7,13 +7,18 @@ import { ensureVersionInitialized, lastSeenVersion, markVersionSeen, notesSince,
 export function WhatsNew({ onSupport }: { onSupport: () => void }) {
   const { t } = useI18n()
   // Release-note keys are captured once on mount; null means nothing to show.
-  const [pendingKeys, setPendingKeys] = useState<TranslationKey[] | null>(() =>
-    shouldShowWhatsNew() ? notesSince(lastSeenVersion()).flatMap((note) => note.items) : null
-  )
+  const [pendingKeys, setPendingKeys] = useState<TranslationKey[] | null>(() => {
+    if (!shouldShowWhatsNew()) return null
+    const keys = notesSince(lastSeenVersion()).flatMap((note) => note.items)
+    return keys.length ? keys : null
+  })
 
   useEffect(() => {
-    if (!shouldShowWhatsNew()) ensureVersionInitialized()
-  }, [])
+    if (pendingKeys) return
+    // A version bump without release notes has nothing to show: mark it as seen instead of opening an empty sheet.
+    if (shouldShowWhatsNew()) markVersionSeen()
+    else ensureVersionInitialized()
+  }, [pendingKeys])
 
   if (!pendingKeys) return null
   const notes = pendingKeys.map((key) => t(key))
