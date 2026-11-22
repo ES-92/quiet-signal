@@ -14,6 +14,8 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Favourites (#35): a "Favoriten" tab first in the library (with its own empty state), a "Favoriten" entry in the tools drawer that opens it, a filled accent heart on library cards and a small heart on the Today card.
 
 ### Changed
+- Rückblick rebuilt around your thoughts (#38): "Was du gedacht hast" shows the thoughts written in the week/month as loose notes (newest first, weekday and the entry's author/book, tap opens the entry, "aus früherer Notiz" for adopted notes), with an empty hint for quiet periods. Below, a small tide strip (days, or weeks in the month view): dots above the line for →, a ring on days with a new thought, dots below for ↓, plus one line like „2 durften ruhen · 5 wolltest du öfter sehen“. Markdown export now contains the period's thoughts with dates and their quote. The Today nudge counts the week's thoughts.
+- Activity log per entry (#38): →, ←, ↓, wake and new thoughts are recorded inside the entry (encrypted with it under the vault, last 200 events); undo of →/←/↓ removes the event again. JSON import/export carries it (validated); CSV ignores it.
 - Settings (#40): "Lokaler Zustand" is now two quiet notices that only appear when needed (no or overdue backup with a download action, no PIN/vault with a shortcut to the security section); a single version line ("Quiet Signal 0.3.0") closes the page.
 - Sample data (#40) moved from Settings to the empty states: Today (empty library) and Sammlung (empty collection) offer "Mit Beispielen ausprobieren".
 - One way to capture (#39): the "Eintrag erfassen" page is gone. `/add` now redirects to Today and opens the capture sheet; shortcuts, share target and the + button all start as noise. The detail page's edit form is unchanged.
@@ -27,6 +29,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Dependency updates: React 19.3, Dexie 4.4.7, Zustand 5.1 and other minor/patch updates (#19); Vite 8 (#21); lucide-react 1.x (#22).
 
 ### Removed
+- Rückblick (#38): the generated letter, signal/noise count tiles, time pattern, top tag, tag and book lists, "Satz der Zeit" and "Als Signal speichern" (already saved reflections stay as entries).
 - Trim pass (#40): the Klären page shows only the title, the clarify question and the stack (no eyebrow, intro or duplicated "Rauschen klären / Klärungsstapel" header); Settings drops the "Lokaler Zustand" count tiles, "Datenschutz & Vertrauen", "Release-Status" and the sample-data panel; the support heart button leaves the page header (support stays in the tools drawer and Settings); decorative eyebrows above the page titles are gone.
 - The random daily mode and the `dailyMode` setting.
 - Unused weighting knobs (#34): signal strength, book frequency ("how often a book resurfaces"), entry kind ("Was ist es?") and location capture are gone from all forms, cards, detail pages, book pages, settings and the reflections ("Arten", "Orte"). They no longer influence the daily stack or the reflections' top signal. Likes and their score bonus stay.

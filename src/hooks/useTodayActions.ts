@@ -20,7 +20,7 @@ interface TodayActionsInput {
 export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
   const { t, tCount } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, undoRest, discardQuote, restoreQuote } = useQuoteStore()
+  const { toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, undoRest, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
   const [thoughtOpen, setThoughtOpen] = useState(false)

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeQuote, resetFactories } from '../test/factories'
+import type { ActivityEvent, Thought } from '../types/quote'
 import { buildReflection, periodRange, reflectionMarkdown } from './reflections'
 
 const NOW = '2026-03-11T10:00:00+01:00' // Mittwoch
@@ -14,13 +15,19 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+let thoughtCounter = 0
+function thought(createdAt: string, text = `Gedanke ${++thoughtCounter}`, extra: Partial<Thought> = {}): Thought {
+  return { id: `t-${++thoughtCounter}`, text, createdAt: new Date(createdAt).toISOString(), ...extra }
+}
+
+function event(at: string, type: ActivityEvent['type']): ActivityEvent {
+  return { at: new Date(at).toISOString(), type }
+}
+
 describe('periodRange', () => {
   it('beginnt die Woche am Montag um 00:00 Ortszeit und endet Sonntag 23:59:59.999', () => {
-    // Arrange
-    const now = new Date(NOW)
-
     // Act
-    const { start, end } = periodRange('week', now)
+    const { start, end } = periodRange('week', new Date(NOW))
 
     // Assert
     expect(start.getTime()).toBe(new Date('2026-03-09T00:00:00+01:00').getTime())
@@ -28,22 +35,16 @@ describe('periodRange', () => {
   })
 
   it('behandelt Sonntag als letzten Tag der Woche', () => {
-    // Arrange
-    const sonntag = new Date('2026-03-15T12:00:00+01:00')
-
     // Act
-    const { start } = periodRange('week', sonntag)
+    const { start } = periodRange('week', new Date('2026-03-15T12:00:00+01:00'))
 
     // Assert
     expect(start.getTime()).toBe(new Date('2026-03-09T00:00:00+01:00').getTime())
   })
 
   it('beginnt der Monat am Ersten um 00:00 und endet am letzten Tag 23:59:59.999 Ortszeit', () => {
-    // Arrange
-    const now = new Date(NOW)
-
     // Act
-    const { start, end } = periodRange('month', now)
+    const { start, end } = periodRange('month', new Date(NOW))
 
     // Assert
     expect(start.getTime()).toBe(new Date('2026-03-01T00:00:00+01:00').getTime())
@@ -51,236 +52,198 @@ describe('periodRange', () => {
   })
 
   it('endet die Woche der Winterzeit-Umstellung am Sonntag 23:59:59.999 Ortszeit', () => {
-    // Arrange
-    const now = new Date('2026-10-22T10:00:00+02:00') // Woche mit Umstellung am 25.10.
-
     // Act
-    const { end } = periodRange('week', now)
+    const { end } = periodRange('week', new Date('2026-10-22T10:00:00+02:00'))
 
     // Assert
     expect(end.getTime()).toBe(new Date('2026-10-25T23:59:59.999+01:00').getTime())
   })
+})
 
-  it('endet die Woche der Sommerzeit-Umstellung am Sonntag 23:59:59.999 Ortszeit', () => {
+describe('buildReflection – Gedanken', () => {
+  it('sammelt die Gedanken der Woche über alle Einträge, neueste zuerst, inklusive der Grenzen', () => {
     // Arrange
-    const now = new Date('2026-03-25T10:00:00+01:00') // Woche mit Umstellung am 29.03.
+    const montag = thought('2026-03-09T00:00:00+01:00', 'Montag früh')
+    const sonntag = thought('2026-03-15T23:59:00+01:00', 'Sonntag spät')
+    const mitte = thought('2026-03-11T08:00:00+01:00', 'Mitte')
+    const davor = thought('2026-03-08T23:59:00+01:00', 'davor')
+    const danach = thought('2026-03-16T00:00:00+01:00', 'danach')
+    const a = makeQuote({ author: 'Seneca', work: 'Briefe', thoughts: [davor, montag, sonntag] })
+    const b = makeQuote({ text: 'Ein Satz', thoughts: [mitte, danach] })
 
     // Act
-    const { end } = periodRange('week', now)
+    const result = buildReflection([a, b], [], 'week', new Date(NOW))
 
     // Assert
-    expect(end.getTime()).toBe(new Date('2026-03-29T23:59:59.999+02:00').getTime())
+    expect(result.thoughts.map((item) => item.text)).toEqual(['Sonntag spät', 'Mitte', 'Montag früh'])
+    expect(result.thoughts[0]).toMatchObject({ quoteId: a.id, author: 'Seneca', work: 'Briefe', createdAt: sonntag.createdAt, fromNote: false })
+    expect(result.thoughts[1]).toMatchObject({ quoteId: b.id, quoteText: 'Ein Satz' })
+  })
+
+  it('sammelt im Monat alle Gedanken vom Ersten bis zum Letzten', () => {
+    // Arrange
+    const q = makeQuote({
+      thoughts: [
+        thought('2026-02-28T23:59:00+01:00', 'Februar'),
+        thought('2026-03-01T00:00:00+01:00', 'Erster'),
+        thought('2026-03-31T23:59:00+02:00', 'Letzter'),
+        thought('2026-04-01T00:00:00+02:00', 'April')
+      ]
+    })
+
+    // Act
+    const result = buildReflection([q], [], 'month', new Date(NOW))
+
+    // Assert
+    expect(result.thoughts.map((item) => item.text)).toEqual(['Letzter', 'Erster'])
+  })
+
+  it('markiert Gedanken aus einer früheren Notiz und nutzt den Buchtitel über bookId', () => {
+    // Arrange
+    const book = makeBook({ title: 'Walden', author: 'Thoreau' })
+    const q = makeQuote({ bookId: book.id, thoughts: [thought('2026-03-10T09:00:00+01:00', 'alt', { fromNote: true })] })
+
+    // Act
+    const result = buildReflection([q], [book], 'week', new Date(NOW))
+
+    // Assert
+    expect(result.thoughts[0]).toMatchObject({ fromNote: true, work: 'Walden', author: 'Thoreau' })
+  })
+
+  it('zeigt Gedanken auch bei Alt-Einträgen ohne Aktivitätsprotokoll', () => {
+    // Arrange
+    const legacy = makeQuote({ thoughts: [thought('2026-03-10T09:00:00+01:00', 'legacy')] })
+
+    // Act
+    const result = buildReflection([legacy], [], 'week', new Date(NOW))
+
+    // Assert
+    expect(result.thoughts.map((item) => item.text)).toEqual(['legacy'])
+    expect(result.totals).toEqual({ more: 0, less: 0, rest: 0, thoughts: 1 })
   })
 })
 
-describe('buildReflection', () => {
-  it('zählt nur Einträge im Zeitraum', () => {
+describe('buildReflection – Gezeitenstreifen', () => {
+  it('liefert sieben Tage Mo–So mit Zählern für öfter, seltener und ruhen', () => {
     // Arrange
-    const inside = makeQuote({ createdAt: '2026-03-10T09:00:00+01:00' })
-    const before = makeQuote({ createdAt: '2026-03-08T23:59:00+01:00' })
-    const after = makeQuote({ createdAt: '2026-03-16T00:00:00+01:00' })
-
-    // Act
-    const result = buildReflection([inside, before, after], [], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.entries.map((q) => q.id)).toEqual([inside.id])
-  })
-
-  it('bevorzugt occurredAt vor createdAt', () => {
-    // Arrange
-    const q = makeQuote({ createdAt: '2026-01-01T09:00:00.000Z', occurredAt: '2026-03-10T09:00:00+01:00' })
-
-    // Act
-    const result = buildReflection([q], [], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.entries).toHaveLength(1)
-  })
-
-  it('fällt bei ungültigem occurredAt auf createdAt zurück', () => {
-    // Arrange
-    const q = makeQuote({ createdAt: '2026-03-10T09:00:00+01:00', occurredAt: 'kein-datum' })
-
-    // Act
-    const result = buildReflection([q], [], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.entries).toHaveLength(1)
-  })
-
-  it('schließt gespeicherte Reflexionen aus', () => {
-    // Arrange
-    const reflection = makeQuote({
-      createdAt: '2026-03-10T09:00:00+01:00',
-      tags: ['reflection'],
-      source: 'Quiet Signal'
+    const a = makeQuote({
+      activity: [
+        event('2026-03-08T23:59:00+01:00', 'more'), // Vorwoche
+        event('2026-03-09T00:00:00+01:00', 'more'),
+        event('2026-03-09T12:00:00+01:00', 'less'),
+        event('2026-03-11T09:00:00+01:00', 'rest'),
+        event('2026-03-15T23:59:00+01:00', 'more'),
+        event('2026-03-16T00:00:00+01:00', 'rest') // Folgewoche
+      ]
     })
-    const normal = makeQuote({ createdAt: '2026-03-10T09:00:00+01:00', tags: ['reflection'], source: 'Buch' })
+    const b = makeQuote({ activity: [event('2026-03-09T18:00:00+01:00', 'more'), event('2026-03-11T10:00:00+01:00', 'wake')] })
 
     // Act
-    const result = buildReflection([reflection, normal], [], 'week', new Date(NOW))
+    const { strip, totals } = buildReflection([a, b], [], 'week', new Date(NOW))
 
     // Assert
-    expect(result.entries.map((q) => q.id)).toEqual([normal.id])
+    expect(strip).toHaveLength(7)
+    expect(strip[0].start.getTime()).toBe(new Date('2026-03-09T00:00:00+01:00').getTime())
+    expect(strip[6].end.getTime()).toBe(new Date('2026-03-15T23:59:59.999+01:00').getTime())
+    expect(strip.map((day) => day.more)).toEqual([2, 0, 0, 0, 0, 0, 1])
+    expect(strip.map((day) => day.rest)).toEqual([0, 0, 1, 0, 0, 0, 0])
+    expect(strip[0].less).toBe(1)
+    expect(totals).toEqual({ more: 3, less: 1, rest: 1, thoughts: 0 })
   })
 
-  it('trennt Signale und Rauschen nach Status und sortiert neueste zuerst', () => {
+  it('markiert Tage, an denen ein Gedanke dazukam', () => {
     // Arrange
-    const older = makeQuote({ status: 'signal', createdAt: '2026-03-09T09:00:00+01:00' })
-    const newer = makeQuote({ status: 'inbox', createdAt: '2026-03-10T09:00:00+01:00' })
+    const logged = makeQuote({ activity: [event('2026-03-10T09:00:00+01:00', 'thought')] })
+    const legacy = makeQuote({ thoughts: [thought('2026-03-12T21:00:00+01:00')] })
+    const adopted = makeQuote({ thoughts: [thought('2026-03-13T21:00:00+01:00', 'alt', { fromNote: true })] })
 
     // Act
-    const result = buildReflection([older, newer], [], 'week', new Date(NOW))
+    const { strip } = buildReflection([logged, legacy, adopted], [], 'week', new Date(NOW))
 
     // Assert
-    expect(result.entries.map((q) => q.id)).toEqual([newer.id, older.id])
-    expect(result.signals.map((q) => q.id)).toEqual([older.id])
-    expect(result.noise.map((q) => q.id)).toEqual([newer.id])
+    expect(strip.map((day) => day.thought)).toEqual([false, true, false, true, false, false, false])
   })
 
-  it('zählt Stille-Einträge zu den Signalen und nie zum Rauschen', () => {
+  it('teilt den Monat in Wochen, an den Monatsgrenzen abgeschnitten', () => {
+    // Arrange (März 2026: So 1. … Di 31.)
+    const q = makeQuote({
+      activity: [
+        event('2026-03-01T10:00:00+01:00', 'more'),
+        event('2026-03-02T10:00:00+01:00', 'rest'),
+        event('2026-03-31T22:00:00+02:00', 'more')
+      ]
+    })
+
+    // Act
+    const { strip } = buildReflection([q], [], 'month', new Date(NOW))
+
+    // Assert
+    expect(strip.map((week) => week.start.getDate())).toEqual([1, 2, 9, 16, 23, 30])
+    expect(strip[0].end.getTime()).toBe(new Date('2026-03-01T23:59:59.999+01:00').getTime())
+    expect(strip[5].end.getTime()).toBe(new Date('2026-03-31T23:59:59.999+02:00').getTime())
+    expect(strip.map((week) => [week.more, week.rest])).toEqual([[1, 0], [0, 1], [0, 0], [0, 0], [0, 0], [1, 0]])
+  })
+
+  it('lässt Alt-Einträge ohne Protokoll im Streifen leer', () => {
     // Arrange
-    const resting = makeQuote({ status: 'rest', createdAt: '2026-03-10T09:00:00+01:00' })
-    const inbox = makeQuote({ status: 'inbox', createdAt: '2026-03-10T10:00:00+01:00' })
+    const legacy = makeQuote({ lastReviewedAt: '2026-03-10T09:00:00+01:00', reviewCount: 4 })
 
     // Act
-    const result = buildReflection([resting, inbox], [], 'week', new Date(NOW))
+    const { strip } = buildReflection([legacy], [], 'week', new Date(NOW))
 
     // Assert
-    expect(result.signals.map((q) => q.id)).toEqual([resting.id])
-    expect(result.noise.map((q) => q.id)).toEqual([inbox.id])
-  })
-
-  it('wählt das Signal mit dem höchsten Score als Top-Signal', () => {
-    // Arrange
-    const schwach = makeQuote({ createdAt: '2026-03-10T09:00:00+01:00' })
-    const favorit = makeQuote({ createdAt: '2026-03-10T09:00:00+01:00', favorite: true })
-
-    // Act
-    const result = buildReflection([schwach, favorit], [], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.topSignal?.id).toBe(favorit.id)
-  })
-
-  it('hat kein Top-Signal ohne Signale', () => {
-    // Arrange
-    const q = makeQuote({ status: 'inbox', createdAt: '2026-03-10T09:00:00+01:00' })
-
-    // Act
-    const result = buildReflection([q], [], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.topSignal).toBeUndefined()
-  })
-
-  it('aggregiert Tags ohne Beachtung von Groß-/Kleinschreibung, begrenzt auf 4', () => {
-    // Arrange
-    const date = '2026-03-10T09:00:00+01:00'
-    const quotes = [
-      makeQuote({ createdAt: date, tags: ['Stille', 'a', 'b', 'c', 'd'] }),
-      makeQuote({ createdAt: date, tags: ['stille  '] })
-    ]
-
-    // Act
-    const result = buildReflection(quotes, [], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.topTags).toHaveLength(4)
-    expect(result.topTags[0]).toEqual({ key: 'stille', label: 'Stille', count: 2 })
-  })
-
-  it('nutzt Buchtitel über bookId, sonst das Werk', () => {
-    // Arrange
-    const date = '2026-03-10T09:00:00+01:00'
-    const book = makeBook({ title: 'Der Prozess' })
-    const quotes = [
-      makeQuote({ createdAt: date, bookId: book.id, work: 'Anderes Werk' }),
-      makeQuote({ createdAt: date, work: 'Walden' }),
-      makeQuote({ createdAt: date, bookId: 'unbekannt', work: 'Walden' })
-    ]
-
-    // Act
-    const result = buildReflection(quotes, [book], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.topBooks.map((b) => [b.label, b.count])).toEqual([
-      ['Walden', 2],
-      ['Der Prozess', 1]
-    ])
-  })
-
-  it('wertet gespeicherte Orte und Arten nicht aus', () => {
-    // Arrange
-    const date = '2026-03-10T09:00:00+01:00'
-    const quotes = [
-      makeQuote({ createdAt: date, locationName: 'Hannover', entryType: 'idea' }),
-      makeQuote({ createdAt: date, locationName: 'Hannover', entryType: 'idea' })
-    ]
-
-    // Act
-    const result = buildReflection(quotes, [], 'week', new Date(NOW))
-    const markdown = reflectionMarkdown(result, 'Brief')
-
-    // Assert
-    expect(result).not.toHaveProperty('topPlaces')
-    expect(result).not.toHaveProperty('topTypes')
-    expect(markdown).not.toContain('Hannover')
-  })
-
-  it('bestimmt die häufigste Tageszeit in Ortszeit', () => {
-    // Arrange
-    const quotes = [
-      makeQuote({ createdAt: '2026-03-10T04:59:00+01:00' }), // night
-      makeQuote({ createdAt: '2026-03-10T05:00:00+01:00' }), // morning
-      makeQuote({ createdAt: '2026-03-10T08:00:00+01:00' }), // morning
-      makeQuote({ createdAt: '2026-03-10T12:00:00+01:00' }) // afternoon
-    ]
-
-    // Act
-    const result = buildReflection(quotes, [], 'week', new Date(NOW))
-
-    // Assert
-    expect(result.topTime).toEqual({ key: 'morning', label: 'morning', count: 2 })
-  })
-
-  it('liefert leere Metriken ohne Einträge', () => {
-    // Arrange / Act
-    const result = buildReflection([], [], 'month', new Date(NOW))
-
-    // Assert
-    expect(result.entries).toEqual([])
-    expect(result.topTime).toBeUndefined()
-    expect(result.topTags).toEqual([])
+    expect(strip.every((day) => day.more === 0 && day.rest === 0 && !day.thought)).toBe(true)
   })
 })
 
 describe('reflectionMarkdown', () => {
-  it('enthält Titel, Zähler und Top-Signal', () => {
+  it('enthält die Gedanken des Zeitraums mit Datum und zugehörigem Zitat', () => {
     // Arrange
-    const q = makeQuote({ text: 'Schweigen', author: 'Autor', createdAt: '2026-03-10T09:00:00+01:00' })
+    const q = makeQuote({
+      text: 'Schweigen ist Gold',
+      author: 'Autor',
+      work: 'Werk',
+      thoughts: [thought('2026-03-10T09:00:00+01:00', 'Mein Gedanke')]
+    })
     const summary = buildReflection([q], [], 'week', new Date(NOW))
 
     // Act
-    const md = reflectionMarkdown(summary, 'Brief')
+    const md = reflectionMarkdown(summary, { title: 'Wochenrückblick', summary: '1 durfte ruhen', fromNote: 'aus früherer Notiz' })
 
     // Assert
-    expect(md).toContain('# Weekly Reflection')
-    expect(md).toContain('Entries: 1')
-    expect(md).toContain('Signals: 1')
-    expect(md).toContain('> Schweigen')
-    expect(md).toContain('- Autor')
+    expect(md).toContain('# Wochenrückblick')
+    expect(md).toContain('2026-03-09 - 2026-03-15')
+    expect(md).toContain('1 durfte ruhen')
+    expect(md).toContain('2026-03-10')
+    expect(md).toContain('Mein Gedanke')
+    expect(md).toContain('> Schweigen ist Gold')
+    expect(md).toContain('Autor, Werk')
   })
 
-  it('formatiert den Wochenbeginn als lokales Datum', () => {
+  it('kennzeichnet Gedanken aus einer früheren Notiz', () => {
     // Arrange
-    const summary = buildReflection([], [], 'week', new Date(NOW))
+    const q = makeQuote({ thoughts: [thought('2026-03-10T09:00:00+01:00', 'alt', { fromNote: true })] })
+    const summary = buildReflection([q], [], 'week', new Date(NOW))
 
     // Act
-    const md = reflectionMarkdown(summary, '')
+    const md = reflectionMarkdown(summary, { title: 'T', summary: '', fromNote: 'aus früherer Notiz' })
 
     // Assert
-    expect(md).toContain('2026-03-09 - 2026-03-15')
+    expect(md).toContain('aus früherer Notiz')
+  })
+
+  it('enthält keine Statistik-Abschnitte mehr', () => {
+    // Arrange
+    const q = makeQuote({ tags: ['stille'], work: 'Walden', locationName: 'Hannover', thoughts: [thought('2026-03-10T09:00:00+01:00')] })
+    const summary = buildReflection([q], [], 'week', new Date(NOW))
+
+    // Act
+    const md = reflectionMarkdown(summary, { title: 'T', summary: '', fromNote: '' })
+
+    // Assert
+    expect(md).not.toMatch(/Signals:|Noise:|## Tags|## Books|Top signal/)
+    expect(md).not.toContain('Hannover')
+    expect(summary).not.toHaveProperty('topTags')
+    expect(summary).not.toHaveProperty('topTime')
   })
 })

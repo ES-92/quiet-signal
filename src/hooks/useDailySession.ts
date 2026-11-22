@@ -93,8 +93,9 @@ export function useDailySession() {
     nextQuote: dailyQuotes[currentIndex + 1],
     thirdQuote: dailyQuotes[currentIndex + 2],
     stackCompleted: visitHadCards && !currentQuote,
-    reflectionCount: weeklyReflection.entries.length,
-    showReflectionNudge: weeklyReflection.entries.length >= 3,
+    // The Rückblick is built from the week's thoughts, so the nudge counts those.
+    reflectionCount: weeklyReflection.thoughts.length,
+    showReflectionNudge: weeklyReflection.thoughts.length >= 3,
     inboxCount,
     hasSignals,
     libraryEmpty: quotes.length === 0,
