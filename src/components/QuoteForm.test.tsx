@@ -41,6 +41,18 @@ describe('QuoteForm', () => {
     expect(submitted.some((key) => key.startsWith('location'))).toBe(false)
   })
 
+  it('shows the status select directly, outside the collapsed details block', () => {
+    // Arrange
+    renderWithProviders(<QuoteForm quote={makeQuote({ id: 'q-1' })} submitLabel="Go" onSubmit={vi.fn()} />)
+
+    // Act
+    const select = screen.getByLabelText(en.entryStatus)
+
+    // Assert
+    expect(select.closest('details')).toBeNull()
+    expect(screen.getByLabelText(en.author).closest('details')).not.toBeNull()
+  })
+
   it('re-enables the save button when the submit fails', async () => {
     // Arrange
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
