@@ -136,6 +136,7 @@ export function AppShell() {
           </button>
         </div>
       </header>
+      <InstallPrompt />
       {isToday && (
         <>
           <div className="pointer-events-none fixed left-0 top-[32dvh] z-20 h-28 w-3 rounded-r-full border-y border-r border-line bg-paper/50 opacity-70 transition" />
@@ -156,7 +157,6 @@ export function AppShell() {
       </main>
       <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <ZeroCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} initialMode={captureMode} />
-      <InstallPrompt />
       <Onboarding />
       <Toast />
       <SupportSheet open={supportOpen} onClose={() => setSupportOpen(false)} />

@@ -49,7 +49,9 @@ export function LibraryPage() {
           <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('archive')}</p>
           <h1 className="mt-2 truncate font-serif text-4xl leading-tight sm:text-5xl">{t('library')}</h1>
         </div>
-        <p className="text-sm text-graphite">{tCount('countOfQuotes', viewQuotes.length, { shown: results.length, total: viewQuotes.length })}</p>
+        {viewQuotes.length > 0 && (
+          <p className="text-sm text-graphite">{tCount('countOfQuotes', viewQuotes.length, { shown: results.length, total: viewQuotes.length })}</p>
+        )}
       </section>
 
       <div className="flex gap-2" role="group" aria-label={t('library')}>
@@ -130,6 +132,10 @@ export function LibraryPage() {
             />
           ))}
         </div>
+      ) : viewQuotes.length === 0 ? (
+        <EmptyState title={view === 'rest' ? t('emptyRestTitle') : t('emptyCollectionTitle')}>
+          {view === 'rest' ? t('emptyRestBody') : t('emptyCollectionBody')}
+        </EmptyState>
       ) : (
         <EmptyState title={t('noMatches')}>
           {t('noMatchesBody')}

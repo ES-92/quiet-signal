@@ -44,7 +44,7 @@ export function ClarifyDeckStack({
       {thirdQuote && <ClarifyPreviewCard quote={thirdQuote} depth={2} lift={clarifyLift} />}
       {nextQuote && <ClarifyPreviewCard quote={nextQuote} depth={1} lift={clarifyLift} />}
       <article
-        className="clarify-top-card relative z-20 touch-none select-none overflow-hidden rounded-md border border-line bg-paper p-4 shadow-[0_22px_62px_rgba(31,30,28,0.14)] will-change-transform"
+        className="clarify-top-card relative z-20 min-h-[16.5rem] touch-none select-none overflow-hidden rounded-md border border-line bg-paper p-4 shadow-[0_22px_62px_rgba(31,30,28,0.14)] will-change-transform"
         {...deck.bind}
         style={{
           opacity: deck.exit ? 0.72 : 1,

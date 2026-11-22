@@ -42,7 +42,7 @@ export function TrashPage() {
 
   return (
     <div className="grid gap-5 pt-3 sm:gap-8 sm:pt-10">
-      <section className="flex items-end justify-between gap-4">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm uppercase tracking-[0.2em] text-graphite">{t('trash')}</p>
           <h1 className="mt-2 font-serif text-4xl leading-tight sm:text-5xl">{t('trash')}</h1>
@@ -51,7 +51,7 @@ export function TrashPage() {
         {trashed.length > 0 && (
           <button
             type="button"
-            className="quiet-touch inline-flex shrink-0 items-center gap-2 rounded-full border border-clay px-4 py-2 text-sm text-clay"
+            className="quiet-touch inline-flex shrink-0 items-center self-start sm:self-auto gap-2 rounded-full border border-clay px-4 py-2 text-sm text-clay"
             onClick={() => setConfirmOpen(true)}
           >
             <Trash2 size={16} />
