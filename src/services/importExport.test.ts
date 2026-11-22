@@ -61,8 +61,24 @@ describe('Stille und Gedanken im Import/Export', () => {
 
     // Assert
     expect(result.thoughts?.map((item) => [item.createdAt, item.text])).toEqual([
-      ['2026-01-05T09:00:00.000Z', 'Ein Gedanke, mit "Zitat"'],
+      ['2026-01-05T09:00:00.000Z', 'Ein Gedanke, mit "Zitat"\nohne Datum'],
       ['2026-01-07T09:00:00.000Z', 'Letzter']
+    ])
+  })
+
+  it('behält mehrzeilige Gedanken mit Zahlenzeilen im Roundtrip exakt bei', () => {
+    // Arrange
+    const multiline = { id: 'th-9', text: 'Drei Dinge:\n1. Punkt\n2024\n3.\n\n1/2 Rest', createdAt: '2026-01-05T09:00:00.000Z' }
+    const next = { id: 'th-10', text: 'Danach', createdAt: '2026-01-06T09:00:00.000Z' }
+    const quote = makeQuote({ thoughts: [multiline, next] })
+
+    // Act
+    const [result] = parseCsvImport(exportCsv([quote]))
+
+    // Assert
+    expect(result.thoughts?.map((item) => [item.createdAt, item.text])).toEqual([
+      [multiline.createdAt, multiline.text],
+      [next.createdAt, next.text]
     ])
   })
 

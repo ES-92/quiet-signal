@@ -177,16 +177,19 @@ function validReviewInterval(value: unknown) {
 const maxThoughtTextChars = 10_000
 const maxThoughtsPerQuote = 500
 
-// CSV cell format of exportCsv: one thought per line, "<ISO date> <text>". Lines without a parseable leading date are skipped.
+// CSV cell format of exportCsv: "<ISO date> <text>"; a thought may span several lines. Only an exact ISO stamp starts a new
+// thought, every other line continues the previous one. Lines before the first stamp are dropped.
+const csvThoughtStart = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z) (.*)$/
+
 function parseCsvThoughts(cell: string): Array<{ text: string; createdAt: string }> | undefined {
   if (!cell.trim()) return undefined
   const thoughts: Array<{ text: string; createdAt: string }> = []
   for (const line of cell.split(/\r\n|\r|\n/)) {
-    const match = /^(\S+)\s+(\S[\s\S]*)$/.exec(line.trim())
-    if (!match || Number.isNaN(Date.parse(match[1]))) continue
-    thoughts.push({ createdAt: match[1], text: match[2] })
+    const match = csvThoughtStart.exec(line)
+    if (match) thoughts.push({ createdAt: match[1], text: match[2] })
+    else if (thoughts.length) thoughts[thoughts.length - 1].text += `\n${line}`
   }
-  return thoughts
+  return thoughts.map((thought) => ({ ...thought, text: thought.text.trim() }))
 }
 
 function normalizeThoughts(value: unknown): Thought[] | undefined {
