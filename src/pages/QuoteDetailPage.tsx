@@ -18,7 +18,7 @@ export function QuoteDetailPage() {
   const { t, locale } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { quotes, loadQuotes, saveQuote, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, toggleFavorite, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -196,7 +196,7 @@ export function QuoteDetailPage() {
           )}
           <button
             className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
-            onClick={() => void saveQuote(quote.id, { favorite: !quote.favorite })}
+            onClick={() => void toggleFavorite(quote.id)}
           >
             <Heart size={16} fill={quote.favorite ? 'currentColor' : 'none'} /> {t('favorite')}
           </button>

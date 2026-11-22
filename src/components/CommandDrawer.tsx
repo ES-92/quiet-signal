@@ -1,4 +1,4 @@
-import { BookMarked, Coffee, Download, Feather, Hand, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
+import { BookMarked, Coffee, Download, Feather, Hand, Heart, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
@@ -10,6 +10,7 @@ import { quoteStatus } from '../types/quote'
 const commandItems = [
   { to: '/today', labelKey: 'today', icon: Sparkles },
   { to: '/inbox', labelKey: 'noiseInbox', icon: Inbox },
+  { to: '/library?view=favorites', labelKey: 'favorites', icon: Heart },
   { to: '/library', labelKey: 'library', icon: Library },
   { to: '/reflections', labelKey: 'reflections', icon: Feather },
   { to: '/books', labelKey: 'books', icon: BookMarked },

@@ -181,4 +181,72 @@ describe('LibraryPage', () => {
     expect(await screen.findByText(en.noMatches)).toBeInTheDocument()
     expect(screen.queryByText(en.emptyCollectionTitle)).not.toBeInTheDocument()
   })
+
+  it('lists favourite signals and rest entries, but never noise, under the Favoriten tab', async () => {
+    // Arrange
+    await upsertQuotes([
+      makeQuote({ id: 'f-1', text: 'Fav Signal', favorite: true }),
+      makeQuote({ id: 'f-2', text: 'Fav Stille', favorite: true, status: 'rest' }),
+      makeQuote({ id: 'f-3', text: 'Fav Rauschen', favorite: true, status: 'inbox' })
+    ])
+    await renderLibrary()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.libraryViewFavorites }))
+
+    // Assert
+    expect(await screen.findByText('"Fav Signal"')).toBeInTheDocument()
+    expect(screen.getByText('"Fav Stille"')).toBeInTheDocument()
+    expect(screen.queryByText('"Fav Rauschen"')).not.toBeInTheDocument()
+    expect(screen.queryByText('"Signaltext"')).not.toBeInTheDocument()
+  })
+
+  it('puts Favoriten before Signale, Stille and Alle, and keeps Signale as the default', async () => {
+    // Arrange / Act
+    await renderLibrary()
+
+    // Assert
+    const labels = screen.getAllByRole('button', { pressed: undefined }).map((button) => button.textContent)
+    expect(labels.slice(0, 4)).toEqual([en.libraryViewFavorites, en.libraryViewSignal, en.libraryViewRest, en.libraryViewAll])
+    expect(screen.getByRole('button', { name: en.libraryViewSignal })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('shows its own empty state when there are no favourites', async () => {
+    // Arrange
+    await renderLibrary()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.libraryViewFavorites }))
+
+    // Assert
+    expect(await screen.findByText(en.emptyFavoritesTitle)).toBeInTheDocument()
+    expect(screen.getByText(en.emptyFavoritesBody)).toBeInTheDocument()
+  })
+
+  it('opens on the Favoriten tab for ?view=favorites', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'f-1', text: 'Fav Signal', favorite: true })])
+    const result = renderWithProviders(<LibraryPage />, { route: '/library?view=favorites' })
+    await waitFor(() => expect(useQuoteStore.getState().loading).toBe(false))
+
+    // Assert
+    expect(await screen.findByText('"Fav Signal"')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.libraryViewFavorites })).toHaveAttribute('aria-pressed', 'true')
+    result.unmount()
+  })
+
+  it('toggles the heart on a card and exposes its state', async () => {
+    // Arrange
+    await renderLibrary()
+    const card = (await screen.findByText('"Signaltext"')).closest('article') as HTMLElement
+    const heart = card.querySelector('button[aria-label="' + en.favorite + '"]') as HTMLElement
+    expect(heart).toHaveAttribute('aria-pressed', 'false')
+
+    // Act
+    fireEvent.click(heart)
+
+    // Assert
+    await waitFor(async () => expect((await getQuote('l-1'))?.favorite).toBe(true), SLOW)
+    await waitFor(() => expect(heart).toHaveAttribute('aria-pressed', 'true'))
+  })
 })

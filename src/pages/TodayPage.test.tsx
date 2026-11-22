@@ -143,6 +143,29 @@ describe('TodayPage', () => {
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
   })
 
+  it('zeigt auf der Karte ein kleines Herz, wenn sie ein Favorit ist', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 't-1', text: 'Eins', favorite: true })])
+
+    // Act
+    await renderToday()
+
+    // Assert
+    expect(await screen.findByRole('img', { name: en.favorite })).toBeInTheDocument()
+  })
+
+  it('zeigt auf der Karte kein Herz, wenn sie kein Favorit ist', async () => {
+    // Arrange
+    await seedStack()
+
+    // Act
+    await renderToday()
+
+    // Assert
+    await screen.findByRole('blockquote')
+    expect(screen.queryByRole('img', { name: en.favorite })).not.toBeInTheDocument()
+  })
+
   it('geht per Wisch nach rechts zur nächsten Karte, stellt öfter und zeigt den Abstand', async () => {
     // Arrange
     await seedStack()

@@ -12,7 +12,10 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Action bar on the Today deck (less often, thought, rest, more often) next to the swipe gestures; the gesture help page and onboarding now explain noise, signal and rest.
 - Age hint for noise that has been waiting unclarified for a week or more (never deleted automatically), a first-thought field and a clarifying question on the Clarify page.
 
+- Favourites (#35): a "Favoriten" tab first in the library (with its own empty state), a "Favoriten" entry in the tools drawer that opens it, a filled accent heart on library cards and a small heart on the Today card.
+
 ### Changed
+- A favourite never stays away longer than 30 days (#35): → and ← cap its interval at 30 days (← still at least 14), and marking an entry as favourite pulls a review further away than 30 days in to day 30. Resting and waking are unchanged.
 - Today gestures: → more often (interval ×1.5), ← less often (×4, at least 14 days), ↑ add a thought, ↓ let it rest; long-press opens the actions menu. Clarify gestures are unchanged.
 - Intervals are now adaptive per entry (`reviewIntervalDays`, 1 to 365 days) instead of a fixed table; the next review is set to 06:00 local time.
 - The daily stack shows only due signals and is no longer padded from the backlog, so it can be empty.

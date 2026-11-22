@@ -1,4 +1,4 @@
-import { ChevronsLeft, Flame } from 'lucide-react'
+import { ChevronsLeft, Flame, Heart } from 'lucide-react'
 import { useFitText } from '../../hooks/useFitText'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
@@ -71,7 +71,10 @@ export function TodayTopCard({ quote, position, total, deck }: TodayTopCardProps
 
       <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-clay/50 to-transparent" />
       <div className="flex shrink-0 items-center justify-between gap-3 text-[0.66rem] uppercase tracking-[0.18em] text-graphite sm:text-xs sm:tracking-[0.22em]">
-        <span>{t('reviewStack')}</span>
+        <span className="inline-flex items-center gap-1.5">
+          {t('reviewStack')}
+          {quote.favorite && <Heart size={13} role="img" aria-label={t('favorite')} className="text-clay" fill="currentColor" />}
+        </span>
         <span>{t('cardProgress', { current: position, total })}</span>
       </div>
 

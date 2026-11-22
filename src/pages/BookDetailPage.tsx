@@ -14,7 +14,7 @@ export function BookDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { books, loadBooks, saveBook, removeBook } = useBookStore()
-  const { quotes, loadQuotes, saveQuote } = useQuoteStore()
+  const { quotes, loadQuotes, toggleFavorite } = useQuoteStore()
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [savingBook, setSavingBook] = useState(false)
@@ -143,7 +143,7 @@ export function BookDetailPage() {
               key={quote.id}
               quote={quote}
               compact
-              onFavorite={(quoteId) => void saveQuote(quoteId, { favorite: !quote.favorite })}
+              onFavorite={(quoteId) => void toggleFavorite(quoteId)}
             />
           ))}
         </div>

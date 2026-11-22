@@ -363,3 +363,19 @@ describe('selectDailyStack – Zeitzone um Mitternacht', () => {
     expect(result).toEqual([])
   })
 })
+
+describe('selectDailyStack – Favoriten', () => {
+  it('bevorzugt Favoriten, wenn mehr Zitate fällig sind als angezeigt werden', () => {
+    // Arrange
+    const favorite = makeQuote({ author: 'A', favorite: true, lastReviewedAt: inDays(-20), nextReviewAt: inDays(-1) })
+    const others = Array.from({ length: 6 }, (_, index) =>
+      makeQuote({ author: `B${index}`, lastReviewedAt: inDays(-20), nextReviewAt: inDays(-1) })
+    )
+
+    // Act
+    const result = ids(selectDailyStack([...others, favorite], { limit: 3 }))
+
+    // Assert
+    expect(result).toContain(favorite.id)
+  })
+})

@@ -101,13 +101,14 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact 
               compact
                 ? 'quiet-touch inline-flex h-10 w-10 items-center justify-center rounded-full border'
                 : 'inline-flex min-h-[44px] items-center gap-2 rounded-md border px-3 py-2 text-sm',
-              quote.favorite ? 'border-clay text-clay' : 'border-line text-graphite'
+              quote.favorite ? 'border-clay bg-clay/10 text-clay' : 'border-line text-graphite'
             ].join(' ')}
             onClick={() => onFavorite(quote.id)}
             aria-label={t('favorite')}
+            aria-pressed={Boolean(quote.favorite)}
             title={t('favorite')}
           >
-            <Heart size={16} fill={quote.favorite ? 'currentColor' : 'none'} /> <span className={compact ? 'sr-only' : ''}>{t('favorite')}</span>
+            <Heart size={16} strokeWidth={quote.favorite ? 2.25 : 2} fill={quote.favorite ? 'currentColor' : 'none'} /> <span className={compact ? 'sr-only' : ''}>{t('favorite')}</span>
           </button>
         )}
         <Link

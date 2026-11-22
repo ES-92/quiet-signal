@@ -37,6 +37,14 @@ describe('CommandDrawer', () => {
     expect(screen.getByRole('link', { name: en.today })).toBeInTheDocument()
   })
 
+  it('hat einen Favoriten-Eintrag, der die Bibliothek auf dem Favoriten-Tab öffnet', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)
+
+    // Assert
+    expect(screen.getByRole('link', { name: en.favorites })).toHaveAttribute('href', '/library?view=favorites')
+  })
+
   it('nutzt für das Suchfeld mindestens 16px auf dem Handy, damit iOS nicht hineinzoomt', () => {
     // Arrange / Act
     renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)

@@ -1,5 +1,6 @@
 import { SlidersHorizontal, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { QuoteCard } from '../components/QuoteCard'
 import { useI18n } from '../i18n/useI18n'
@@ -8,13 +9,15 @@ import { useQuoteStore } from '../store/useQuoteStore'
 import { useToastStore } from '../store/useToastStore'
 import { quoteStatus } from '../types/quote'
 
-type LibraryView = 'signal' | 'rest' | 'all'
+type LibraryView = 'favorites' | 'signal' | 'rest' | 'all'
 
 export function LibraryPage() {
   const { t, tCount } = useI18n()
-  const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, saveQuote, wakeQuote } = useQuoteStore()
+  const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, toggleFavorite, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [view, setView] = useState<LibraryView>('signal')
+  // The Werkzeuge entry opens the library with ?view=favorites; otherwise the signals come first.
+  const [searchParams] = useSearchParams()
+  const [view, setView] = useState<LibraryView>(searchParams.get('view') === 'favorites' ? 'favorites' : 'signal')
   const { showToast } = useToastStore()
 
   async function wakeEntry(id: string) {
@@ -32,15 +35,20 @@ export function LibraryPage() {
   // Noise never shows here; the view picks signals, resting entries or both.
   const viewQuotes = quotes.filter((quote) => {
     const status = quoteStatus(quote)
+    if (view === 'favorites') return quote.favorite && status !== 'inbox'
     return view === 'all' ? status !== 'inbox' : status === view
   })
   const options = getFilterOptions(viewQuotes)
   const results = filterQuotes(viewQuotes, filters)
   const views: { id: LibraryView; label: string }[] = [
+    { id: 'favorites', label: t('libraryViewFavorites') },
     { id: 'signal', label: t('libraryViewSignal') },
     { id: 'rest', label: t('libraryViewRest') },
     { id: 'all', label: t('libraryViewAll') }
   ]
+
+  const emptyTitle = view === 'rest' ? t('emptyRestTitle') : view === 'favorites' ? t('emptyFavoritesTitle') : t('emptyCollectionTitle')
+  const emptyBody = view === 'rest' ? t('emptyRestBody') : view === 'favorites' ? t('emptyFavoritesBody') : t('emptyCollectionBody')
 
   return (
     <div className="grid gap-5 sm:gap-7">
@@ -125,7 +133,7 @@ export function LibraryPage() {
               key={quote.id}
               quote={quote}
               compact
-              onFavorite={(id) => void saveQuote(id, { favorite: !quote.favorite })}
+              onFavorite={(id) => void toggleFavorite(id)}
               onWake={quoteStatus(quote) === 'rest' ? (id) => void wakeEntry(id) : undefined}
             />
           ))}
@@ -134,9 +142,7 @@ export function LibraryPage() {
         // Cold load: the empty state would claim there is nothing yet while the library is still being read.
         <p className="py-10 text-center text-graphite">{t('loadingLibrary')}</p>
       ) : viewQuotes.length === 0 ? (
-        <EmptyState title={view === 'rest' ? t('emptyRestTitle') : t('emptyCollectionTitle')}>
-          {view === 'rest' ? t('emptyRestBody') : t('emptyCollectionBody')}
-        </EmptyState>
+        <EmptyState title={emptyTitle}>{emptyBody}</EmptyState>
       ) : (
         <EmptyState title={t('noMatches')}>
           {t('noMatchesBody')}
