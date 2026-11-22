@@ -509,6 +509,82 @@ describe('QuoteDetailPage', () => {
     })
   })
 
+  describe('opening the edit form after changes made elsewhere on the page', () => {
+    // Spies on the store's saveQuote so the patch the form sends can be inspected next to the stored result.
+    function spyOnSave() {
+      const original = useQuoteStore.getState().saveQuote
+      const spy = vi.fn(original)
+      useQuoteStore.setState({ saveQuote: spy })
+      return { spy, restore: () => useQuoteStore.setState({ saveQuote: original }) }
+    }
+
+    async function openAndSaveTag(value: string) {
+      fireEvent.click(screen.getByRole('button', { name: en.edit }))
+      fireEvent.change(screen.getByLabelText(en.tags), { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: en.saveChanges }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.tags).toEqual([value]), SLOW)
+    }
+
+    it('sends no status when the form is opened after waking and only a tag is saved', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest', tags: ['alt'] })])
+      await renderDetail()
+      fireEvent.click(screen.getByRole('button', { name: en.wake }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.status).toBe('signal'), SLOW)
+      const { spy, restore } = spyOnSave()
+
+      // Act
+      await openAndSaveTag('neu')
+
+      // Assert
+      restore()
+      const patch = spy.mock.calls[0][1]
+      expect(patch).not.toHaveProperty('status')
+      expect(patch).not.toHaveProperty('favorite')
+      expect(patch).not.toHaveProperty('note')
+      expect(patch).not.toHaveProperty('reviewIntervalDays')
+      const stored = await getQuote('q-1')
+      expect(stored?.status).toBe('signal')
+      expect(stored?.reviewIntervalDays).toBe(1)
+    })
+
+    it('leaves the favourite as toggled when the form is opened afterwards and only a tag is saved', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', tags: ['alt'] })])
+      await renderDetail()
+      fireEvent.click(screen.getByRole('button', { name: en.favorite }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.favorite).toBe(true), SLOW)
+      const { spy, restore } = spyOnSave()
+
+      // Act
+      await openAndSaveTag('neu')
+
+      // Assert
+      restore()
+      expect(spy.mock.calls[0][1]).not.toHaveProperty('favorite')
+      expect((await getQuote('q-1'))?.favorite).toBe(true)
+    })
+
+    it('keeps the note empty when the form is opened after adopting it and only a tag is saved', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', text: 'Text', note: 'Meine Beschreibung', tags: ['alt'] })])
+      await renderDetail()
+      fireEvent.click(screen.getByRole('button', { name: en.adoptNote }))
+      await waitFor(async () => expect((await getQuote('q-1'))?.note).toBeFalsy(), SLOW)
+      const { spy, restore } = spyOnSave()
+
+      // Act
+      await openAndSaveTag('neu')
+
+      // Assert
+      restore()
+      expect(spy.mock.calls[0][1]).not.toHaveProperty('note')
+      const stored = await getQuote('q-1')
+      expect(stored?.note).toBeFalsy()
+      expect(stored?.thoughts?.map((item) => item.text)).toEqual(['Meine Beschreibung'])
+    })
+  })
+
   describe('saving the edit form after changes made elsewhere on the page', () => {
     async function saveTags(value: string) {
       fireEvent.change(screen.getByLabelText(en.tags), { target: { value } })
