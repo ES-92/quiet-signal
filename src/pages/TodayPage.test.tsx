@@ -48,6 +48,15 @@ async function expectKeptCount(count: number) {
   await waitFor(() => expect(useQuoteStore.getState().quotes.filter((quote) => (quote.likes ?? 0) > 0)).toHaveLength(count), SLOW)
 }
 
+// Resting and its undo persist in the background (DB write, then a store reload). Waiting for the store to show the new status
+// proves both are done, so no write or reload is still running when the next test resets the database and the stores.
+async function expectStatusSettled(id: string, status: 'rest' | 'signal') {
+  await waitFor(async () => {
+    expect((await getQuote(id))?.status).toBe(status)
+    expect(useQuoteStore.getState().quotes.find((quote) => quote.id === id)?.status).toBe(status)
+  }, SLOW)
+}
+
 function currentText() {
   return (screen.getByRole('blockquote').textContent ?? '').replace(/"/g, '')
 }
@@ -326,7 +335,7 @@ describe('TodayPage', () => {
     })
     const realRest = useQuoteStore.getState().restQuote
     act(() => {
-      useQuoteStore.setState({ restQuote: async (id) => { await gate; await realRest(id) } })
+      useQuoteStore.setState({ restQuote: async (id) => { await gate; return realRest(id) } })
     })
 
     // Act
@@ -554,13 +563,14 @@ describe('TodayPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(`/quote/${first}`)
   })
 
-  it('zeigt den Reflexions-Hinweis ab drei Einträgen dieser Woche und öffnet die Reflexionen', async () => {
+  it('zeigt den Reflexions-Hinweis ab drei Gedanken dieser Woche und öffnet die Reflexionen', async () => {
     // Arrange
     const now = new Date().toISOString()
+    const thought = (id: string) => ({ id, text: id, createdAt: now })
     await upsertQuotes([
-      makeQuote({ id: 't-1', text: 'Eins', createdAt: now, updatedAt: now }),
-      makeQuote({ id: 't-2', text: 'Zwei', createdAt: now, updatedAt: now }),
-      makeQuote({ id: 't-3', text: 'Drei', createdAt: now, updatedAt: now })
+      makeQuote({ id: 't-1', text: 'Eins', createdAt: now, updatedAt: now, thoughts: [thought('a')] }),
+      makeQuote({ id: 't-2', text: 'Zwei', createdAt: now, updatedAt: now, thoughts: [thought('b')] }),
+      makeQuote({ id: 't-3', text: 'Drei', createdAt: now, updatedAt: now, thoughts: [thought('c')] })
     ])
     await renderToday()
     await screen.findByRole('blockquote')
@@ -907,6 +917,7 @@ describe('TodayPage', () => {
       // Assert
       expect(await screen.findByText(en.doneForToday, undefined, SLOW)).toBeInTheDocument()
       expect(screen.queryByText(en.nothingDueToday)).not.toBeInTheDocument()
+      await expectStatusSettled('t-1', 'rest')
     })
 
     it('zeigt Stapel beendet, wenn die letzte Stöberkarte ruht, und bietet Stöbern weiter an', async () => {
@@ -920,14 +931,18 @@ describe('TodayPage', () => {
       fireEvent.click(await screen.findByRole('button', { name: en.browseAnyway }))
       await screen.findByRole('blockquote')
       const first = currentText()
-      swipe(0, 160)
+      // The first card only moves on (left swipe), so it stays a signal and "browse anyway" is still on offer once the
+      // last card rests. Resting both would leave no signal at all, and the button then (correctly) disappears after the reload.
+      swipe(-160)
       await waitFor(() => expect(currentText()).not.toBe(first), SLOW)
+      const lastId = currentId()
 
       // Act
       swipe(0, 160)
 
       // Assert
       expect(await screen.findByText(en.doneForToday, undefined, SLOW)).toBeInTheDocument()
+      await expectStatusSettled(lastId, 'rest')
       expect(screen.getByRole('button', { name: en.browseAnyway })).toBeInTheDocument()
     })
   })
@@ -1074,7 +1089,7 @@ describe('TodayPage', () => {
       await screen.findByRole('blockquote')
       swipe(0, 160)
       await screen.findByText(en.doneForToday, undefined, SLOW)
-      await waitFor(async () => expect((await getQuote('t-1'))?.status).toBe('rest'), SLOW)
+      await expectStatusSettled('t-1', 'rest')
 
       // Act
       act(() => useToastStore.getState().toast?.onAction?.())
@@ -1082,6 +1097,7 @@ describe('TodayPage', () => {
       // Assert
       expect(await screen.findByRole('blockquote', undefined, SLOW)).toHaveTextContent('Eins')
       expect(screen.getByText(en.browsingLabel)).toBeInTheDocument()
+      await expectStatusSettled('t-1', 'signal')
     })
 
     it('blendet beim Wechsel in eine neue Stöberrunde den alten Rückgängig-Hinweis aus', async () => {

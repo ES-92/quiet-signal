@@ -20,7 +20,7 @@ interface TodayActionsInput {
 export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
   const { t, tCount } = useI18n()
   const navigate = useNavigate()
-  const { saveQuote, toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, discardQuote, restoreQuote } = useQuoteStore()
+  const { toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, undoRest, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
   const [thoughtOpen, setThoughtOpen] = useState(false)
@@ -120,9 +120,11 @@ export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo
     const id = currentQuote.id
     const previousSnooze = currentQuote.snoozedUntil
     beginDeckAction()
-    restQuote(id).catch(() => {
+    // The time of the logged rest event (null when resting failed), so the undo removes exactly that event.
+    const restedAt = restQuote(id).catch(() => {
       showQuote(id)
       showToast({ message: t('restFailed') })
+      return null
     })
     hideQuote(id)
     showToast({
@@ -130,11 +132,13 @@ export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo
       actionLabel: t('undo'),
       onAction: () => {
         showQuote(id)
-        saveQuote(id, { status: 'signal', snoozedUntil: previousSnooze }).catch(() => {
-          // The undo did not persist: the card stays rested, so take it off the deck again.
-          hideQuote(id)
-          showToast({ message: t('saveFailed') })
-        })
+        restedAt
+          .then((at) => (at === null ? undefined : undoRest(id, previousSnooze, at)))
+          .catch(() => {
+            // The undo did not persist: the card stays rested, so take it off the deck again.
+            hideQuote(id)
+            showToast({ message: t('saveFailed') })
+          })
       }
     })
     // No advance: hiding the rested quote moves the next card into this slot.

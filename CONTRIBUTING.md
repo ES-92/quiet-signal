@@ -37,6 +37,18 @@ We work test-first: **no production code without a failing test first.** Write t
 - **Fixtures are synthetic.** Never commit real notes, highlights or backups. Put sample files in `src/test/fixtures/`, build them from the format the code expects, mark them as synthetic, and list them in `src/test/fixtures/README.md`.
 - Characterization tests that pin behaviour you suspect is wrong should say so in a comment; fix the behaviour in a separate change.
 
+## Releasing
+
+The "What's new" sheet and the update notice depend on the version number, so every release bumps it. Maintainer routine:
+
+1. Bump the version without tagging: `npm version minor --no-git-tag-version` (or `patch`). This updates `package.json` and `package-lock.json`; `APP_VERSION` follows from it.
+2. Add the release notes for the new version at the top of `releaseNotes` in `src/services/release.ts` (short, user-facing, 5–6 items at most) and their keys in **all four** locales (`src/i18n/locales/`). A test fails if the newest notes are older than the app version.
+3. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and add a fresh, empty `## [Unreleased]` above it.
+4. Make sure lint, typecheck, tests and build pass, then merge to `main`.
+5. Tag the merge commit `vX.Y.Z` and create the GitHub release from that tag (maintainer only).
+
+Open installs notice the new version themselves: the service worker takes over in the background and the app shows "Neue Version da · Neu laden". After reloading, users see the release notes once.
+
 ## Reporting bugs
 
 Open an issue and give it the label `bug`, with steps to reproduce. A fixing PR should reference it (`Fixes #123`).
@@ -61,7 +73,7 @@ Open an issue and give it the label `bug`, with steps to reproduce. A fixing PR 
 - **All persistence goes through `src/db/database.ts`** — the optional encryption layer lives there. Don't touch the Dexie tables directly.
 - **State:** Zustand stores in `src/store/`. **UI:** thin pages in `src/pages/`, sections and components in `src/components/`, UI logic in `src/hooks/`.
 - **Daily resurfacing / spaced repetition:** `src/services/review.ts`.
-- **PWA:** custom service worker in `src/sw.ts`; manifest in `vite.config.ts`.
+- **PWA:** custom service worker in `src/sw.ts`, registered and watched for updates in `src/services/appUpdate.ts`; manifest in `vite.config.ts`.
 - **i18n:** `src/i18n/translations.ts` and `src/i18n/locales/` (de/en/es/fr — keys must exist in all four).
 
 The details (layers, data model, review algorithm, security model) are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

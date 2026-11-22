@@ -42,6 +42,14 @@ describe('notesSince', () => {
     expect(notes.map((note) => note.version)).toContain('0.3.0')
   })
 
+  it('enthält 0.4.0 für die gesehene Version 0.3.0', () => {
+    // Arrange / Act
+    const notes = notesSince('0.3.0')
+
+    // Assert
+    expect(notes.map((note) => note.version)).toEqual(['0.4.0'])
+  })
+
   it('enthält nichts für die aktuelle Version', () => {
     // Arrange / Act
     const notes = notesSince(APP_VERSION)
@@ -71,6 +79,14 @@ describe('notesSince', () => {
 })
 
 describe('releaseNotes', () => {
+  it('hat für jede Version höchstens sechs kurze Punkte', () => {
+    // Arrange / Act
+    const sizes = releaseNotes.map((note) => note.items.length)
+
+    // Assert
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(6)
+  })
+
   it('enthält Hinweise für die aktuelle App-Version', () => {
     // Arrange / Act
     const newest = releaseNotes[0].version

@@ -11,6 +11,10 @@ export interface ReleaseNote {
 
 export const releaseNotes: ReleaseNote[] = [
   {
+    version: '0.4.0',
+    items: ['release040Gestures', 'release040Thoughts', 'release040Rest', 'release040Favourites', 'release040Calmer', 'release040Updates']
+  },
+  {
     version: '0.3.0',
     items: ['release030Daily', 'release030Kindle', 'release030Encryption', 'release030Deck', 'release030Capture']
   },
