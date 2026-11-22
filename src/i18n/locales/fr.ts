@@ -385,6 +385,7 @@ export const fr: Record<keyof typeof en, string> = {
   likesCount_one: '{count} mention J’aime',
   restFailed: 'Impossible de le laisser reposer.',
   saveFailed: 'Impossible d’enregistrer la modification.',
+  captureSaveFailed: 'Impossible d’enregistrer. Ton texte est toujours là.',
   save: 'Enregistrer',
   thoughtsTitle: 'Pensées',
   removeThought: 'Supprimer la pensée',

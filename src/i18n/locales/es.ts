@@ -385,6 +385,7 @@ export const es: Record<keyof typeof en, string> = {
   likesCount_one: '{count} me gusta',
   restFailed: 'No se pudo dejar reposar.',
   saveFailed: 'No se pudo guardar el cambio.',
+  captureSaveFailed: 'No se pudo guardar. Tu texto sigue aquí.',
   save: 'Guardar',
   thoughtsTitle: 'Pensamientos',
   removeThought: 'Eliminar pensamiento',

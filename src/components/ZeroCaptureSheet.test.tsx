@@ -134,7 +134,7 @@ describe('ZeroCaptureSheet beim Speichern', () => {
     // Assert
     expect(addQuote).toHaveBeenCalledTimes(1)
     expect(onClose).not.toHaveBeenCalled()
-    expect(useToastStore.getState().toast?.message).toBe(en.saveFailed)
+    expect(useToastStore.getState().toast?.message).toBe(en.captureSaveFailed)
     expect(screen.getByPlaceholderText(en.noisePlaceholder)).toHaveValue('Nicht verlieren')
     expect(screen.getByRole('button', { name: en.captureNoise })).toBeEnabled()
     useQuoteStore.setState({ addQuote: original })

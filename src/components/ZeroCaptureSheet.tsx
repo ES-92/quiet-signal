@@ -76,7 +76,7 @@ function ZeroCaptureForm({ onClose, initialMode }: Omit<ZeroCaptureSheetProps, '
     } catch (error) {
       // Keep the draft (text, photo, audio) so nothing is lost; the user can try again.
       console.error('Quiet Signal: capture could not be saved', error)
-      showToast({ message: t('saveFailed') })
+      showToast({ message: t('captureSaveFailed') })
       savingRef.current = false
       setSaving(false)
       return

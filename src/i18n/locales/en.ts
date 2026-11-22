@@ -383,6 +383,7 @@ export const en = {
   likesCount_one: '{count} like',
   restFailed: 'Could not let it rest.',
   saveFailed: 'Could not save the change.',
+  captureSaveFailed: 'Couldn’t save. Your text is still here.',
   save: 'Save',
   thoughtsTitle: 'Thoughts',
   removeThought: 'Delete thought',

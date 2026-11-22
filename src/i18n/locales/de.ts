@@ -385,6 +385,7 @@ export const de: Record<keyof typeof en, string> = {
   likesCount_one: '{count} Like',
   restFailed: 'Konnte nicht ruhen lassen.',
   saveFailed: 'Konnte nicht gespeichert werden.',
+  captureSaveFailed: 'Konnte nicht gespeichert werden. Dein Text ist noch da.',
   save: 'Speichern',
   thoughtsTitle: 'Gedanken',
   removeThought: 'Gedanken löschen',
