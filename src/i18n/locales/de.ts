@@ -346,6 +346,8 @@ export const de: Record<keyof typeof en, string> = {
   installIosHint: 'Tippe auf „Teilen“ und dann „Zum Home-Bildschirm“.',
   installAction: 'Installieren',
   installDismiss: 'Schließen',
+  updateNoticeTitle: 'Neue Version da',
+  updateNoticeAction: 'Neu laden',
   undo: 'Rückgängig',
   discardedToast: 'Verworfen.',
   discardFailed: 'Der Eintrag konnte nicht verworfen werden. Er ist wieder im Stapel.',

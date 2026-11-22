@@ -344,6 +344,8 @@ export const en = {
   installIosHint: 'Tap Share, then “Add to Home Screen”.',
   installAction: 'Install',
   installDismiss: 'Dismiss',
+  updateNoticeTitle: 'New version available',
+  updateNoticeAction: 'Reload',
   undo: 'Undo',
   discardedToast: 'Discarded.',
   discardFailed: 'Could not discard the entry. It is back in the deck.',

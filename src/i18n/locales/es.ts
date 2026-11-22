@@ -346,6 +346,8 @@ export const es: Record<keyof typeof en, string> = {
   installIosHint: 'Toca Compartir y luego “Añadir a pantalla de inicio”.',
   installAction: 'Instalar',
   installDismiss: 'Cerrar',
+  updateNoticeTitle: 'Hay una versión nueva',
+  updateNoticeAction: 'Recargar',
   undo: 'Deshacer',
   discardedToast: 'Descartado.',
   discardFailed: 'No se pudo descartar la entrada. Ha vuelto al mazo.',

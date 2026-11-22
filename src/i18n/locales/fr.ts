@@ -346,6 +346,8 @@ export const fr: Record<keyof typeof en, string> = {
   installIosHint: 'Touche Partager, puis « Sur l’écran d’accueil ».',
   installAction: 'Installer',
   installDismiss: 'Fermer',
+  updateNoticeTitle: 'Nouvelle version disponible',
+  updateNoticeAction: 'Recharger',
   undo: 'Annuler',
   discardedToast: 'Rejeté.',
   discardFailed: "L’entrée n’a pas pu être rejetée. Elle est de retour dans la pile.",
