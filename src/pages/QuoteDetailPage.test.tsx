@@ -187,7 +187,8 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Not sorted yet')).toBeInTheDocument()
+      expect(screen.getByText(/Not sorted yet/)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: en.clarifyNow })).toHaveAttribute('href', '/inbox')
     })
 
     it('replaces the stat tiles', async () => {

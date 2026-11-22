@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { dueInDays, overdueDays } from '../services/dueLabel'
 import { effectiveDueAt } from '../services/lifecycle'
@@ -7,7 +8,16 @@ import { quoteStatus, type Quote } from '../types/quote'
 export function EntryInfoLine({ quote }: { quote: Quote }) {
   const { t, tCount, locale } = useI18n()
   const status = quoteStatus(quote)
-  if (status === 'inbox') return <p className="text-sm text-graphite">{t('infoNotSorted')}</p>
+  if (status === 'inbox') {
+    return (
+      <p className="text-sm text-graphite">
+        {t('infoNotSorted')} ·{' '}
+        <Link className="inline-flex min-h-[44px] items-center text-clay underline underline-offset-2" to="/inbox">
+          {t('clarifyNow')}
+        </Link>
+      </p>
+    )
+  }
 
   const encountered = quote.reviewCount > 0 ? tCount('encounteredCount', quote.reviewCount) : undefined
   let lead: string
