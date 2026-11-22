@@ -175,6 +175,22 @@ describe('Verschlüsselung', () => {
     expect(restored).not.toHaveProperty('encrypted')
   })
 
+  it('verschlüsselt und entschlüsselt ein Quote mit großem Bild und langer Sprachnotiz', async () => {
+    // Arrange: > 1 MB Bild-Data-URL und eine lange Audio-Data-URL
+    const imageDataUrl = `data:image/jpeg;base64,${'A'.repeat(1_200_000)}`
+    const audioDataUrl = `data:audio/webm;base64,${'B'.repeat(600_000)}`
+    const quote = makeQuote({ text: 'Foto', imageDataUrl, audioDataUrl, audioMimeType: 'audio/webm' })
+    await enableEncryption('pw')
+
+    // Act
+    const stored = await encryptQuoteForStorage(quote)
+    const restored = await decryptQuoteFromStorage(stored)
+
+    // Assert
+    expect(stored.encrypted).toBe(true)
+    expect(restored).toEqual(quote)
+  })
+
   it('verschlüsselt und entschlüsselt ein Book im Roundtrip', async () => {
     // Arrange
     const book = makeBook({ title: 'Geheimes Buch', author: 'Jane Doe' })

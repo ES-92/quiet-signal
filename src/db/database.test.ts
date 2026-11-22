@@ -422,6 +422,22 @@ function insertBeforeRewriteTransaction(insert: () => Promise<void>) {
 }
 
 describe('Verschlüsselung', () => {
+  it('aktiviert den Tresor auch mit einem Eintrag mit großem Bild', async () => {
+    // Arrange
+    const imageDataUrl = `data:image/jpeg;base64,${'A'.repeat(1_200_000)}`
+    await upsertQuotes([makeQuote({ id: 'gross', text: 'Foto', imageDataUrl })])
+
+    // Act
+    await enableEncryption('passwort-123')
+    await encryptAllQuotes()
+    const raw = await db.quotes.get('gross')
+    const restored = await getQuote('gross')
+
+    // Assert
+    expect(raw?.encrypted).toBe(true)
+    expect(restored?.imageDataUrl).toBe(imageDataUrl)
+  })
+
   it('verschlüsselt alle Zeilen, liefert Klartext, sperrt und entschlüsselt wieder', async () => {
     // Arrange
     await upsertQuotes([makeQuote({ id: 'q1', text: 'Geheim' }), makeQuote({ id: 'q2', text: 'Auch geheim' })])

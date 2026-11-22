@@ -7,12 +7,23 @@ import type { Quote } from '../types/quote'
 export const encryptionStorageKey = 'quiet-signal-encryption'
 const iterations = 180000
 
+// Spreading a large array into String.fromCharCode overflows the call stack (photos, voice notes),
+// so the bytes are converted in slices.
+const base64ChunkSize = 0x8000
+
 export function bytesToBase64(bytes: Uint8Array) {
-  return btoa(String.fromCharCode(...bytes))
+  let binary = ''
+  for (let offset = 0; offset < bytes.length; offset += base64ChunkSize) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(offset, offset + base64ChunkSize)))
+  }
+  return btoa(binary)
 }
 
 export function base64ToBytes(value: string) {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0))
+  const binary = atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes
 }
 
 function passwordKey(password: string) {
