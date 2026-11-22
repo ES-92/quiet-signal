@@ -424,6 +424,8 @@ export const en = {
   infoNotSorted: 'Not sorted yet',
   encounteredCount: 'Seen {count} times',
   encounteredCount_one: 'Seen {count} time',
+  likesCount: '{count} likes',
+  likesCount_one: '{count} like',
   restFailed: 'Could not let it rest.',
   saveFailed: 'Could not save the change.',
   save: 'Save',

@@ -426,6 +426,8 @@ export const fr: Record<keyof typeof en, string> = {
   infoNotSorted: 'Pas encore trié',
   encounteredCount: 'Vu {count} fois',
   encounteredCount_one: 'Vu {count} fois',
+  likesCount: '{count} mentions J’aime',
+  likesCount_one: '{count} mention J’aime',
   restFailed: 'Impossible de le laisser reposer.',
   saveFailed: 'Impossible d’enregistrer la modification.',
   save: 'Enregistrer',

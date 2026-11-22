@@ -426,6 +426,8 @@ export const es: Record<keyof typeof en, string> = {
   infoNotSorted: 'Aún sin clasificar',
   encounteredCount: 'Visto {count} veces',
   encounteredCount_one: 'Visto {count} vez',
+  likesCount: '{count} me gusta',
+  likesCount_one: '{count} me gusta',
   restFailed: 'No se pudo dejar reposar.',
   saveFailed: 'No se pudo guardar el cambio.',
   save: 'Guardar',

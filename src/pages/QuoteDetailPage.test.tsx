@@ -67,7 +67,7 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Comes back on December 4 · Seen 6 times · ♥ 12')).toBeInTheDocument()
+      expect(screen.getByText('Comes back on December 4 · Seen 6 times · 12 likes')).toBeInTheDocument()
     })
 
     it('writes the date in the app language', async () => {
@@ -85,7 +85,7 @@ describe('QuoteDetailPage', () => {
       const line = await screen.findByText(/Kommt am/)
 
       // Assert
-      expect(line).toHaveTextContent('Kommt am 4. Dezember wieder · 6× begegnet · ♥ 12')
+      expect(line).toHaveTextContent('Kommt am 4. Dezember wieder · 6× begegnet · 12 Likes')
     })
 
     it('adds the year when the date lies in another year', async () => {
@@ -99,7 +99,7 @@ describe('QuoteDetailPage', () => {
       expect(screen.getByText('Comes back on January 15, 2027 · Seen 2 times')).toBeInTheDocument()
     })
 
-    it('uses the singular for one encounter and omits the heart without likes', async () => {
+    it('uses the singular for one encounter and omits likes when there are none', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 1, likes: 0, nextReviewAt: '2026-04-01T05:00:00.000Z' })])
 
@@ -108,7 +108,7 @@ describe('QuoteDetailPage', () => {
 
       // Assert
       expect(screen.getByText('Comes back on April 1 · Seen 1 time')).toBeInTheDocument()
-      expect(screen.queryByText(/♥/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/like/i)).not.toBeInTheDocument()
     })
 
     it('omits the encounter count for a signal that was never reviewed', async () => {
@@ -134,7 +134,7 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Due today · Seen 3 times · ♥ 2')).toBeInTheDocument()
+      expect(screen.getByText('Due today · Seen 3 times · 2 likes')).toBeInTheDocument()
     })
 
     it('uses the capped due date of a favourite, not the stored one', async () => {
@@ -156,7 +156,19 @@ describe('QuoteDetailPage', () => {
       expect(screen.getByText('Comes back on March 31 · Seen 4 times')).toBeInTheDocument()
     })
 
-    it('shows a resting entry as resting with its encounters, without a date or likes', async () => {
+    it('uses the singular for one like and never shows a heart glyph', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'q-1', reviewCount: 0, likes: 1, nextReviewAt: '2026-04-01T05:00:00.000Z' })])
+
+      // Act
+      await renderDetail()
+
+      // Assert
+      expect(screen.getByText('Comes back on April 1 · 1 like')).toBeInTheDocument()
+      expect(screen.queryByText(/♥/)).not.toBeInTheDocument()
+    })
+
+    it('shows a resting entry as resting with its encounters and likes, without a date', async () => {
       // Arrange
       await upsertQuotes([makeQuote({ id: 'q-1', status: 'rest', reviewCount: 6, likes: 5, nextReviewAt: '2026-12-04T05:00:00.000Z' })])
 
@@ -164,7 +176,7 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Resting · Seen 6 times')).toBeInTheDocument()
+      expect(screen.getByText('Resting · Seen 6 times · 5 likes')).toBeInTheDocument()
     })
 
     it('shows noise as not yet sorted', async () => {
