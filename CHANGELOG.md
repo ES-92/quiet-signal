@@ -24,7 +24,8 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - The random daily mode and the `dailyMode` setting.
 - Unused weighting knobs (#34): signal strength, book frequency ("how often a book resurfaces"), entry kind ("Was ist es?") and location capture are gone from all forms, cards, detail pages, book pages, settings and the reflections ("Arten", "Orte"). They no longer influence the daily stack or the reflections' top signal. Likes and their score bonus stay.
 - The like counter with its minus button on library and book cards; the like count now shows quietly as "♥ N" on the detail page.
-- Existing stored values for strength, kind, location and book weight are kept untouched in rows and backups and pass through import/export unchanged; no schema change.
+- Existing stored values for strength, kind, location and book weight are kept untouched in rows and backups and pass through import/export unchanged; no schema change (merging duplicate books carries the strongest stored weight to the kept book).
+- Like and unlike buttons in the library and on the detail page: a like now only comes from swiping → on the Today deck (#34).
 
 ## [0.3.0] - 2026-11-20
 

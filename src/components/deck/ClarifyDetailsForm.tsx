@@ -23,7 +23,8 @@ export function ClarifyDetailsForm({
 }: ClarifyDetailsFormProps) {
   const { t } = useI18n()
   // Book fields show when the entry already has book data or when a book can be picked.
-  const bookDetails = books.length > 0 || Boolean(draft.bookId || draft.work || draft.author || draft.source || draft.year)
+  const bookDetails =
+    books.length > 0 || Boolean(draft.bookId || draft.work || draft.author || draft.source || draft.year)
 
   return (
     <div className="quiet-pop grid gap-4 rounded-md border border-line bg-white/30 p-4">
@@ -85,22 +86,22 @@ export function ClarifyDetailsForm({
       )}
 
       <div className="grid gap-3 rounded-md border border-line bg-paper/60 p-3">
-          <p className="font-serif text-xl">{t('contextDetails')}</p>
-          <label className="grid gap-2">
-            <span className="text-sm text-graphite">{t('occurredAt')}</span>
-            <input
-              className="rounded-md border border-line bg-white/50 px-3 py-3"
-              type="datetime-local"
-              value={draft.occurredAt}
-              onChange={(event) => onChange({ occurredAt: event.target.value })}
-            />
-          </label>
-          <Field
-            label={t('people')}
-            value={draft.people}
-            onChange={(people) => onChange({ people })}
-            placeholder={t('peoplePlaceholder')}
+        <p className="font-serif text-xl">{t('contextDetails')}</p>
+        <label className="grid gap-2">
+          <span className="text-sm text-graphite">{t('occurredAt')}</span>
+          <input
+            className="rounded-md border border-line bg-white/50 px-3 py-3"
+            type="datetime-local"
+            value={draft.occurredAt}
+            onChange={(event) => onChange({ occurredAt: event.target.value })}
           />
+        </label>
+        <Field
+          label={t('people')}
+          value={draft.people}
+          onChange={(people) => onChange({ people })}
+          placeholder={t('peoplePlaceholder')}
+        />
       </div>
 
       <Field

@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom'
 import { BookCover } from '../components/BookCover'
 import { EmptyState } from '../components/EmptyState'
 import { useI18n } from '../i18n/useI18n'
-import { findBookMergeSuggestions, shouldUpdateSourceToBookTitle, type BookMergeSuggestion } from '../services/bookIntelligence'
+import { findBookMergeSuggestions, shouldUpdateSourceToBookTitle, strongestBookWeight, type BookMergeSuggestion } from '../services/bookIntelligence'
 import { tapHaptic } from '../services/haptics'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 
 export function BooksPage() {
   const { t, tCount } = useI18n()
-  const { books, loadBooks, addBook, removeBook } = useBookStore()
+  const { books, loadBooks, addBook, removeBook, saveBook } = useBookStore()
   const { quotes, loadQuotes, saveQuote } = useQuoteStore()
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
@@ -56,6 +56,10 @@ export function BooksPage() {
       }
       await removeBook(duplicate.id)
     }
+
+    // The deprecated weight is unused, but the strongest stored value must survive the merge.
+    const weight = strongestBookWeight(suggestion.books)
+    if (weight && weight !== suggestion.primary.weight) await saveBook(suggestion.primary.id, { weight })
 
     await loadBooks()
     await loadQuotes()

@@ -1,4 +1,4 @@
-import type { Book } from '../types/book'
+import type { Book, BookWeight } from '../types/book'
 import type { Quote } from '../types/quote'
 
 export interface BookMergeSuggestion {
@@ -79,4 +79,15 @@ function scoreBookIdentity(book: Book, quoteCount: number) {
   const sourceScore = book.source === 'readwise' || book.source === 'kindle' ? 2 : 0
   const authorScore = book.author ? 6 : 0
   return scoreTitle(book.title) * 3 + authorScore + sourceScore + Math.min(quoteCount, 12)
+}
+
+const weightRank: Record<BookWeight, number> = { rare: 0, normal: 1, often: 2 }
+
+// The deprecated weight is no longer used, but a merge must not lose a stored value: the strongest one wins.
+export function strongestBookWeight(books: Pick<Book, 'weight'>[]): BookWeight | undefined {
+  let best: BookWeight | undefined
+  for (const { weight } of books) {
+    if (weight && (!best || weightRank[weight] > weightRank[best])) best = weight
+  }
+  return best
 }
