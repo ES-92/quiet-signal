@@ -1,10 +1,7 @@
 import { useI18n } from '../i18n/useI18n'
+import { dueInDays } from '../services/dueLabel'
 import { effectiveDueAt } from '../services/lifecycle'
 import { quoteStatus, type Quote } from '../types/quote'
-
-function endOfToday(now: Date): number {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - 1
-}
 
 // The one line under the thoughts: when the entry comes back, how often it was met, and its likes.
 export function EntryInfoLine({ quote }: { quote: Quote }) {
@@ -18,12 +15,10 @@ export function EntryInfoLine({ quote }: { quote: Quote }) {
     lead = t('infoResting')
   } else {
     const now = new Date()
-    const due = effectiveDueAt(quote)
-    const dueTime = due ? new Date(due).getTime() : undefined
-    if (dueTime === undefined || Number.isNaN(dueTime) || dueTime <= endOfToday(now)) {
+    if (dueInDays(quote, now) === 0) {
       lead = t('dueToday')
     } else {
-      const date = new Date(dueTime)
+      const date = new Date(effectiveDueAt(quote) as string)
       const formatted = date.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'long',

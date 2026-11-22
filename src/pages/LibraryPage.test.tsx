@@ -70,7 +70,7 @@ describe('LibraryPage', () => {
     expect(card.querySelector('button[aria-label="Remove like"]')).toBeNull()
   })
 
-  it('shows only resting entries with badge and wake button in the rest view', async () => {
+  it('shows only resting entries with the resting label and wake button in the rest view', async () => {
     // Arrange
     await renderLibrary()
 
@@ -80,7 +80,7 @@ describe('LibraryPage', () => {
     // Assert
     expect(await screen.findByText('"Stilletext"')).toBeInTheDocument()
     expect(screen.queryByText('"Signaltext"')).not.toBeInTheDocument()
-    expect(screen.getByText(en.entryStatus_rest, { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText(en.cardResting)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: en.wake })).toBeInTheDocument()
   })
 
