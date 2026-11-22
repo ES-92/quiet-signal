@@ -420,6 +420,7 @@ export const es: Record<keyof typeof en, string> = {
   cardThoughts_one: '{count} pensamiento',
   cardResting: 'en reposo',
   cardOverdue: 'atrasado',
+  cardComesBack: 'Vuelve: {when}',
   infoOverdue: 'Atrasado desde hace {count} días',
   infoOverdue_one: 'Atrasado desde hace {count} día',
   infoNotSorted: 'Aún sin clasificar',

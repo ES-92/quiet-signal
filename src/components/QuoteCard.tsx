@@ -1,4 +1,4 @@
-import { BookOpen, Clock, ExternalLink, Heart, Sun } from 'lucide-react'
+import { BookOpen, Clock, Clock3, ExternalLink, Heart, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { dueInDays, formatDueIn, overdueDays } from '../services/dueLabel'
@@ -22,15 +22,17 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact 
   const thoughtCount = quote.thoughts?.length ?? 0
   // When it comes back: short and relative. Unsorted entries have no schedule yet, so they show no time.
   const now = new Date()
-  const comesBack =
-    status === 'rest'
-      ? t('cardResting')
-      : status === 'signal'
-        ? overdueDays(quote, now) > 0
-          ? t('cardOverdue')
-          : formatDueIn(dueInDays(quote, now), locale)
-        : undefined
-  const facts = [thoughtCount > 0 ? tCount('cardThoughts', thoughtCount) : undefined, comesBack].filter(Boolean)
+  type Fact = { text: string; label?: string }
+  const thoughts: Fact | undefined = thoughtCount > 0 ? { text: tCount('cardThoughts', thoughtCount) } : undefined
+  let comesBack: Fact | undefined
+  if (status === 'rest') {
+    comesBack = { text: t('cardResting') }
+  } else if (status === 'signal') {
+    const text = overdueDays(quote, now) > 0 ? t('cardOverdue') : formatDueIn(dueInDays(quote, now), locale)
+    // The clock icon and a spoken prefix tell that this is the return time, not just a bare "in 2 days".
+    comesBack = { text, label: t('cardComesBack', { when: text }) }
+  }
+  const facts = [thoughts, comesBack].filter((fact): fact is Fact => fact !== undefined)
 
   return (
     <article className="classical-panel min-w-0 rounded-md p-4 sm:p-6">
@@ -65,7 +67,13 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact 
           {facts.map((fact, index) => (
             <span key={index} className="inline-flex items-center gap-2">
               {index > 0 && <span aria-hidden="true">·</span>}
-              {fact}
+              {fact.label ? (
+                <span role="img" aria-label={fact.label} className="inline-flex items-center gap-1">
+                  <Clock3 size={14} aria-hidden="true" /> {fact.text}
+                </span>
+              ) : (
+                fact.text
+              )}
             </span>
           ))}
         </p>

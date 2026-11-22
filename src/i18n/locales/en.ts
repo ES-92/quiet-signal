@@ -418,6 +418,7 @@ export const en = {
   cardThoughts_one: '{count} thought',
   cardResting: 'resting',
   cardOverdue: 'overdue',
+  cardComesBack: 'Comes back: {when}',
   infoOverdue: 'Overdue for {count} days',
   infoOverdue_one: 'Overdue for {count} day',
   infoNotSorted: 'Not sorted yet',

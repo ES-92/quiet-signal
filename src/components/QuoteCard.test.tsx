@@ -65,6 +65,40 @@ describe('QuoteCard', () => {
     expect(screen.getByText('today')).toBeInTheDocument()
   })
 
+  it('gibt der Rückkehr-Angabe ein Uhr-Symbol und einen verständlichen Namen', () => {
+    // Arrange
+    const due = new Date()
+    due.setDate(due.getDate() + 2)
+    due.setHours(6, 0, 0, 0)
+
+    // Act
+    const { container } = renderWithProviders(<QuoteCard quote={makeQuote({ status: 'signal', nextReviewAt: due.toISOString() })} />)
+
+    // Assert
+    const label = screen.getByRole('img', { name: 'Comes back: in 2 days' })
+    expect(label).toHaveTextContent('in 2 days')
+    expect(label.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(container.querySelectorAll('svg.lucide-clock-3')).toHaveLength(1)
+  })
+
+  it('benennt auch „overdue“ als Rückkehr-Angabe, ruhende Einträge nicht', () => {
+    // Arrange
+    const past = new Date()
+    past.setDate(past.getDate() - 2)
+
+    // Act
+    const { rerender } = renderWithProviders(<QuoteCard quote={makeQuote({ status: 'signal', nextReviewAt: past.toISOString() })} />)
+
+    // Assert
+    expect(screen.getByRole('img', { name: 'Comes back: overdue' })).toBeInTheDocument()
+
+    // Act
+    rerender(<QuoteCard quote={makeQuote({ status: 'rest' })} />)
+
+    // Assert
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
   it('zeigt bei überfälligem Signal „overdue“ statt „today“', () => {
     // Arrange
     const due = new Date()
