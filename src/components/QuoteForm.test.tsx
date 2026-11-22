@@ -17,6 +17,14 @@ beforeEach(async () => {
 })
 
 describe('QuoteForm', () => {
+  it('öffnet auch mit einem Datum am Rand des gültigen Bereichs, ohne zu werfen', () => {
+    expect(() =>
+      renderWithProviders(
+        <QuoteForm quote={makeQuote({ id: 'q-edge', occurredAt: '+275760-09-13T00:00:00Z' })} submitLabel="Go" onSubmit={vi.fn()} />
+      )
+    ).not.toThrow()
+  })
+
   it('shows the status select directly, outside the collapsed details block', () => {
     // Arrange
     renderWithProviders(<QuoteForm quote={makeQuote({ id: 'q-1' })} submitLabel="Go" onSubmit={vi.fn()} />)

@@ -155,7 +155,7 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     status: row.status === 'inbox' || row.status === 'rest' ? row.status : 'signal',
     signalStrength: row.signalStrength === 'quiet' || row.signalStrength === 'normal' || row.signalStrength === 'strong' ? row.signalStrength : undefined,
     entryType: normalizeEntryType(row.entryType),
-    occurredAt: optional(row.occurredAt),
+    occurredAt: importedDate(row.occurredAt),
     people: Array.isArray(row.people) ? row.people : String(row.people ?? '').split(/[;,]/).map((person) => person.trim()).filter(Boolean),
     locationName: optional(row.locationName),
     locationLatitude: optionalNumber(row.locationLatitude),
@@ -236,7 +236,7 @@ function normalizeImportedBook(row: BookImportRow): Book {
 
 // Stored dates must be ISO strings the app can compute with: an invalid one would make toISOString() throw
 // during render. Only ISO-like strings (YYYY-MM-DD...) between the years 1900 and 9999 are kept, as ISO.
-// snoozedUntil and deletedAt are not imported at all.
+// occurredAt is validated the same way. snoozedUntil and deletedAt are not imported at all.
 const isoLikeDate = /^\d{4}-\d{2}-\d{2}/
 const minImportedYear = 1900
 const maxImportedYear = 9999

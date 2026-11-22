@@ -3,6 +3,7 @@ import { useI18n } from '../i18n/useI18n'
 import { useBookStore } from '../store/useBookStore'
 import { bookKey } from '../types/book'
 import type { Quote, QuoteInput } from '../types/quote'
+import { toLocalDateTime } from '../utils/draftFields'
 import { AudioRecorder } from './AudioRecorder'
 import { PhotoCapture } from './PhotoCapture'
 
@@ -316,14 +317,6 @@ function splitList(value: string) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
-}
-
-function toLocalDateTime(value?: string) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-  return local.toISOString().slice(0, 16)
 }
 
 function fromLocalDateTime(value: string) {

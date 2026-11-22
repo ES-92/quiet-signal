@@ -835,6 +835,16 @@ describe('Datumsfelder im Import', () => {
     expect(quote.nextReviewAt).toBeUndefined()
   })
 
+  it.each([...invalidDates, '+275760-09-13T00:00:00Z'])('verwirft ein ungültiges occurredAt %j', (value) => {
+    const content = JSON.stringify({ quotes: [{ id: 'q', text: 'x', occurredAt: value }] })
+    expect(parseJsonImportBundle(content).quotes[0].occurredAt).toBeUndefined()
+  })
+
+  it('normalisiert ein gültiges occurredAt auf ISO', () => {
+    const content = JSON.stringify({ quotes: [{ id: 'q', text: 'x', occurredAt: '2024-05-01T18:00:00+02:00' }] })
+    expect(parseJsonImportBundle(content).quotes[0].occurredAt).toBe('2024-05-01T16:00:00.000Z')
+  })
+
   it('normalisiert gültige Daten auf ISO', () => {
     // Arrange
     const content = JSON.stringify({
