@@ -78,8 +78,9 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   filters: emptyFilters,
   loading: true,
   loadedAt: Date.now(),
+  // `loading` stays true only until the first load has finished. Every action reloads afterwards, and flagging those reloads
+  // as loading would swap the deck for the loading placeholder and back, remounting it under the user's hands.
   loadQuotes: async () => {
-    set({ loading: true })
     set({ quotes: await listQuotes(), loading: false, loadedAt: Date.now() })
   },
   addQuote: async (input) => {

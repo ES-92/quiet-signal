@@ -21,6 +21,26 @@ afterEach(() => {
   disableEncryptionRecord()
 })
 
+describe('loadQuotes', () => {
+  it('meldet nach dem ersten Laden bei weiteren Ladevorgängen nie wieder loading', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote({ id: 'a', text: 'Eins' })])
+    useQuoteStore.setState({ quotes: [], loading: true })
+    const states: boolean[] = []
+    const unsubscribe = useQuoteStore.subscribe((state) => states.push(state.loading))
+
+    // Act
+    await useQuoteStore.getState().loadQuotes()
+    await useQuoteStore.getState().loadQuotes()
+    unsubscribe()
+
+    // Assert
+    expect(useQuoteStore.getState().quotes).toHaveLength(1)
+    expect(states.length).toBeGreaterThan(0)
+    expect(states.every((loading) => loading === false)).toBe(true)
+  })
+})
+
 async function seedLegacyQuote(overrides = {}) {
   // Legacy record: no reviewIntervalDays and no thoughts; reviewCount 2 derives an interval of 7.
   const quote = makeQuote({ id: 'legacy', reviewCount: 2, ...overrides })
