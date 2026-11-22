@@ -4,7 +4,12 @@ import { Link } from 'react-router-dom'
 import { BookCover } from '../components/BookCover'
 import { EmptyState } from '../components/EmptyState'
 import { useI18n } from '../i18n/useI18n'
-import { findBookMergeSuggestions, shouldUpdateSourceToBookTitle, strongestBookWeight, type BookMergeSuggestion } from '../services/bookIntelligence'
+import {
+  findBookMergeSuggestions,
+  shouldUpdateSourceToBookTitle,
+  strongestBookWeight,
+  type BookMergeSuggestion
+} from '../services/bookIntelligence'
 import { tapHaptic } from '../services/haptics'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -84,7 +89,10 @@ export function BooksPage() {
       </section>
 
       {adding && (
-        <form className="grid gap-3 rounded-md border border-line bg-white/40 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={handleCreate}>
+        <form
+          className="grid gap-3 rounded-md border border-line bg-white/40 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          onSubmit={handleCreate}
+        >
           <label className="grid gap-2">
             <span className="text-sm text-graphite">{t('bookTitleLabel')}</span>
             <input
@@ -102,7 +110,10 @@ export function BooksPage() {
               className="rounded-md border border-line bg-paper px-3 py-2"
             />
           </label>
-          <button disabled={!title.trim()} className="rounded-md bg-ink px-4 py-2 text-sm text-paper disabled:opacity-50">
+          <button
+            disabled={!title.trim()}
+            className="rounded-md bg-ink px-4 py-2 text-sm text-paper disabled:opacity-50"
+          >
             {t('create')}
           </button>
         </form>
@@ -123,14 +134,20 @@ export function BooksPage() {
           </div>
           <div className="grid gap-2">
             {mergeSuggestions.slice(0, 3).map((suggestion) => (
-              <div key={suggestion.key} className="grid gap-3 rounded-md border border-line bg-paper/60 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div
+                key={suggestion.key}
+                className="grid gap-3 rounded-md border border-line bg-paper/60 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+              >
                 <div className="min-w-0">
                   <p className="truncate font-medium">{suggestion.primary.title}</p>
                   <p className="mt-1 text-sm text-graphite">
                     {tCount('bookMergeSuggestion', suggestion.quoteCount, { books: suggestion.books.length })}
                   </p>
                 </div>
-                <button className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper" onClick={() => void handleMerge(suggestion)}>
+                <button
+                  className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm text-paper"
+                  onClick={() => void handleMerge(suggestion)}
+                >
                   <GitMerge size={15} /> {t('mergeBooks')}
                 </button>
               </div>

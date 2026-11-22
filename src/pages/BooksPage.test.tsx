@@ -22,8 +22,20 @@ describe('BooksPage merge', () => {
   it('carries the strongest stored weight of the duplicates over to the primary book', async () => {
     // Arrange
     await upsertBooks([
-      makeBook({ id: 'primary', title: 'Meditations', author: 'Marcus Aurelius', weight: 'rare', createdAt: '2026-01-01T00:00:00.000Z' }),
-      makeBook({ id: 'dup', title: 'Meditations', author: 'Marcus Aurelius', weight: 'often', createdAt: '2026-02-01T00:00:00.000Z' })
+      makeBook({
+        id: 'primary',
+        title: 'Meditations',
+        author: 'Marcus Aurelius',
+        weight: 'rare',
+        createdAt: '2026-01-01T00:00:00.000Z'
+      }),
+      makeBook({
+        id: 'dup',
+        title: 'Meditations',
+        author: 'Marcus Aurelius',
+        weight: 'often',
+        createdAt: '2026-02-01T00:00:00.000Z'
+      })
     ])
     await upsertQuotes([
       makeQuote({ id: 'q1', bookId: 'primary' }),
@@ -45,7 +57,12 @@ describe('BooksPage merge', () => {
   it('leaves the weight alone when no book carries one', async () => {
     // Arrange
     await upsertBooks([
-      makeBook({ id: 'primary', title: 'Meditations', author: 'Marcus Aurelius', createdAt: '2026-01-01T00:00:00.000Z' }),
+      makeBook({
+        id: 'primary',
+        title: 'Meditations',
+        author: 'Marcus Aurelius',
+        createdAt: '2026-01-01T00:00:00.000Z'
+      }),
       makeBook({ id: 'dup', title: 'Meditations', author: 'Marcus Aurelius', createdAt: '2026-02-01T00:00:00.000Z' })
     ])
     await upsertQuotes([makeQuote({ id: 'q1', bookId: 'primary' }), makeQuote({ id: 'q2', bookId: 'primary' })])
