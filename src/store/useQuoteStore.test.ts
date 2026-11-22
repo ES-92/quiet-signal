@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, upsertQuotes } from '../db/database'
 import { disableEncryptionRecord, enableEncryption, lockEncryption } from '../services/security'
 import type { ReviewSnapshot } from '../services/lifecycle'
+import { resetPersistentStorageRequest } from '../services/persistentStorage'
 import { makeQuote, resetFactories } from '../test/factories'
 import { useQuoteStore } from './useQuoteStore'
 
@@ -413,5 +414,26 @@ describe('lifecycle store actions', () => {
     expect(capped?.reviewIntervalDays).toBe(30)
     expect(again?.reviewIntervalDays).toBe(90)
     expect(again?.nextReviewAt).toBe('2027-06-01T06:00:00.000Z')
+  })
+})
+
+describe('dauerhafter Speicher', () => {
+  afterEach(() => {
+    Object.defineProperty(navigator, 'storage', { value: undefined, configurable: true })
+  })
+
+  it('bittet nach dem ersten erfolgreichen Speichern um dauerhaften Speicher', async () => {
+    // Arrange
+    resetPersistentStorageRequest()
+    const persist = vi.fn().mockResolvedValue(true)
+    Object.defineProperty(navigator, 'storage', { value: { persist }, configurable: true })
+    await useQuoteStore.getState().loadQuotes()
+    expect(persist).not.toHaveBeenCalled()
+
+    // Act
+    await useQuoteStore.getState().addQuote({ text: 'Erster', tags: [], favorite: false, status: 'inbox' } as never)
+
+    // Assert
+    expect(persist).toHaveBeenCalledTimes(1)
   })
 })

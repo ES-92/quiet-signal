@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { requestPersistentStorage } from '../services/persistentStorage'
 import {
   clearQuotes,
   createQuote,
@@ -86,7 +87,10 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
   // `loading` stays true only until the first load has finished. Every action reloads afterwards, and flagging those reloads
   // as loading would swap the deck for the loading placeholder and back, remounting it under the user's hands.
   loadQuotes: async () => {
-    set({ quotes: await listQuotes(), loading: false, loadedAt: Date.now() })
+    const quotes = await listQuotes()
+    set({ quotes, loading: false, loadedAt: Date.now() })
+    // At startup with a non-empty library, and after the first write (every action reloads): keep the library from eviction.
+    if (quotes.length > 0) void requestPersistentStorage()
   },
   addQuote: async (input) => {
     const quote = await createQuote(input)
