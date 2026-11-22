@@ -40,6 +40,24 @@ describe('WhatsNew', () => {
     expect(screen.getByText(en.release020Onboarding)).toBeInTheDocument()
   })
 
+  it('zeigt für eine Nutzerin, die zuletzt 0.3.0 gesehen hat, die Notizen zu 0.4.0', () => {
+    // Arrange
+    localStorage.setItem(versionKey, '0.3.0')
+
+    // Act
+    renderWithProviders(<WhatsNew onSupport={vi.fn()} />)
+
+    // Assert
+    expect(screen.getByText(en.whatsNewTitle)).toBeInTheDocument()
+    expect(screen.getByText(en.release040Gestures)).toBeInTheDocument()
+    expect(screen.getByText(en.release040Thoughts)).toBeInTheDocument()
+    expect(screen.getByText(en.release040Rest)).toBeInTheDocument()
+    expect(screen.getByText(en.release040Favourites)).toBeInTheDocument()
+    expect(screen.getByText(en.release040Calmer)).toBeInTheDocument()
+    expect(screen.getByText(en.release040Updates)).toBeInTheDocument()
+    expect(screen.queryByText(en.release030Daily)).not.toBeInTheDocument()
+  })
+
   it('blendet sich nach dem Schließen aus und merkt sich die aktuelle Version', () => {
     // Arrange
     localStorage.setItem(versionKey, '0.1.0')

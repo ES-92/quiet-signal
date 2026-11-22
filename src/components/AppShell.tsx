@@ -6,6 +6,7 @@ import { captureEventName, isCaptureMode, type CaptureMode } from '../services/c
 import { tapHaptic } from '../services/haptics'
 import { CommandDrawer } from './CommandDrawer'
 import { InstallPrompt } from './InstallPrompt'
+import { UpdateNotice } from './UpdateNotice'
 import { Onboarding } from './Onboarding'
 import { SupportSheet } from './SupportSheet'
 import { Toast } from './Toast'
@@ -124,6 +125,7 @@ export function AppShell() {
         </div>
       </header>
       <InstallPrompt />
+      <UpdateNotice />
       {isToday && (
         <>
           <div className="pointer-events-none fixed left-0 top-[32dvh] z-20 h-28 w-3 rounded-r-full border-y border-r border-line bg-paper/50 opacity-70 transition" />

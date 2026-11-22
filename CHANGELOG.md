@@ -5,7 +5,11 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
 ### Added
+- Update notice (#43): the app registers its service worker itself and, once a new version has taken over, shows a calm, non-blocking "Neue Version da · Neu laden" notice below the header (never an automatic reload). While open it checks for updates every hour and whenever it becomes visible again.
+- Release notes for 0.4.0 in the "What's new" sheet (#43), and a documented release routine in CONTRIBUTING.md.
 - Signal lifecycle: a signal can be let go quiet (new status *Rest* / *Stille*) and woken again, restarting at a 1-day interval. Rested entries keep their thoughts and appear under a "Rest" filter in the library.
 - Dated thoughts on every signal (add, edit, delete), a resurfacing hint on cards, and "Keep as thought" to turn the former note into a dated thought (with undo).
 - "Browse anyway" on an empty daily stack: shuffles through all signals without changing any interval or due date.
