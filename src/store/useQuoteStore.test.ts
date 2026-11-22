@@ -197,6 +197,20 @@ describe('lifecycle store actions', () => {
     expect(useQuoteStore.getState().quotes[0]).toMatchObject({ status: 'signal', snoozedUntil: '2026-01-05T05:00:00.000Z', activity: [] })
   })
 
+  it('undoRest returns a rested inbox entry to the inbox when asked to', async () => {
+    // Arrange
+    await seedLegacyQuote({ status: 'inbox', snoozedUntil: '2026-01-05T05:00:00.000Z' })
+    const restedAt = await useQuoteStore.getState().restQuote('legacy')
+    const rested = useQuoteStore.getState().quotes[0].status
+
+    // Act
+    await useQuoteStore.getState().undoRest('legacy', '2026-01-05T05:00:00.000Z', restedAt, 'inbox')
+
+    // Assert
+    expect(rested).toBe('rest')
+    expect(useQuoteStore.getState().quotes[0]).toMatchObject({ status: 'inbox', snoozedUntil: '2026-01-05T05:00:00.000Z', activity: [] })
+  })
+
   it('logs rest and wake when the status changes through saveQuote (edit form)', async () => {
     // Arrange
     await seedLegacyQuote({ status: 'signal' })

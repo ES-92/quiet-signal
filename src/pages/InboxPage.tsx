@@ -24,7 +24,7 @@ export function InboxPage() {
     currentQuote,
     books
   )
-  const { finishSignal, saveDetails, snoozeCurrent, discardCurrent } = useClarifyActions(
+  const { finishSignal, saveDetails, snoozeCurrent, restCurrent, discardCurrent } = useClarifyActions(
     currentQuote,
     buildPatch,
     setMessage,
@@ -45,7 +45,7 @@ export function InboxPage() {
       right: () => void finishSignal(),
       left: () => void snoozeCurrent(),
       up: () => setDetailsOpen(true),
-      down: () => void discardCurrent()
+      down: () => void restCurrent()
     },
     { enabled: Boolean(currentQuote) && !detailsOpen && !coachVisible, distance: 76, exitMs: 340 }
   )
@@ -98,7 +98,8 @@ export function InboxPage() {
                 onFinish={() => void finishSignal()}
                 onToggleDetails={() => setDetailsOpen((open) => !open)}
                 onSnooze={() => void snoozeCurrent()}
-                onDiscard={() => void discardCurrent()}
+                onRest={() => void restCurrent()}
+                onDelete={() => void discardCurrent()}
               />
               <p className="text-center text-xs leading-5 text-graphite">{t('clarifyGestureHint')}</p>
 

@@ -12,7 +12,7 @@ export function GesturesPage() {
     { dir: '→', label: t('finishSignal') },
     { dir: '←', label: t('later') },
     { dir: '↑', label: t('details') },
-    { dir: '↓', label: t('deleteNoise') }
+    { dir: '↓', label: t('clarifyRest') }
   ]
   const sections = [
     { title: t('gesturesTodaySection'), gestures: todayGestures },

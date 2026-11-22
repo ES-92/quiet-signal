@@ -119,15 +119,17 @@ export function restPatch(quote: Quote, now = new Date()): Partial<Quote> {
   return { status: 'rest', snoozedUntil: undefined, updatedAt: now.toISOString(), activity: appendActivity(quote.activity, 'rest', now) }
 }
 
-// Undo of ↓ on the fresh row: back to signal with the previous snooze, without the rest event that ↓ logged (matched by its time).
+// Undo of ↓ on the fresh row: back to the previous status (signal on Today, inbox on Klären) with the previous snooze,
+// without the rest event that ↓ logged (matched by its time).
 export function undoRestPatch(
   quote: Quote,
   previousSnooze: string | undefined,
   restedAt: string | undefined,
-  now = new Date()
+  now = new Date(),
+  previousStatus: Exclude<QuoteStatus, 'rest'> = 'signal'
 ): Partial<Quote> {
   return {
-    status: 'signal',
+    status: previousStatus,
     snoozedUntil: previousSnooze,
     activity: removeLatestActivity(quote.activity, (event) => event.type === 'rest' && event.at === restedAt),
     updatedAt: now.toISOString()

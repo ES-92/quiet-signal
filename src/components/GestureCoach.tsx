@@ -11,7 +11,7 @@ export function GestureCoach({ deck, onDismiss }: GestureCoachProps) {
   const rightLabel = deck === 'today' ? t('gestureMoreOften') : t('finishSignal')
   const leftLabel = deck === 'today' ? t('gestureLessOften') : t('later')
   const upLabel = deck === 'today' ? t('gestureThought') : t('details')
-  const downLabel = deck === 'today' ? t('gestureRest') : t('deleteNoise')
+  const downLabel = deck === 'today' ? t('gestureRest') : t('clarifyRest')
 
   function dismiss() {
     tapHaptic(8)
@@ -37,7 +37,7 @@ export function GestureCoach({ deck, onDismiss }: GestureCoachProps) {
       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-line bg-paper/90 px-3 py-1 text-xs text-graphite">
         {rightLabel} →
       </span>
-      <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-clay/60 bg-paper/90 px-3 py-1 text-xs text-clay">
+      <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-line bg-paper/90 px-3 py-1 text-xs text-graphite">
         ↓ {downLabel}
       </span>
       {deck === 'today' && (

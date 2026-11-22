@@ -33,6 +33,7 @@ describe('useClarifyActions', () => {
       await result.current.finishSignal()
       await result.current.saveDetails()
       await result.current.snoozeCurrent()
+      await result.current.restCurrent()
       await result.current.discardCurrent()
     })
 
@@ -88,6 +89,31 @@ describe('useClarifyActions', () => {
     // Assert
     expect((await getQuote('q'))?.snoozedUntil).toBeTruthy()
     expect(useToastStore.getState().toast?.message).toBe(en.snoozedToast)
+  })
+
+  it('legt den Eintrag per Stille zur Ruhe und Rückgängig holt ihn genau ins Rauschen zurück', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', status: 'inbox', snoozedUntil: '2026-01-05T05:00:00.000Z' })
+    await upsertQuotes([quote])
+    useQuoteStore.setState({ quotes: [quote], loading: false })
+    const { result } = renderHook(() => useClarifyActions(quote, buildPatch, vi.fn()), { wrapper })
+
+    // Act
+    await act(async () => result.current.restCurrent())
+    const toast = useToastStore.getState().toast
+    const rested = await getQuote('q')
+    await act(async () => toast?.onAction?.())
+
+    // Assert
+    expect(rested).toMatchObject({ status: 'rest' })
+    expect(rested?.deletedAt).toBeUndefined()
+    expect(rested?.activity?.map((event) => event.type)).toEqual(['rest'])
+    expect(toast).toMatchObject({ message: en.restedToast, actionLabel: en.undo })
+    await waitFor(async () => expect((await getQuote('q'))?.status).toBe('inbox'))
+    const restored = await getQuote('q')
+    expect(restored?.snoozedUntil).toBe('2026-01-05T05:00:00.000Z')
+    expect(restored?.activity ?? []).toEqual([])
+    await waitFor(() => expect(useQuoteStore.getState().quotes.find((item) => item.id === 'q')?.status).toBe('inbox'))
   })
 
   it('verwirft und bietet Rückgängig an, das den Eintrag wiederherstellt', async () => {

@@ -1,4 +1,4 @@
-import { ArrowRight, Clock3, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { ArrowRight, Clock3, Moon, SlidersHorizontal } from 'lucide-react'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
 import { daysUnclarified } from '../../services/lifecycle'
@@ -69,12 +69,12 @@ export function ClarifyDeckStack({
           <SlidersHorizontal size={15} /> {t('detailsAction')}
         </GestureStamp>
         <GestureStamp
-          className="bottom-3 left-1/2 -translate-x-1/2 border-clay text-clay"
+          className="bottom-3 left-1/2 -translate-x-1/2 border-graphite text-graphite"
           opacity={deck.hints.down}
           rotate={0}
           y={10}
         >
-          <Trash2 size={15} /> {t('deleteNoise')}
+          <Moon size={15} /> {t('clarifyRest')}
         </GestureStamp>
 
         <div className="flex flex-wrap gap-2">
