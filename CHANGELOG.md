@@ -14,6 +14,8 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Favourites (#35): a "Favoriten" tab first in the library (with its own empty state), a "Favoriten" entry in the tools drawer that opens it, a filled accent heart on library cards and a small heart on the Today card.
 
 ### Changed
+- One way to capture (#39): the "Eintrag erfassen" page is gone. `/add` now redirects to Today and opens the capture sheet; shortcuts, share target and the + button all start as noise. The detail page's edit form is unchanged.
+- Clarify details form (#39): shows Text, Autor, Buch, Tags and Erster Gedanke; Personen, Zeitpunkt, Werk, Jahr, Quelle and Beschreibung sit behind "Mehr Details", which opens by itself when one of them already has a value.
 - A favourite never stays away longer than 30 days (#35): → and ← cap its interval at 30 days (← still at least 14), and marking an entry as favourite pulls a review further away than 30 days in to day 30. Resting and waking are unchanged. Older favourites whose stored date lies further away are treated as due 30 days after their last review (stored data is not rewritten).
 - Today gestures: → more often (interval ×1.5), ← less often (×4, at least 14 days), ↑ add a thought, ↓ let it rest; long-press opens the actions menu. Clarify gestures are unchanged.
 - Intervals are now adaptive per entry (`reviewIntervalDays`, 1 to 365 days) instead of a fixed table; the next review is set to 06:00 local time.

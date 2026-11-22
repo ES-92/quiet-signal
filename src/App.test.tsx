@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import App from './App'
@@ -33,6 +33,5 @@ describe('App routes', () => {
 
     // Assert
     expect(await screen.findByRole('button', { name: en.text })).toHaveAttribute('aria-pressed', 'true')
-    await waitFor(() => expect(screen.queryByText(en.addQuote)).not.toBeInTheDocument())
   })
 })
