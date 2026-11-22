@@ -14,7 +14,7 @@ interface ClarifyDetailsFormProps {
   onFinish: () => void
 }
 
-// Edit form for the top card. Text, author, book, tags and first thought are always shown; the rarely used fields sit behind "More details", which opens by itself when any of them already has a value.
+// Edit form for the top card. Text, author, book, tags and first thought are always shown; the rarely used fields sit behind "More details", which opens by itself when any of them already has a value or gets one (e.g. picking a book fills Werk).
 export function ClarifyDetailsForm({
   draft,
   books,
@@ -27,8 +27,15 @@ export function ClarifyDetailsForm({
   const hasRareValues = Boolean(
     draft.people.trim() || draft.occurredAt || draft.work || draft.year || draft.note.trim() || draft.source
   )
-  // Decided once when the form opens, so clearing a field never makes the others jump away.
+  // Decided when the form opens, so clearing a field never makes the others jump away.
   const [moreOpen, setMoreOpen] = useState(hasRareValues)
+  // While collapsed the user cannot edit these fields, so a change means the app filled one (adjusting state while rendering).
+  const rareKey = [draft.people, draft.occurredAt, draft.work, draft.year, draft.note, draft.source].join('\u0001')
+  const [seenRareKey, setSeenRareKey] = useState(rareKey)
+  if (rareKey !== seenRareKey) {
+    setSeenRareKey(rareKey)
+    if (hasRareValues) setMoreOpen(true)
+  }
 
   return (
     <div className="quiet-pop grid gap-4 rounded-md border border-line bg-white/30 p-4">

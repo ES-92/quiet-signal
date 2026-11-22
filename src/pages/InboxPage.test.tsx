@@ -516,9 +516,41 @@ describe('InboxPage', () => {
 
       // Assert
       expect(screen.getByLabelText(en.author)).toHaveValue('Die Autorin')
-      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
       expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
       expect(screen.getByRole('option', { name: 'Der Titel - Die Autorin' })).toBeInTheDocument()
+    })
+
+    it('öffnet „Mehr Details“ von selbst, wenn die Buchwahl das versteckte Feld Werk füllt', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
+
+      // Act
+      fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByLabelText(en.work)).toHaveValue('Der Titel')
+    })
+
+    it('lässt „Mehr Details“ zu, wenn der Nutzer es nach der Buchwahl selbst einklappt', async () => {
+      // Arrange
+      await upsertQuotes([makeQuote({ id: 'b-q', text: 'Zitat', status: 'inbox' })])
+      await upsertBooksForTest([makeBook({ id: 'bk-1', title: 'Der Titel' })])
+      await renderInbox()
+      await screen.findByRole('blockquote')
+      fireEvent.click(screen.getByRole('button', { name: en.detailsAction }))
+      fireEvent.change(await screen.findByLabelText(en.book), { target: { value: 'bk-1' } })
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: en.moreDetails }))
+
+      // Assert
+      expect(screen.getByRole('button', { name: en.moreDetails })).toHaveAttribute('aria-expanded', 'false')
     })
 
     it('speichert den bereinigten Entwurf beim Abschluss als Signal', async () => {
