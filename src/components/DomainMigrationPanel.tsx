@@ -44,7 +44,7 @@ export function DomainMigrationPanel() {
 
     window.addEventListener('message', receive)
     return () => window.removeEventListener('message', receive)
-  }, [importBooks, importQuotes, t])
+  }, [importBooks, importQuotes, t, tCount])
 
   function startMigration() {
     const target = encodeURIComponent(window.location.origin)

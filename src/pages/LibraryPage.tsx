@@ -12,7 +12,7 @@ type LibraryView = 'signal' | 'rest' | 'all'
 
 export function LibraryPage() {
   const { t, tCount } = useI18n()
-  const { quotes, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
+  const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, saveQuote, likeQuote, dislikeQuote, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [view, setView] = useState<LibraryView>('signal')
   const { showToast } = useToastStore()
@@ -132,6 +132,9 @@ export function LibraryPage() {
             />
           ))}
         </div>
+      ) : loading && quotes.length === 0 ? (
+        // Cold load: the empty state would claim there is nothing yet while the library is still being read.
+        <p className="py-10 text-center text-graphite">{t('loadingLibrary')}</p>
       ) : viewQuotes.length === 0 ? (
         <EmptyState title={view === 'rest' ? t('emptyRestTitle') : t('emptyCollectionTitle')}>
           {view === 'rest' ? t('emptyRestBody') : t('emptyCollectionBody')}

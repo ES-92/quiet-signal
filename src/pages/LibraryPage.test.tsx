@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertQuotes } from '../db/database'
 import { translations } from '../i18n/translations'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -31,6 +31,20 @@ beforeEach(async () => {
 })
 
 describe('LibraryPage', () => {
+  it('shows the loading state instead of the empty state while the library is still loading', () => {
+    // Arrange
+    const loadQuotes = useQuoteStore.getState().loadQuotes
+    useQuoteStore.setState({ quotes: [], loading: true, loadQuotes: vi.fn().mockResolvedValue(undefined) })
+
+    // Act
+    renderWithProviders(<LibraryPage />)
+
+    // Assert
+    expect(screen.getByText(en.loadingLibrary)).toBeInTheDocument()
+    expect(screen.queryByText(en.emptyCollectionTitle)).not.toBeInTheDocument()
+    useQuoteStore.setState({ loadQuotes })
+  })
+
   it('shows only signals by default', async () => {
     // Arrange / Act
     await renderLibrary()
