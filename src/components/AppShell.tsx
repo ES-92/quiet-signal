@@ -1,5 +1,5 @@
 import { Loader2, Menu } from 'lucide-react'
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { captureEventName, isCaptureMode, type CaptureMode } from '../services/captureEvents'
@@ -24,7 +24,6 @@ export function AppShell() {
   const [captureOpen, setCaptureOpen] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
   const [captureMode, setCaptureMode] = useState<CaptureMode>('text')
-  const gestureRef = useRef<{ x: number; y: number; startedAtTop: boolean; edge: 'left' | 'right' | null } | null>(null)
 
   useEffect(() => {
     const openCapture = (event: Event) => {
@@ -63,40 +62,6 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  function handlePointerDown(event: React.PointerEvent<HTMLElement>) {
-    if (!isToday || isInteractiveTarget(event.target)) return
-    const width = window.innerWidth || 390
-    gestureRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-      startedAtTop: event.clientY < 190,
-      edge: event.clientX < 28 ? 'left' : event.clientX > width - 28 ? 'right' : null
-    }
-  }
-
-  function handlePointerUp(event: React.PointerEvent<HTMLElement>) {
-    const start = gestureRef.current
-    gestureRef.current = null
-    if (!start || !isToday) return
-    const dx = event.clientX - start.x
-    const dy = event.clientY - start.y
-    if (start.edge === 'left' && dx > 76 && Math.abs(dy) < 90) {
-      tapHaptic(14)
-      navigate('/inbox')
-      return
-    }
-    if (start.edge === 'right' && dx < -76 && Math.abs(dy) < 90) {
-      tapHaptic(14)
-      setDrawerOpen(true)
-      return
-    }
-    if (start.startedAtTop && dy > 90 && Math.abs(dx) < 70) {
-      tapHaptic(10)
-      setCaptureMode('text')
-      setCaptureOpen(true)
-    }
-  }
-
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden text-ink">
       <header
@@ -127,19 +92,11 @@ export function AppShell() {
       </header>
       <InstallPrompt />
       <UpdateNotice />
-      {isToday && (
-        <>
-          <div className="pointer-events-none fixed left-0 top-[32dvh] z-20 h-28 w-3 rounded-r-full border-y border-r border-line bg-paper/50 opacity-70 transition" />
-          <div className="pointer-events-none fixed right-0 top-[32dvh] z-20 h-28 w-3 rounded-l-full border-y border-l border-line bg-paper/50 opacity-70 transition" />
-        </>
-      )}
       <main
         className={[
           'mx-auto w-full max-w-6xl min-h-0 flex-1 px-4 sm:px-8',
           isToday ? 'flex overflow-hidden pb-3 sm:pb-6' : 'overflow-y-auto pb-8 sm:pb-12'
         ].join(' ')}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
       >
         {/* Keyed by path: navigating away from a broken page gives the next page a fresh boundary. */}
         <ErrorBoundary key={location.pathname}>
@@ -164,8 +121,4 @@ function PageLoader() {
       <Loader2 className="animate-spin text-graphite" size={28} aria-label="Loading" />
     </div>
   )
-}
-
-function isInteractiveTarget(target: EventTarget) {
-  return target instanceof HTMLElement && Boolean(target.closest('button, a, input, select, textarea, audio, summary'))
 }

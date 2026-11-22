@@ -64,6 +64,25 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: 'Open menu' })).toBe(screen.getByRole('button', { name: en.openCommandMenu }))
   })
 
+  it('kennt keine Rand-Wischgesten mehr: weder Erfassen von oben noch Klären oder Menü vom Rand', async () => {
+    // Arrange
+    renderShell('/today')
+    const main = (await screen.findByTestId('location')).closest('main') as HTMLElement
+    const drag = (from: [number, number], to: [number, number]) => {
+      fireEvent.pointerDown(main, { clientX: from[0], clientY: from[1] })
+      fireEvent.pointerUp(main, { clientX: to[0], clientY: to[1] })
+    }
+
+    // Act
+    drag([200, 60], [200, 260])
+    drag([5, 400], [180, 400])
+    drag([window.innerWidth - 5, 400], [window.innerWidth - 180, 400])
+
+    // Assert
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/today$/)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('öffnet das Capture-Sheet im Foto-Modus über ?capture=photo und bereinigt die URL', async () => {
     // Arrange / Act
     renderShell('/today?capture=photo')

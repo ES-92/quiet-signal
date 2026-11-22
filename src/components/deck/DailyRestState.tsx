@@ -1,7 +1,6 @@
-import { BookOpen, Camera, Feather, Inbox, Mic, PenLine } from 'lucide-react'
+import { BookOpen, Feather, Inbox } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { useI18n } from '../../i18n/useI18n'
-import { openCapture } from '../../services/captureEvents'
 import { tapHaptic } from '../../services/haptics'
 import { TrySamplesButton } from '../TrySamplesButton'
 
@@ -72,22 +71,14 @@ export function DailyRestState({
             <span className="rounded-full bg-clay/10 px-1.5 py-0.5 text-xs tabular-nums">{inboxCount}</span>
           </button>
         )}
-        <div className="relative mx-auto flex max-w-full items-center justify-center gap-2 rounded-full border border-line bg-paper/80 p-1.5 shadow-[0_16px_42px_rgba(31,30,28,0.08)] backdrop-blur">
-          <RestAction label={t('text')} onClick={() => openCapture('text')}>
-            <PenLine size={17} />
-          </RestAction>
-          <RestAction label={t('photoNote')} onClick={() => openCapture('photo')}>
-            <Camera size={17} />
-          </RestAction>
-          <RestAction label={t('voiceNote')} onClick={() => openCapture('audio')}>
-            <Mic size={17} />
-          </RestAction>
-          {showReflection && (
+        {/* Capturing happens through the + at the bottom only; the rest state offers no capture pill of its own. */}
+        {showReflection && (
+          <div className="relative mx-auto flex max-w-full items-center justify-center gap-2 rounded-full border border-line bg-paper/80 p-1.5 shadow-[0_16px_42px_rgba(31,30,28,0.08)] backdrop-blur">
             <RestAction label={t('openReflections')} onClick={onOpenReflections} emphasized>
               <Feather size={17} />
             </RestAction>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   )

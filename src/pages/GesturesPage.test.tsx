@@ -53,4 +53,15 @@ describe('GesturesPage', () => {
     // Assert
     expect(screen.getByText(en.gestureLongPress)).toBeInTheDocument()
   })
+
+  it('nennt keine Rand-Wischgesten mehr', () => {
+    // Arrange / Act
+    renderWithProviders(<GesturesPage />)
+
+    // Assert
+    const more = section(en.gesturesMoreSection)
+    expect(more.textContent).not.toMatch(/edge/i)
+    expect(screen.getByText(en.gesturesIntro)).not.toHaveTextContent(/capture|inbox/i)
+    expect(more).toHaveTextContent(en.gestureMenu)
+  })
 })

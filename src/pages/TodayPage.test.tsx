@@ -940,6 +940,20 @@ describe('TodayPage', () => {
     })
   })
 
+  describe('Leerzustand', () => {
+    it('bietet keine eigene Erfassen-Pille an; erfasst wird über das Plus unten', async () => {
+      // Arrange / Act
+      await renderToday()
+      await screen.findByText(en.nothingDueToday)
+
+      // Assert
+      expect(screen.queryByRole('button', { name: en.text })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.photoNote })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.voiceNote })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: en.openCapture })).toBeInTheDocument()
+    })
+  })
+
   describe('Stöbern', () => {
     const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
 
