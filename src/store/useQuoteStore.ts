@@ -104,6 +104,7 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     await updateQuote(id, { likes: next })
   },
   toggleFavorite: async (id) => {
+    if (!get().quotes.some((item) => item.id === id)) return
     await updateQuote(id, (current) => favoriteTogglePatch(current))
     await get().loadQuotes()
   },

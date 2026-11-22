@@ -45,6 +45,19 @@ describe('CommandDrawer', () => {
     expect(screen.getByRole('link', { name: en.favorites })).toHaveAttribute('href', '/library?view=favorites')
   })
 
+  it('markiert nur einen der Einträge Favoriten und Sammlung als aktiv', () => {
+    // Arrange / Act
+    const { unmount } = renderWithProviders(<CommandDrawer open onClose={vi.fn()} />, { route: '/library?view=favorites' })
+
+    // Assert
+    expect(screen.getByRole('link', { name: en.favorites })).toHaveClass('bg-ink')
+    expect(screen.getByRole('link', { name: en.library })).not.toHaveClass('bg-ink')
+    unmount()
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} />, { route: '/library' })
+    expect(screen.getByRole('link', { name: en.library })).toHaveClass('bg-ink')
+    expect(screen.getByRole('link', { name: en.favorites })).not.toHaveClass('bg-ink')
+  })
+
   it('nutzt für das Suchfeld mindestens 16px auf dem Handy, damit iOS nicht hineinzoomt', () => {
     // Arrange / Act
     renderWithProviders(<CommandDrawer open onClose={vi.fn()} />)

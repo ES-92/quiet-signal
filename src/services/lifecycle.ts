@@ -1,4 +1,4 @@
-import type { Quote, QuoteStatus } from '../types/quote'
+import { quoteStatus, type Quote, type QuoteStatus } from '../types/quote'
 
 const reviewHour = 6
 const maxIntervalDays = 365
@@ -76,12 +76,23 @@ export function favoriteTogglePatch(quote: Quote, now = new Date()): Partial<Quo
 // The schedule part of becoming a favourite, for every write path that can set the flag (heart, edit form).
 export function favoriteCapPatch(quote: Quote, now = new Date()): Partial<Quote> {
   const patch: Partial<Quote> = {}
+  // Rest and noise have no due date that matters; wake and clarify set a fresh schedule anyway.
+  if (quoteStatus(quote) !== 'signal') return patch
   const latest = reviewDateFromInterval(favoriteMaxIntervalDays, now)
   if (quote.nextReviewAt && new Date(quote.nextReviewAt).getTime() > new Date(latest).getTime()) patch.nextReviewAt = latest
   if (quote.reviewIntervalDays !== undefined && quote.reviewIntervalDays > favoriteMaxIntervalDays) {
     patch.reviewIntervalDays = favoriteMaxIntervalDays
   }
   return patch
+}
+
+// When a signal is really due. A favourite is never due later than 30 days after its last review (or creation),
+// even if an old or imported row stores a date further away. Stored data is not rewritten.
+export function effectiveDueAt(quote: Quote): string | undefined {
+  if (!quote.favorite || quoteStatus(quote) !== 'signal') return quote.nextReviewAt
+  const capped = reviewDateFromInterval(favoriteMaxIntervalDays, new Date(quote.lastReviewedAt ?? quote.createdAt))
+  if (!quote.nextReviewAt) return undefined
+  return new Date(quote.nextReviewAt).getTime() <= new Date(capped).getTime() ? quote.nextReviewAt : capped
 }
 
 export function restPatch(_quote: Quote, now = new Date()): Partial<Quote> {

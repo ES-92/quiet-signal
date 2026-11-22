@@ -294,4 +294,32 @@ describe('lifecycle store actions', () => {
     const stored = await db.quotes.get('legacy')
     expect(stored).toMatchObject({ favorite: false, reviewIntervalDays: 120, nextReviewAt: '2027-06-01T06:00:00.000Z' })
   })
+
+  it('toggleFavorite ignores unknown ids', async () => {
+    // Arrange
+    await seedLegacyQuote()
+
+    // Act
+    await useQuoteStore.getState().toggleFavorite('missing')
+
+    // Assert
+    expect((await db.quotes.get('legacy'))?.favorite).toBe(false)
+  })
+
+  it('saveQuote with favorite true applies the cap once, and not again when already a favourite', async () => {
+    // Arrange
+    await seedLegacyQuote({ reviewIntervalDays: 120, nextReviewAt: '2027-06-01T06:00:00.000Z' })
+
+    // Act
+    await useQuoteStore.getState().saveQuote('legacy', { favorite: true })
+    const capped = await db.quotes.get('legacy')
+    await db.quotes.update('legacy', { reviewIntervalDays: 90, nextReviewAt: '2027-06-01T06:00:00.000Z' })
+    await useQuoteStore.getState().saveQuote('legacy', { favorite: true })
+    const again = await db.quotes.get('legacy')
+
+    // Assert
+    expect(capped?.reviewIntervalDays).toBe(30)
+    expect(again?.reviewIntervalDays).toBe(90)
+    expect(again?.nextReviewAt).toBe('2027-06-01T06:00:00.000Z')
+  })
 })

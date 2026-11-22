@@ -16,13 +16,26 @@ export function LibraryPage() {
   const { quotes, loading, filters, setFilters, resetFilters, loadQuotes, toggleFavorite, wakeQuote } = useQuoteStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
   // The Werkzeuge entry opens the library with ?view=favorites; otherwise the signals come first.
-  const [searchParams] = useSearchParams()
-  const [view, setView] = useState<LibraryView>(searchParams.get('view') === 'favorites' ? 'favorites' : 'signal')
+  // The tab lives in the URL, so following that link while the library is open switches the tab too.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requested = searchParams.get('view')
+  const view: LibraryView = requested === 'favorites' || requested === 'rest' || requested === 'all' ? requested : 'signal'
+  function setView(next: LibraryView) {
+    setSearchParams(next === 'signal' ? {} : { view: next }, { replace: true })
+  }
   const { showToast } = useToastStore()
 
   async function wakeEntry(id: string) {
     try {
       await wakeQuote(id)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    }
+  }
+
+  async function favoriteEntry(id: string) {
+    try {
+      await toggleFavorite(id)
     } catch {
       showToast({ message: t('saveFailed') })
     }
@@ -133,7 +146,7 @@ export function LibraryPage() {
               key={quote.id}
               quote={quote}
               compact
-              onFavorite={(id) => void toggleFavorite(id)}
+              onFavorite={(id) => void favoriteEntry(id)}
               onWake={quoteStatus(quote) === 'rest' ? (id) => void wakeEntry(id) : undefined}
             />
           ))}

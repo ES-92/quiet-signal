@@ -196,7 +196,8 @@ export function QuoteDetailPage() {
           )}
           <button
             className="inline-flex min-h-[44px] items-center gap-2 rounded-md border border-line px-3 py-2 text-sm text-graphite"
-            onClick={() => void toggleFavorite(quote.id)}
+            aria-pressed={Boolean(quote.favorite)}
+            onClick={() => void attempt(() => toggleFavorite(quote.id))}
           >
             <Heart size={16} fill={quote.favorite ? 'currentColor' : 'none'} /> {t('favorite')}
           </button>

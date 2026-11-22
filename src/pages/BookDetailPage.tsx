@@ -6,11 +6,13 @@ import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EmptyState } from '../components/EmptyState'
 import { QuoteCard } from '../components/QuoteCard'
 import { useI18n } from '../i18n/useI18n'
+import { useToastStore } from '../store/useToastStore'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 
 export function BookDetailPage() {
   const { t, tCount } = useI18n()
+  const { showToast } = useToastStore()
   const { id } = useParams()
   const navigate = useNavigate()
   const { books, loadBooks, saveBook, removeBook } = useBookStore()
@@ -143,7 +145,7 @@ export function BookDetailPage() {
               key={quote.id}
               quote={quote}
               compact
-              onFavorite={(quoteId) => void toggleFavorite(quoteId)}
+              onFavorite={(quoteId) => void toggleFavorite(quoteId).catch(() => showToast({ message: t('saveFailed') }))}
             />
           ))}
         </div>

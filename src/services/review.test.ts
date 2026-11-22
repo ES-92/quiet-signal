@@ -379,3 +379,17 @@ describe('selectDailyStack – Favoriten', () => {
     expect(result).toContain(favorite.id)
   })
 })
+
+describe('selectDailyStack – Favoriten mit weit entferntem Datum', () => {
+  it('holt einen alten Favoriten nach 30 Tagen seit der letzten Wiederholung wieder heraus', () => {
+    // Arrange
+    const legacy = makeQuote({ favorite: true, lastReviewedAt: inDays(-31), nextReviewAt: inDays(120) })
+    const plain = makeQuote({ lastReviewedAt: inDays(-31), nextReviewAt: inDays(120) })
+
+    // Act
+    const result = ids(selectDailyStack([legacy, plain], { limit: 5 }))
+
+    // Assert
+    expect(result).toEqual([legacy.id])
+  })
+})

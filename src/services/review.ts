@@ -1,3 +1,4 @@
+import { effectiveDueAt } from './lifecycle'
 import { quoteStatus, isSnoozed, type Quote } from '../types/quote'
 import { localDateKey } from '../utils/date'
 
@@ -31,7 +32,10 @@ export function selectDailyStack(
     .filter((quote) => !quote.deletedAt)
     .filter((quote) => !isSnoozed(quote, now))
     .filter((quote) => !reviewedToday(quote))
-    .filter((quote) => !quote.nextReviewAt || new Date(quote.nextReviewAt).getTime() <= now)
+    .filter((quote) => {
+      const due = effectiveDueAt(quote)
+      return !due || new Date(due).getTime() <= now
+    })
     .map((quote) => ({ quote, score: stackScore(quote, now, random) }))
     .sort((a, b) => b.score - a.score)
 

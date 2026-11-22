@@ -175,8 +175,13 @@ export function useTodayActions({ currentQuote, currentBook, browsing, advanceIn
   async function handleFavoriteToggle() {
     if (!currentQuote) return
     tapHaptic(10)
-    await toggleFavorite(currentQuote.id)
-    setContextOpen(false)
+    try {
+      await toggleFavorite(currentQuote.id)
+    } catch {
+      showToast({ message: t('saveFailed') })
+    } finally {
+      setContextOpen(false)
+    }
   }
 
   function handleContextDiscard() {

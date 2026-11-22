@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, getQuote, upsertQuotes } from '../db/database'
@@ -248,5 +249,44 @@ describe('LibraryPage', () => {
     // Assert
     await waitFor(async () => expect((await getQuote('l-1'))?.favorite).toBe(true), SLOW)
     await waitFor(() => expect(heart).toHaveAttribute('aria-pressed', 'true'))
+  })
+
+  it('switches to Favoriten when the drawer link navigates while the library is already mounted', async () => {
+    // Arrange
+    renderWithProviders(
+      <>
+        <Link to="/?view=favorites">fav-link</Link>
+        <LibraryPage />
+      </>
+    )
+    await waitFor(() => expect(useQuoteStore.getState().loading).toBe(false))
+    expect(screen.getByRole('button', { name: en.libraryViewSignal })).toHaveAttribute('aria-pressed', 'true')
+
+    // Act
+    fireEvent.click(screen.getByText('fav-link'))
+
+    // Assert
+    await waitFor(() => expect(screen.getByRole('button', { name: en.libraryViewFavorites })).toHaveAttribute('aria-pressed', 'true'))
+  })
+
+  it('shows a toast when toggling the heart fails', async () => {
+    // Arrange
+    await renderLibrary()
+    const card = (await screen.findByText('"Signaltext"')).closest('article') as HTMLElement
+    const { toggleFavorite } = useQuoteStore.getState()
+    act(() => {
+      useQuoteStore.setState({ toggleFavorite: () => Promise.reject(new Error('boom')) })
+    })
+
+    // Act
+    fireEvent.click(card.querySelector('button[aria-label="' + en.favorite + '"]') as HTMLElement)
+
+    // Assert
+    try {
+      await waitFor(() => expect(useToastStore.getState().toast?.message).toBe(en.saveFailed), SLOW)
+    } finally {
+      useQuoteStore.setState({ toggleFavorite })
+      useToastStore.setState({ toast: null })
+    }
   })
 })
