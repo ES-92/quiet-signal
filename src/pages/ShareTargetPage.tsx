@@ -11,6 +11,7 @@ export function ShareTargetPage() {
   const navigate = useNavigate()
   const addQuote = useQuoteStore((state) => state.addQuote)
   const handledRef = useRef(false)
+  const redirectTimerRef = useRef<number | undefined>(undefined)
   const [state, setState] = useState<'saving' | 'saved' | 'failed'>('saving')
 
   const params = new URLSearchParams(location.search)
@@ -45,10 +46,13 @@ export function ShareTargetPage() {
       }
       tapHaptic([10, 30, 10])
       setState('saved')
-      window.setTimeout(() => navigate('/inbox', { replace: true }), 420)
+      redirectTimerRef.current = window.setTimeout(() => navigate('/inbox', { replace: true }), 420)
     },
     [navigate]
   )
+
+  // Leaving the page before the short redirect delay must not navigate afterwards.
+  useEffect(() => () => window.clearTimeout(redirectTimerRef.current), [])
 
   useEffect(() => {
     if (handledRef.current) return

@@ -363,7 +363,8 @@ function deriveBitsKey(secret: string) {
 // so the bytes are converted in slices.
 const base64ChunkSize = 0x8000
 
-function bytesToBase64(bytes: Uint8Array) {
+/** Exported for tests; converts in slices so large payloads do not overflow the call stack. */
+export function bytesToBase64(bytes: Uint8Array) {
   let binary = ''
   for (let offset = 0; offset < bytes.length; offset += base64ChunkSize) {
     binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(offset, offset + base64ChunkSize)))
@@ -371,7 +372,7 @@ function bytesToBase64(bytes: Uint8Array) {
   return btoa(binary)
 }
 
-function base64ToBytes(value: string) {
+export function base64ToBytes(value: string) {
   const binary = atob(value)
   const bytes = new Uint8Array(binary.length)
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)

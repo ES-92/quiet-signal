@@ -51,4 +51,17 @@ describe('ShareTargetPage', () => {
     expect(addQuote).toHaveBeenCalledTimes(2)
     expect(await listQuotes()).toHaveLength(1)
   })
+
+  it('räumt den Weiterleitungs-Timer beim Verlassen der Seite auf', async () => {
+    // Arrange
+    const { unmount } = renderWithProviders(<ShareTargetPage />, { route: '/share-target?text=Hallo' })
+    expect(await screen.findByText(en.shareImported)).toBeInTheDocument()
+    const clearTimeout = vi.spyOn(window, 'clearTimeout')
+
+    // Act
+    unmount()
+
+    // Assert
+    expect(clearTimeout).toHaveBeenCalled()
+  })
 })

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import App from './App'
 import { db } from './db/database'
@@ -39,6 +39,10 @@ beforeEach(async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('App routes', () => {
   it('leitet /add auf Heute um und öffnet das Capture-Sheet im Textmodus', async () => {
     // Arrange / Act
@@ -60,6 +64,5 @@ describe('App routes', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(en.errorBoundaryTitle)
     expect(screen.getByRole('button', { name: en.errorBoundaryAction })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: en.openCommandMenu })).toBeInTheDocument()
-    vi.restoreAllMocks()
   })
 })

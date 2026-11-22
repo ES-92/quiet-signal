@@ -9,6 +9,8 @@ import {
   writeLegacyEncryptionRecord
 } from '../test/legacyVault'
 import {
+  base64ToBytes as base64ToBytesInternal,
+  bytesToBase64 as bytesToBase64Internal,
   clearPinLock,
   decryptBookFromStorage,
   decryptQuoteFromStorage,
@@ -404,5 +406,23 @@ describe('Prüfdatensatz des Tresors', () => {
     expect(result).toBe(false)
     expect(isEncryptionUnlocked()).toBe(false)
     expect(localStorage.getItem(encryptionStorageKey)).toBe(raw)
+  })
+})
+
+describe('Base64-Kodierung', () => {
+  it.each([0, 1, 0x8000, 0x8000 + 1, 3 * 0x8000 + 7])('übersteht einen Roundtrip mit %i Bytes', (size) => {
+    // Arrange
+    const bytes = new Uint8Array(size)
+    for (let index = 0; index < size; index += 1) bytes[index] = (index * 31 + 7) % 256
+
+    // Act
+    const encoded = bytesToBase64Internal(bytes)
+    const decoded = base64ToBytesInternal(encoded)
+
+    // Assert
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    expect(encoded).toBe(btoa(binary))
+    expect(decoded).toEqual(bytes)
   })
 })
