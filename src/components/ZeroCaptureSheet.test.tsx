@@ -139,4 +139,24 @@ describe('ZeroCaptureSheet beim Speichern', () => {
     expect(screen.getByRole('button', { name: en.captureNoise })).toBeEnabled()
     useQuoteStore.setState({ addQuote: original })
   })
+
+  it('schließt ohne Fehlerhinweis, wenn nur das Neuladen nach dem Speichern scheitert', async () => {
+    // Arrange
+    const onClose = vi.fn()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(db.quotes, 'orderBy').mockImplementationOnce(() => {
+      throw new Error('reload failed')
+    })
+    renderWithProviders(<ZeroCaptureSheet open onClose={onClose} initialMode="text" />)
+    fireEvent.change(screen.getByPlaceholderText(en.noisePlaceholder), { target: { value: 'Schon da' } })
+
+    // Act
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.captureNoise }))
+    })
+
+    // Assert
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(useToastStore.getState().toast).toBeNull()
+  })
 })

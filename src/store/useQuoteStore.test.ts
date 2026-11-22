@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, upsertQuotes } from '../db/database'
+import { db, listQuotes, upsertQuotes } from '../db/database'
 import { disableEncryptionRecord, enableEncryption, lockEncryption } from '../services/security'
 import type { ReviewSnapshot } from '../services/lifecycle'
 import { resetPersistentStorageRequest } from '../services/persistentStorage'
@@ -435,5 +435,33 @@ describe('dauerhafter Speicher', () => {
 
     // Assert
     expect(persist).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('addQuote bei fehlschlagendem Neuladen', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('meldet Erfolg, wenn nur das Neuladen nach dem Speichern scheitert', async () => {
+    // Arrange
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const orderBy = vi.spyOn(db.quotes, 'orderBy').mockImplementationOnce(() => {
+      throw new Error('reload failed')
+    })
+
+    // Act
+    const created = await useQuoteStore.getState().addQuote({ text: 'Gespeichert', tags: [], favorite: false, status: 'inbox' } as never)
+
+    // Assert
+    expect(created.text).toBe('Gespeichert')
+    expect(orderBy).toHaveBeenCalled()
+    orderBy.mockRestore()
+    expect((await listQuotes()).map((quote) => quote.text)).toEqual(['Gespeichert'])
+  })
+
+  it('wirft weiterhin, wenn das Speichern selbst scheitert', async () => {
+    vi.spyOn(db.quotes, 'add').mockRejectedValueOnce(new Error('QuotaExceededError'))
+    await expect(
+      useQuoteStore.getState().addQuote({ text: 'x', tags: [], favorite: false, status: 'inbox' } as never)
+    ).rejects.toThrow('QuotaExceededError')
   })
 })
