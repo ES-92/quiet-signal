@@ -160,11 +160,11 @@ function normalizeImportedQuote(row: ImportRow | Record<string, string>): Quote 
     locationName: optional(row.locationName),
     locationLatitude: optionalNumber(row.locationLatitude),
     locationLongitude: optionalNumber(row.locationLongitude),
-    createdAt: row.createdAt || timestamp,
-    updatedAt: row.updatedAt || timestamp,
+    createdAt: importedDate(row.createdAt) ?? timestamp,
+    updatedAt: importedDate(row.updatedAt) ?? timestamp,
     reviewCount: optionalNumber(row.reviewCount) ?? 0,
-    lastReviewedAt: optional(row.lastReviewedAt),
-    nextReviewAt: optional(row.nextReviewAt),
+    lastReviewedAt: importedDate(row.lastReviewedAt),
+    nextReviewAt: importedDate(row.nextReviewAt),
     reviewIntervalDays: validReviewInterval(row.reviewIntervalDays),
     thoughts: normalizeThoughts(row.thoughts),
     activity: normalizeActivity(row.activity)
@@ -229,9 +229,27 @@ function normalizeImportedBook(row: BookImportRow): Book {
     author: optional(row.author),
     weight,
     source,
-    createdAt: row.createdAt || timestamp,
-    updatedAt: row.updatedAt || timestamp
+    createdAt: importedDate(row.createdAt) ?? timestamp,
+    updatedAt: importedDate(row.updatedAt) ?? timestamp
   }
+}
+
+// Stored dates must be ISO strings the app can compute with: an invalid one would make toISOString() throw
+// during render. Only ISO-like strings (YYYY-MM-DD...) between the years 1900 and 9999 are kept, as ISO.
+// snoozedUntil and deletedAt are not imported at all.
+const isoLikeDate = /^\d{4}-\d{2}-\d{2}/
+const minImportedYear = 1900
+const maxImportedYear = 9999
+
+function importedDate(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!isoLikeDate.test(trimmed)) return undefined
+  const time = Date.parse(trimmed)
+  if (!Number.isFinite(time)) return undefined
+  const date = new Date(time)
+  const year = date.getUTCFullYear()
+  return year >= minImportedYear && year <= maxImportedYear ? date.toISOString() : undefined
 }
 
 function optional(value: unknown) {
