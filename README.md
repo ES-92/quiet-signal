@@ -34,7 +34,7 @@ Quiet Signal is built around a simple metaphor: capture the **noise**, keep the 
 - **Capture anything** — text, photos, and voice notes, in seconds.
 - **Triage flow** — new captures land in *Rauschen* (noise); in Clarify you keep what touches you as *Signal*, snooze it for later, or discard it.
 - **Daily review** — a calm deck shows only the signals that are due. Swipe → to see one more often, ← less often, ↑ to add a dated thought, ↓ to let it rest; "Browse anyway" shuffles through everything without changing any schedule.
-- **Books & sources** — group quotes by book, tune how often a book resurfaces.
+- **Books & sources** — group quotes by book and browse them per book.
 - **Reflections** — a quiet weekly/monthly letter built from your own signals.
 - **Import & export** — import **Kindle** clippings and **Readwise CSV**; export everything as **JSON, CSV, or Markdown**. Your data is always yours.
 - **Private by design** — no account, no cloud, no tracking. Optional **PIN lock** (a view lock) and **AES-GCM vault encryption** for your entries; see the [security model](docs/ARCHITECTURE.md#security-model).
