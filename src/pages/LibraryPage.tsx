@@ -155,7 +155,7 @@ export function LibraryPage() {
         // Cold load: the empty state would claim there is nothing yet while the library is still being read.
         <p className="py-10 text-center text-graphite">{t('loadingLibrary')}</p>
       ) : viewQuotes.length === 0 ? (
-        <EmptyState title={emptyTitle} action={quotes.length === 0 ? <TrySamplesButton /> : undefined}>
+        <EmptyState title={emptyTitle} action={quotes.length === 0 && (view === 'signal' || view === 'all') ? <TrySamplesButton /> : undefined}>
           {emptyBody}
         </EmptyState>
       ) : (

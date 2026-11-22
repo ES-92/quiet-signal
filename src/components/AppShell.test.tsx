@@ -96,7 +96,7 @@ describe('AppShell', () => {
     expect(screen.queryByRole('button', { name: 'Support' })).not.toBeInTheDocument()
   })
 
-  it('hält die Unterstützung im Command-Menü bereit', async () => {
+  it('öffnet über das Command-Menü das Unterstützungs-Sheet mit Ko-fi und PayPal', async () => {
     // Arrange
     renderShell('/inbox')
     await screen.findByTestId('location')
@@ -104,8 +104,11 @@ describe('AppShell', () => {
     // Act
     fireEvent.click(screen.getByRole('button', { name: en.openCommandMenu }))
 
+    fireEvent.click(screen.getByRole('button', { name: en.supportProjectAction }))
+
     // Assert
-    expect(screen.getByRole('link', { name: en.supportProjectAction })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /PayPal/ })).toHaveAttribute('href', 'https://paypal.me/ErikSchroeder92')
+    expect(screen.getByRole('link', { name: /Ko-fi/ })).toBeInTheDocument()
   })
 
   it('öffnet das Command-Menü per Button und per Strg+K', async () => {

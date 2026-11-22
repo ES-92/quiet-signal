@@ -58,6 +58,7 @@ beforeEach(async () => {
   useBookStore.setState({ books: [] })
   useToastStore.setState({ toast: null })
   resetSettings()
+  localStorage.removeItem('quiet-signal-protection-notice-dismissed')
   reminder.isNotificationSupported.mockReturnValue(true)
   reminder.notificationPermission.mockReturnValue('granted')
   reminder.requestNotificationPermission.mockResolvedValue('granted')
@@ -193,10 +194,12 @@ describe('SettingsPage: Hinweise', () => {
     expect(notes()).toHaveLength(0)
   })
 
-  it('warnt bei fehlendem Schutz und öffnet über die Aktion den Sicherheitsbereich', async () => {
+  it('warnt bei fehlendem Schutz und öffnet über die Aktion den Sicherheitsbereich mit Fokus auf dessen Kopf', async () => {
     // Arrange
+    await upsertQuotes([makeQuote()])
     localStorage.setItem('quiet-signal-last-backup-at', new Date().toISOString())
     renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.noticeProtectionOff)
     const securityPanel = screen.getByText(en.securityHelp).closest('details') as HTMLDetailsElement
     expect(securityPanel.open).toBe(false)
     const notice = screen.getByText(en.noticeProtectionOff).closest('[role="note"]') as HTMLElement
@@ -206,12 +209,42 @@ describe('SettingsPage: Hinweise', () => {
 
     // Assert
     expect(securityPanel.open).toBe(true)
+    expect(securityPanel.querySelector('summary')?.contains(document.activeElement)).toBe(true)
+  })
+
+  it('zeigt die Schutz-Warnung nicht, solange die Bibliothek leer ist', async () => {
+    // Arrange / Act
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.backupEmpty)
+
+    // Assert
+    expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
+  })
+
+  it('blendet die Schutz-Warnung mit „Nicht mehr erinnern“ dauerhaft aus', async () => {
+    // Arrange
+    await upsertQuotes([makeQuote()])
+    localStorage.setItem('quiet-signal-last-backup-at', new Date().toISOString())
+    const first = renderWithProviders(<SettingsPage />)
+    const notice = (await screen.findByText(en.noticeProtectionOff)).closest('[role="note"]') as HTMLElement
+
+    // Act
+    fireEvent.click(within(notice).getByRole('button', { name: en.noticeDismiss }))
+
+    // Assert
+    expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
+    expect(localStorage.getItem('quiet-signal-protection-notice-dismissed')).toBe('true')
+    first.unmount()
+    renderWithProviders(<SettingsPage />)
+    await screen.findByText(en.storedLocally_one.replace('{count}', '1'))
+    expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
   })
 
   it('blendet die Schutz-Warnung aus, sobald eine PIN gesetzt ist', async () => {
     // Arrange
+    await upsertQuotes([makeQuote()])
     renderWithProviders(<SettingsPage />)
-    expect(screen.getByText(en.noticeProtectionOff)).toBeInTheDocument()
+    expect(await screen.findByText(en.noticeProtectionOff)).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText(en.pinPlaceholder), { target: { value: '1234' } })
 
     // Act
@@ -223,11 +256,12 @@ describe('SettingsPage: Hinweise', () => {
 
   it('blendet die Schutz-Warnung aus, sobald der Tresor aktiv ist', async () => {
     // Arrange
+    await upsertQuotes([makeQuote()])
     await enableEncryption('passwort-123')
 
     // Act
     renderWithProviders(<SettingsPage />)
-    await screen.findByText(en.backupEmpty)
+    await screen.findByText(en.storedLocally_one.replace('{count}', '1'))
 
     // Assert
     expect(screen.queryByText(en.noticeProtectionOff)).not.toBeInTheDocument()
@@ -473,6 +507,7 @@ describe('SettingsPage: PIN-Sperre', () => {
 
   it('entfernt die PIN wieder', async () => {
     // Arrange
+    await upsertQuotes([makeQuote()])
     renderWithProviders(<SettingsPage />)
     fireEvent.change(screen.getByPlaceholderText(en.pinPlaceholder), { target: { value: '1234' } })
     fireEvent.click(screen.getByRole('button', { name: en.enablePin }))
@@ -484,7 +519,7 @@ describe('SettingsPage: PIN-Sperre', () => {
     // Assert
     expect(await screen.findByText(en.pinDisabled)).toBeInTheDocument()
     expect(hasPinLock()).toBe(false)
-    expect(screen.getByText(en.noticeProtectionOff)).toBeInTheDocument()
+    expect(await screen.findByText(en.noticeProtectionOff)).toBeInTheDocument()
   })
 
   it('sendet beim Sofort-Sperren das Sperr-Ereignis', async () => {

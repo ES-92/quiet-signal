@@ -142,7 +142,7 @@ export function AppShell() {
           <Outlet />
         </Suspense>
       </main>
-      <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <CommandDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onSupport={() => setSupportOpen(true)} />
       <ZeroCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} initialMode={captureMode} />
       <Onboarding />
       <Toast />

@@ -23,9 +23,10 @@ const commandItems = [
 interface CommandDrawerProps {
   open: boolean
   onClose: () => void
+  onSupport: () => void
 }
 
-export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
+export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) {
   const { t } = useI18n()
   const titleId = useId()
   const location = useLocation()
@@ -183,12 +184,19 @@ export function CommandDrawer({ open, onClose }: CommandDrawerProps) {
         {!hasResults && <p className="rounded-md border border-line bg-white/30 px-3 py-4 text-sm text-graphite">{t('commandNoMatches')}</p>}
 
         <div className="grid gap-1 border-t border-line pt-2">
-          <a className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-sm text-ink hover:bg-white/50" href="https://ko-fi.com/esc92" target="_blank" rel="noreferrer">
+          <button
+            type="button"
+            className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-white/50"
+            onClick={() => {
+              onClose()
+              onSupport()
+            }}
+          >
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-line bg-paper/70">
               <Coffee size={16} />
             </span>
             {t('supportProjectAction')}
-          </a>
+          </button>
         </div>
       </aside>
     </div>

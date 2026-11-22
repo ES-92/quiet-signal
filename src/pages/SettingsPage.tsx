@@ -21,6 +21,16 @@ import { APP_VERSION } from '../services/release'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
 
+const protectionDismissedKey = 'quiet-signal-protection-notice-dismissed'
+
+function readProtectionDismissed() {
+  try {
+    return localStorage.getItem(protectionDismissedKey) === 'true'
+  } catch {
+    return false
+  }
+}
+
 export function SettingsPage() {
   const { t } = useI18n()
   const { quotes, loadQuotes } = useQuoteStore()
@@ -35,10 +45,22 @@ export function SettingsPage() {
   }, [loadBooks, loadQuotes])
 
   const [securityOpen, setSecurityOpen] = useState(false)
+  const [protectionDismissed, setProtectionDismissed] = useState(readProtectionDismissed)
+
+  function dismissProtectionNotice() {
+    try {
+      localStorage.setItem(protectionDismissedKey, 'true')
+    } catch {
+      // Storage unavailable: the notice is hidden for this visit only.
+    }
+    setProtectionDismissed(true)
+  }
 
   function openSecurity() {
     setSecurityOpen(true)
-    document.getElementById(securityPanelId)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    const summary = document.getElementById(securityPanelId)?.querySelector('summary')
+    summary?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    summary?.focus()
   }
 
   return (
@@ -51,9 +73,10 @@ export function SettingsPage() {
       <SettingsNotices
         backupState={backup.state}
         backupAge={backup.lastBackupAt ? backup.age : undefined}
-        protectionOff={!pinEnabled && !encryptionEnabled}
+        protectionOff={!pinEnabled && !encryptionEnabled && quotes.length + books.length > 0 && !protectionDismissed}
         onBackup={backup.createBackup}
         onOpenSecurity={openSecurity}
+        onDismissProtection={dismissProtectionNotice}
       />
 
       <section className="grid gap-0 md:grid-cols-2 md:gap-4 xl:grid-cols-3">

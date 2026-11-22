@@ -41,7 +41,7 @@ function toFormValues(quote: Quote): FormValues {
     source: quote.source ?? '',
     year: quote.year ?? '',
     bookId: quote.bookId ?? '',
-    tags: quote.tags.join(', ') ?? '',
+    tags: quote.tags.join(', '),
     note: quote.note ?? '',
     audioDataUrl: quote.audioDataUrl,
     audioMimeType: quote.audioMimeType,
