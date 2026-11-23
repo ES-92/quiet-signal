@@ -108,7 +108,7 @@ describe('useClarifyActions', () => {
     expect(rested).toMatchObject({ status: 'rest' })
     expect(rested?.deletedAt).toBeUndefined()
     expect(rested?.activity?.map((event) => event.type)).toEqual(['rest'])
-    expect(toast).toMatchObject({ message: en.restedToast, actionLabel: en.undo })
+    expect(toast).toMatchObject({ message: en.clarifyRestedToast, actionLabel: en.undo })
     await waitFor(async () => expect((await getQuote('q'))?.status).toBe('inbox'))
     const restored = await getQuote('q')
     expect(restored?.snoozedUntil).toBe('2026-01-05T05:00:00.000Z')

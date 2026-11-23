@@ -330,6 +330,7 @@ export const es: Record<keyof typeof en, string> = {
   actionShortRest: 'Reposo',
   cardActionBar: 'Acciones de la tarjeta',
   restedToast: 'Ahora reposa.',
+  clarifyRestedToast: 'En reposo.',
   comesBackInDays: 'Vuelve en {count} días',
   comesBackInDays_one: 'Vuelve en {count} día',
   comesBackOn: 'Vuelve el {date}',

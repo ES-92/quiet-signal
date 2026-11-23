@@ -105,4 +105,15 @@ describe('Klären-Beschriftungen', () => {
     // Assert
     expect(labels).toEqual({ de: 'Details', en: 'Details', es: 'Detalles', fr: 'Détails' })
   })
+
+  it('nennt den Klären-↓-Hinweis wie den Status Stille', () => {
+    // Arrange
+    const table = (code: (typeof languages)[number]['code']) => translations[code] as Record<string, string>
+
+    // Act
+    const toasts = Object.fromEntries(languages.map(({ code }) => [code, table(code).clarifyRestedToast]))
+
+    // Assert
+    expect(toasts).toEqual({ de: 'In der Stille.', en: 'Moved to Rest.', es: 'En reposo.', fr: 'Au repos.' })
+  })
 })

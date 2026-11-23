@@ -328,6 +328,7 @@ export const en = {
   actionShortRest: 'Rest',
   cardActionBar: 'Card actions',
   restedToast: 'Resting now.',
+  clarifyRestedToast: 'Moved to Rest.',
   comesBackInDays: 'Comes back in {count} days',
   comesBackInDays_one: 'Comes back in {count} day',
   comesBackOn: 'Comes back on {date}',

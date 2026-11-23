@@ -330,6 +330,7 @@ export const fr: Record<keyof typeof en, string> = {
   actionShortRest: 'Repos',
   cardActionBar: 'Actions de la carte',
   restedToast: 'Au repos maintenant.',
+  clarifyRestedToast: 'Au repos.',
   comesBackInDays: 'Revient dans {count} jours',
   comesBackInDays_one: 'Revient dans {count} jour',
   comesBackOn: 'Revient le {date}',

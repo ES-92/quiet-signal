@@ -265,7 +265,7 @@ describe('InboxPage', () => {
     const stored = await getQuote('i-1')
     expect(stored?.status).toBe('rest')
     expect(stored?.deletedAt).toBeUndefined()
-    expect(useToastStore.getState().toast).toMatchObject({ message: en.restedToast, actionLabel: en.undo })
+    expect(useToastStore.getState().toast).toMatchObject({ message: en.clarifyRestedToast, actionLabel: en.undo })
     await waitFor(() => expect(useQuoteStore.getState().quotes.find((quote) => quote.id === 'i-1')?.status).toBe('rest'))
   })
 
