@@ -93,3 +93,16 @@ describe('Übersetzungen', () => {
     expect(included).toBe(true)
   })
 })
+
+describe('Klären-Beschriftungen', () => {
+  it('nennt die ↑-Aktion in allen Sprachen Details und nicht wie die Seite', () => {
+    // Arrange
+    const pick = (code: (typeof languages)[number]['code']) => (translations[code] as Record<string, string>).detailsAction
+
+    // Act
+    const labels = Object.fromEntries(languages.map(({ code }) => [code, pick(code)]))
+
+    // Assert
+    expect(labels).toEqual({ de: 'Details', en: 'Details', es: 'Detalles', fr: 'Détails' })
+  })
+})

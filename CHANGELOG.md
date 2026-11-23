@@ -15,6 +15,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
 
 ### Fixed
+- Klären: Die ↑-Aktion heißt „Details“ (statt „Klären“, wie die Seite) – in allen Sprachen.
 - Anführungszeichen: Einträge mit Autor stehen in den typografischen Zeichen der Sprache („…“, “…”, «…», « … »); eigene Notizen ohne Autor erscheinen ohne Anführungszeichen.
 - Texte: Reste alter Begriffe (Review-/Daily-/Swipe-Stapel, Highlights, Likes, Book Intelligence, „Zitate“) in allen vier Sprachen durch Tagesstapel, Einträge und „Ähnliche Bücher“ ersetzt; die Bücher-Einleitung verspricht keine Wiederkehr-Steuerung mehr, sondern beschreibt Gruppieren, Umbenennen und Zusammenführen.
 - Was ist neu: „Rückblick“ steht in Englisch, Spanisch und Französisch nicht mehr unübersetzt in den Notizen, Likes werden nicht mehr erwähnt; der Zähler heißt „× öfter gewünscht“.

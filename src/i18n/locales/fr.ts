@@ -70,7 +70,7 @@ export const fr: Record<keyof typeof en, string> = {
   clarifyQuestion: 'Cela te touche, te contredit ou veux-tu en faire quelque chose ? Alors c’est un signal.',
   firstThoughtLabel: 'Première pensée (facultatif)',
   unclarifiedSince: 'non clarifié depuis {days} jours',
-  detailsAction: 'Clarifier',
+  detailsAction: 'Détails',
   finishSignal: 'Signal',
   signalDraft: 'Former le signal',
   signalDraftTitle: 'Qu’est-ce qui doit revenir plus tard ?',

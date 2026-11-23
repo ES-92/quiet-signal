@@ -68,7 +68,7 @@ export const en = {
   clarifyQuestion: 'Does it touch you, contradict you, or do you want to do something with it? Then it is a signal.',
   firstThoughtLabel: 'First thought (optional)',
   unclarifiedSince: 'unclarified for {days} days',
-  detailsAction: 'Clarify',
+  detailsAction: 'Details',
   finishSignal: 'Signal',
   signalDraft: 'Shape signal',
   signalDraftTitle: 'What should return later?',
