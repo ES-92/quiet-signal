@@ -101,7 +101,7 @@ export function BookDetailPage() {
             )}
           </div>
           {book.author && <p className="mt-2 text-lg text-graphite">{book.author}</p>}
-          <p className="mt-1 text-sm text-graphite">{tCount('quotesCount', count)}</p>
+          <p className="mt-1 text-sm text-graphite">{tCount('entriesCount', count)}</p>
 
           <form className="mt-5 grid gap-3 rounded-md border border-line bg-white/30 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end" onSubmit={(event) => void handleSaveBook(event)}>
             <label className="grid gap-2">
@@ -150,7 +150,7 @@ export function BookDetailPage() {
           ))}
         </div>
       ) : (
-        <EmptyState title={t('noQuotesYet')}>{t('noBooksBody')}</EmptyState>
+        <EmptyState title={t('noEntriesYet')}>{t('noBooksBody')}</EmptyState>
       )}
       <ConfirmSheet
         open={deleteConfirmOpen}

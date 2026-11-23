@@ -15,6 +15,8 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
 
 ### Fixed
+- Texte: Reste alter Begriffe (Review-/Daily-/Swipe-Stapel, Highlights, Likes, Book Intelligence, „Zitate“) in allen vier Sprachen durch Tagesstapel, Einträge und „Ähnliche Bücher“ ersetzt; die Bücher-Einleitung verspricht keine Wiederkehr-Steuerung mehr, sondern beschreibt Gruppieren, Umbenennen und Zusammenführen.
+- Was ist neu: „Rückblick“ steht in Englisch, Spanisch und Französisch nicht mehr unübersetzt in den Notizen, Likes werden nicht mehr erwähnt; der Zähler heißt „× öfter gewünscht“.
 - Einführung: „Weiter“ geht jetzt wirklich zum nächsten Schritt statt die Einführung zu beenden; beendet wird nur im letzten Schritt, „Überspringen“ schließt sie jederzeit. Sie hat nur noch drei kurze Schritte (Rauschen/Signal/Stille, Erfassen mit +, Heute) und passt auf kleine Bildschirme.
 - Installationshinweis: erscheint erst ab dem zweiten Nutzungstag (Datum der ersten Nutzung wird lokal gemerkt) und nie über der Einführung.
 

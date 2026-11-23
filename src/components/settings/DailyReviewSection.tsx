@@ -10,7 +10,7 @@ export function DailyReviewSection() {
     <Panel title={t('dailyReview')}>
       <p className="text-sm leading-6 text-graphite">{t('dailyReviewHelp')}</p>
       <label className="mt-4 grid gap-2 text-sm text-graphite">
-        <span>{t('highlightsPerDay')}</span>
+        <span>{t('entriesPerDay')}</span>
         <select
           className="rounded-md border border-line bg-paper px-3 py-2"
           value={dailyCount}

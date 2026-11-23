@@ -38,7 +38,7 @@ export function DeckPreview({
       }}
     >
       <div className="flex shrink-0 justify-between text-[0.6rem] uppercase tracking-[0.18em] text-graphite">
-        <span>{t('reviewStack')}</span>
+        <span>{t('todayStack')}</span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-hidden py-3">
         {quote.imageDataUrl && (

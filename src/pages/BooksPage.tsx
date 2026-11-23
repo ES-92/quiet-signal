@@ -127,8 +127,8 @@ export function BooksPage() {
               <GitMerge size={17} />
             </span>
             <div className="min-w-0">
-              <h2 className="font-serif text-2xl">{t('bookIntelligence')}</h2>
-              <p className="mt-1 text-sm leading-6 text-graphite">{t('bookIntelligenceHelp')}</p>
+              <h2 className="font-serif text-2xl">{t('similarBooks')}</h2>
+              <p className="mt-1 text-sm leading-6 text-graphite">{t('similarBooksHelp')}</p>
             </div>
           </div>
           <div className="grid gap-2">
@@ -167,7 +167,7 @@ export function BooksPage() {
                 <div className="min-w-0">
                   <p className="truncate font-serif text-lg leading-tight text-ink">{book.title}</p>
                   <p className="mt-1 truncate text-sm text-graphite">
-                    {[book.author, tCount('quotesCount', count)].filter(Boolean).join(' · ')}
+                    {[book.author, tCount('entriesCount', count)].filter(Boolean).join(' · ')}
                   </p>
                 </div>
               </Link>

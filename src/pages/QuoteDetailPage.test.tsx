@@ -78,7 +78,7 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Comes back on December 4 · Seen 6 times · 12 likes')).toBeInTheDocument()
+      expect(screen.getByText('Comes back on December 4 · Seen 6 times · asked for more often 12×')).toBeInTheDocument()
     })
 
     it('writes the date in the app language', async () => {
@@ -96,7 +96,7 @@ describe('QuoteDetailPage', () => {
       const line = await screen.findByText(/Kommt am/)
 
       // Assert
-      expect(line).toHaveTextContent('Kommt am 4. Dezember wieder · 6× begegnet · 12 Likes')
+      expect(line).toHaveTextContent('Kommt am 4. Dezember wieder · 6× begegnet · 12× öfter gewünscht')
     })
 
     it('adds the year when the date lies in another year', async () => {
@@ -145,7 +145,7 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Due today · Seen 3 times · 2 likes')).toBeInTheDocument()
+      expect(screen.getByText('Due today · Seen 3 times · asked for more often 2×')).toBeInTheDocument()
     })
 
     it('uses the capped due date of a favourite, not the stored one', async () => {
@@ -175,7 +175,7 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Comes back on April 1 · 1 like')).toBeInTheDocument()
+      expect(screen.getByText('Comes back on April 1 · asked for more often 1×')).toBeInTheDocument()
       expect(screen.queryByText(/♥/)).not.toBeInTheDocument()
     })
 
@@ -187,7 +187,7 @@ describe('QuoteDetailPage', () => {
       await renderDetail()
 
       // Assert
-      expect(screen.getByText('Resting · Seen 6 times · 5 likes')).toBeInTheDocument()
+      expect(screen.getByText('Resting · Seen 6 times · asked for more often 5×')).toBeInTheDocument()
     })
 
     it('shows noise as not yet sorted', async () => {

@@ -106,7 +106,7 @@ describe('SettingsPage: Sprache, Darstellung, Tagesansicht', () => {
     renderWithProviders(<SettingsPage />)
 
     // Act
-    fireEvent.change(screen.getByLabelText(en.highlightsPerDay), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText(en.entriesPerDay), { target: { value: '10' } })
 
     // Assert
     expect(useSettingsStore.getState().dailyCount).toBe(10)
