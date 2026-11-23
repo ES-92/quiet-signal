@@ -6,7 +6,8 @@ interface TodayContextMenuProps {
   onClose: () => void
   onFavorite: () => void
   onOpenDetails: () => void
-  onDiscard: () => void
+  // Left out while browsing, which is read-only.
+  onDiscard?: () => void
 }
 
 // Popup with the secondary card actions, opened by long-pressing the top card or via the action bar.
@@ -40,10 +41,12 @@ export function TodayContextMenu({
           <ExternalLink size={17} className="text-graphite" />
           {t('openDetails')}
         </button>
-        <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-graphite hover:bg-white/50" onClick={onDiscard}>
-          <Trash2 size={17} className="text-graphite" />
-          {t('deleteEntry')}
-        </button>
+        {onDiscard && (
+          <button className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-left text-sm text-graphite hover:bg-white/50" onClick={onDiscard}>
+            <Trash2 size={17} className="text-graphite" />
+            {t('deleteEntry')}
+          </button>
+        )}
       </div>
     </div>
   )

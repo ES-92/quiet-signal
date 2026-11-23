@@ -24,7 +24,7 @@ export function InboxPage() {
     currentQuote,
     books
   )
-  const { finishSignal, saveDetails, snoozeCurrent, discardCurrent } = useClarifyActions(
+  const { finishSignal, saveDetails, snoozeCurrent, restCurrent, discardCurrent } = useClarifyActions(
     currentQuote,
     buildPatch,
     setMessage,
@@ -45,7 +45,7 @@ export function InboxPage() {
       right: () => void finishSignal(),
       left: () => void snoozeCurrent(),
       up: () => setDetailsOpen(true),
-      down: () => void discardCurrent()
+      down: () => void restCurrent()
     },
     { enabled: Boolean(currentQuote) && !detailsOpen && !coachVisible, distance: 76, exitMs: 340 }
   )
@@ -53,7 +53,7 @@ export function InboxPage() {
   return (
     <div className="grid gap-5 pt-3 sm:gap-8 sm:pt-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
       <section className="min-w-0">
-        <h1 className="font-serif text-4xl leading-tight sm:text-5xl">{t('noiseInboxTitle')}</h1>
+        <h1 className="font-serif text-4xl leading-tight sm:text-5xl">{t('clarifyPageTitle')}</h1>
         <p className="mt-3 max-w-xl text-sm leading-6 text-graphite">{t('clarifyQuestion')}</p>
         <button
           className="mt-4 inline-flex min-h-[44px] items-center rounded-md bg-ink px-4 py-2 text-sm text-paper sm:hidden"
@@ -98,7 +98,8 @@ export function InboxPage() {
                 onFinish={() => void finishSignal()}
                 onToggleDetails={() => setDetailsOpen((open) => !open)}
                 onSnooze={() => void snoozeCurrent()}
-                onDiscard={() => void discardCurrent()}
+                onRest={() => void restCurrent()}
+                onDelete={() => void discardCurrent()}
               />
               <p className="text-center text-xs leading-5 text-graphite">{t('clarifyGestureHint')}</p>
 

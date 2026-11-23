@@ -56,6 +56,13 @@ function currentCardText() {
   return screen.getByRole('blockquote').textContent
 }
 
+function swipeCard(dx: number, dy: number) {
+  const card = screen.getByRole('blockquote').closest('article') as HTMLElement
+  fireEvent.pointerDown(card, { pointerId: 1, clientX: 200, clientY: 300 })
+  fireEvent.pointerMove(card, { pointerId: 1, clientX: 200 + dx, clientY: 300 + dy })
+  fireEvent.pointerUp(card, { pointerId: 1, clientX: 200 + dx, clientY: 300 + dy })
+}
+
 beforeEach(async () => {
   resetFactories()
   await db.delete()
@@ -64,6 +71,9 @@ beforeEach(async () => {
   useBookStore.setState({ books: [], loading: true })
   useToastStore.setState({ toast: null })
   localStorage.setItem(coachKey, 'true')
+  // jsdom has no pointer capture (used by the swipe deck).
+  Element.prototype.setPointerCapture = vi.fn()
+  Element.prototype.releasePointerCapture = vi.fn()
 })
 
 afterEach(() => {
@@ -81,7 +91,7 @@ describe('InboxPage', () => {
       const card = await screen.findByRole('blockquote')
 
       // Assert
-      const title = screen.getByRole('heading', { level: 1, name: en.noiseInboxTitle })
+      const title = screen.getByRole('heading', { level: 1, name: 'Clarify' })
       const question = screen.getByText(en.clarifyQuestion)
       expect(title.previousElementSibling).toBeNull()
       expect(title.compareDocumentPosition(question)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
@@ -241,19 +251,66 @@ describe('InboxPage', () => {
     expect((await getQuote('i-1'))?.snoozedUntil).toBeTruthy()
   })
 
-  it('verwirft einen Eintrag mit Rückgängig-Hinweis', async () => {
+  it('legt einen Eintrag per Wisch nach unten in die Stille statt ihn zu löschen', async () => {
     // Arrange
     await seedInbox()
     await renderInbox()
     await screen.findByRole('blockquote')
 
     // Act
-    fireEvent.click(screen.getByRole('button', { name: en.deleteNoise }))
+    swipeCard(0, 160)
+
+    // Assert
+    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'), { timeout: 3000 })
+    const stored = await getQuote('i-1')
+    expect(stored?.status).toBe('rest')
+    expect(stored?.deletedAt).toBeUndefined()
+    expect(useToastStore.getState().toast).toMatchObject({ message: en.restedToast, actionLabel: en.undo })
+    await waitFor(() => expect(useQuoteStore.getState().quotes.find((quote) => quote.id === 'i-1')?.status).toBe('rest'))
+  })
+
+  it('legt einen Eintrag per Stille-Taste zur Ruhe und holt ihn per Rückgängig ins Rauschen zurück', async () => {
+    // Arrange
+    await seedInbox()
+    await renderInbox()
+    await screen.findByRole('blockquote')
+    fireEvent.click(screen.getByRole('button', { name: en.clarifyRest }))
+    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'))
+
+    // Act
+    await act(async () => useToastStore.getState().toast?.onAction?.())
+
+    // Assert
+    await waitFor(() => expect(currentCardText()).toBe('"Erste Notiz"'))
+    expect((await getQuote('i-1'))?.status).toBe('inbox')
+  })
+
+  it('löscht einen Eintrag nur über die ausdrückliche Löschen-Taste in den Papierkorb, mit Rückgängig', async () => {
+    // Arrange
+    await seedInbox()
+    await renderInbox()
+    await screen.findByRole('blockquote')
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: en.deleteEntry }))
 
     // Assert
     await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'))
-    expect(useToastStore.getState().toast?.message).toBe(en.discardedToast)
+    expect(useToastStore.getState().toast).toMatchObject({ message: en.discardedToast, actionLabel: en.undo })
     expect((await getQuote('i-1'))?.deletedAt).toBeTruthy()
+  })
+
+  it('beschreibt ↓ im Gestenhinweis als Stille und nicht als Verwerfen', async () => {
+    // Arrange
+    await seedInbox()
+
+    // Act
+    await renderInbox()
+    await screen.findByRole('blockquote')
+
+    // Assert
+    expect(screen.getByText(en.clarifyGestureHint)).toHaveTextContent(/Down: rest/)
+    expect(screen.getByText(en.clarifyGestureHint)).not.toHaveTextContent(/discard/i)
   })
 
   it('füllt den Entwurf beim Öffnen der Details mit den Werten des Eintrags', async () => {

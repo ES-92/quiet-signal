@@ -197,6 +197,20 @@ describe('lifecycle store actions', () => {
     expect(useQuoteStore.getState().quotes[0]).toMatchObject({ status: 'signal', snoozedUntil: '2026-01-05T05:00:00.000Z', activity: [] })
   })
 
+  it('undoRest returns a rested inbox entry to the inbox when asked to', async () => {
+    // Arrange
+    await seedLegacyQuote({ status: 'inbox', snoozedUntil: '2026-01-05T05:00:00.000Z' })
+    const restedAt = await useQuoteStore.getState().restQuote('legacy')
+    const rested = useQuoteStore.getState().quotes[0].status
+
+    // Act
+    await useQuoteStore.getState().undoRest('legacy', '2026-01-05T05:00:00.000Z', restedAt, 'inbox')
+
+    // Assert
+    expect(rested).toBe('rest')
+    expect(useQuoteStore.getState().quotes[0]).toMatchObject({ status: 'inbox', snoozedUntil: '2026-01-05T05:00:00.000Z', activity: [] })
+  })
+
   it('logs rest and wake when the status changes through saveQuote (edit form)', async () => {
     // Arrange
     await seedLegacyQuote({ status: 'signal' })
@@ -208,18 +222,6 @@ describe('lifecycle store actions', () => {
 
     // Assert
     expect(useQuoteStore.getState().quotes[0].activity?.map((event) => event.type)).toEqual(['rest', 'wake'])
-  })
-
-  it('does not log a browse-mode like', async () => {
-    // Arrange
-    await seedLegacyQuote()
-
-    // Act
-    await useQuoteStore.getState().likeQuote('legacy')
-    await useQuoteStore.getState().loadQuotes()
-
-    // Assert
-    expect(useQuoteStore.getState().quotes[0].activity).toBeUndefined()
   })
 
   it('returns undefined and writes nothing for an unknown id', async () => {

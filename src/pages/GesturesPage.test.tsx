@@ -33,7 +33,7 @@ describe('GesturesPage', () => {
     expect(section(en.gesturesTodaySection).textContent).not.toMatch(/snooze/i)
   })
 
-  it('lässt die Klären-Gesten unverändert', () => {
+  it('beschreibt die Klären-Gesten mit ↓ als Stille, nicht als Verwerfen', () => {
     // Arrange / Act
     renderWithProviders(<GesturesPage />)
 
@@ -42,7 +42,8 @@ describe('GesturesPage', () => {
     expect(clarify.getByText(en.finishSignal)).toBeInTheDocument()
     expect(clarify.getByText(en.later)).toBeInTheDocument()
     expect(clarify.getByText(en.details)).toBeInTheDocument()
-    expect(clarify.getByText(en.deleteNoise)).toBeInTheDocument()
+    expect(clarify.getByText(en.clarifyRest).previousElementSibling).toHaveTextContent('↓')
+    expect(section(en.gesturesClarifySection).textContent).not.toMatch(/discard|trash/i)
   })
 
   it('nennt das Long-Press-Menü unter den weiteren Gesten', () => {
@@ -51,5 +52,16 @@ describe('GesturesPage', () => {
 
     // Assert
     expect(screen.getByText(en.gestureLongPress)).toBeInTheDocument()
+  })
+
+  it('nennt keine Rand-Wischgesten mehr', () => {
+    // Arrange / Act
+    renderWithProviders(<GesturesPage />)
+
+    // Assert
+    const more = section(en.gesturesMoreSection)
+    expect(more.textContent).not.toMatch(/edge/i)
+    expect(screen.getByText(en.gesturesIntro)).not.toHaveTextContent(/capture|inbox/i)
+    expect(more).toHaveTextContent(en.gestureMenu)
   })
 })

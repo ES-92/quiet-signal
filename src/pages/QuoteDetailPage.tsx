@@ -2,7 +2,6 @@ import { BookMarked, Heart, Pencil, Sun, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '../components/AudioRecorder'
-import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EntryInfoLine } from '../components/EntryInfoLine'
 import { PhotoPreview } from '../components/PhotoCapture'
 import { QuoteForm } from '../components/QuoteForm'
@@ -19,10 +18,9 @@ export function QuoteDetailPage() {
   const { t } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { quotes, loadQuotes, saveQuote, toggleFavorite, removeQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
+  const { quotes, loadQuotes, saveQuote, toggleFavorite, discardQuote, restoreQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const { books, loadBooks } = useBookStore()
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [thoughtSheetOpen, setThoughtSheetOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const editButtonRef = useRef<HTMLButtonElement>(null)
@@ -112,15 +110,15 @@ export function QuoteDetailPage() {
     })
   }
 
+  // Like the card menu on Today: the entry moves to the trash with undo; only the trash deletes permanently.
   async function handleDelete() {
     if (!id) return
-    setDeleteConfirmOpen(true)
-  }
-
-  async function confirmDeleteQuote() {
-    if (!id) return
-    await removeQuote(id)
-    setDeleteConfirmOpen(false)
+    if (!(await attempt(() => discardQuote(id)))) return
+    showToast({
+      message: t('discardedToast'),
+      actionLabel: t('undo'),
+      onAction: () => void attempt(() => restoreQuote(id))
+    })
     navigate('/library')
   }
 
@@ -219,15 +217,6 @@ export function QuoteDetailPage() {
         </section>
       )}
       {thoughtSheetOpen && <ThoughtSheet thoughts={sortedThoughts} onSave={saveThought} onClose={() => setThoughtSheetOpen(false)} />}
-      <ConfirmSheet
-        open={deleteConfirmOpen}
-        title={t('delete')}
-        description={t('deleteQuoteConfirm')}
-        confirmLabel={t('delete')}
-        cancelLabel={t('cancel')}
-        onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={confirmDeleteQuote}
-      />
     </div>
   )
 }

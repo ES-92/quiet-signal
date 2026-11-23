@@ -37,7 +37,7 @@ Quiet Signal is built around a simple metaphor: capture the **noise**, keep the 
 ## Features
 
 - **Capture anything** — text, photos, and voice notes, in seconds.
-- **Triage flow** — new captures land in *Rauschen* (noise); in Clarify you keep what touches you as *Signal*, snooze it for later, or discard it.
+- **Triage flow** — new captures land in *Rauschen* (noise); in Clarify you keep what touches you as *Signal* (→), snooze it for later (←), open its details (↑) or let it go quiet as *Stille* (↓). Deleting is a separate button that moves the entry to the trash, with undo.
 - **Daily review** — a calm deck shows only the signals that are due. Swipe → to see one more often, ← less often, ↑ to add a dated thought, ↓ to let it rest; "Browse anyway" shuffles through everything without changing any schedule.
 - **Books & sources** — group quotes by book and browse them per book.
 - **Reflections** — the week's or month's thoughts as a quiet wall (newest first, tap to open the entry), plus a small tide strip of what you wanted to see more often (→) and let rest (↓); exports as Markdown. Based on a small activity log kept inside each entry (encrypted with it).

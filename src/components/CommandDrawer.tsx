@@ -1,6 +1,6 @@
 import { BookMarked, Coffee, Download, Feather, Hand, Heart, Inbox, Library, Search, Settings, Sparkles, Trash2, X } from 'lucide-react'
-import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
 import { openCapture as dispatchCapture } from '../services/captureEvents'
 import { useBookStore } from '../store/useBookStore'
@@ -9,7 +9,7 @@ import { quoteStatus } from '../types/quote'
 
 const commandItems = [
   { to: '/today', labelKey: 'today', icon: Sparkles },
-  { to: '/inbox', labelKey: 'noiseInbox', icon: Inbox },
+  { to: '/inbox', labelKey: 'clarifyPageTitle', icon: Inbox },
   { to: '/library?view=favorites', labelKey: 'favorites', icon: Heart },
   { to: '/library', labelKey: 'library', icon: Library },
   { to: '/reflections', labelKey: 'reflections', icon: Feather },
@@ -33,6 +33,12 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
   const { quotes, loadQuotes } = useQuoteStore()
   const { books, loadBooks } = useBookStore()
   const [query, setQuery] = useState('')
+  const dialogRef = useRef<HTMLElement>(null)
+
+  // Focus the drawer itself on open: screen readers announce it by its heading, and no keyboard pops up for the search field.
+  useEffect(() => {
+    if (open) dialogRef.current?.focus()
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -98,10 +104,12 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
   return (
     <div className="fixed inset-0 z-40 bg-ink/10 backdrop-blur-[2px]" onClick={onClose}>
       <aside
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="quiet-sheet absolute right-3 top-[calc(3.75rem+env(safe-area-inset-top))] grid max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto rounded-md border border-line bg-paper/95 p-3 shadow-[0_24px_70px_rgba(31,30,28,0.18)]"
+        tabIndex={-1}
+        className="quiet-sheet outline-none absolute right-3 top-[calc(3.75rem+env(safe-area-inset-top))] grid max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto rounded-md border border-line bg-paper/95 p-3 shadow-[0_24px_70px_rgba(31,30,28,0.18)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 px-1">
@@ -122,7 +130,6 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
             aria-label={t('commandSearchPlaceholder')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            autoFocus
           />
         </label>
 
@@ -137,23 +144,25 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
           <nav className="grid gap-1" aria-label={t('primaryNavigation')}>
             {commands.map((item) => {
               const Icon = item.icon
+              // Computed here rather than by NavLink, which ignores the query string and would also mark the library as
+              // current on the favourites view.
+              const active = isCommandActive(item.to, location.pathname, location.search)
               return (
-                <NavLink
+                <Link
                   key={item.to}
                   to={item.to}
                   onClick={onClose}
-                  className={({ isActive }) =>
-                    [
-                      'flex min-h-[46px] items-center gap-3 rounded-md px-3 text-sm transition',
-                      isCommandActive(item.to, isActive, location.search) ? 'bg-ink text-paper' : 'text-ink hover:bg-white/50'
-                    ].join(' ')
-                  }
+                  aria-current={active ? 'page' : undefined}
+                  className={[
+                    'flex min-h-[46px] items-center gap-3 rounded-md border px-3 text-sm transition',
+                    active ? 'border-ink/35 bg-white/60 font-medium text-ink' : 'border-transparent text-ink hover:bg-white/50'
+                  ].join(' ')}
                 >
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-line bg-paper/70">
                     <Icon size={16} />
                   </span>
                   {t(item.labelKey)}
-                </NavLink>
+                </Link>
               )
             })}
           </nav>
@@ -162,10 +171,10 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
         {bookResults.length > 0 && (
           <ResultGroup title={t('books')}>
             {bookResults.map((book) => (
-              <NavLink key={book.id} to={`/books/${book.id}`} onClick={onClose} className="rounded-md border border-line bg-white/30 px-3 py-2 text-sm">
+              <Link key={book.id} to={`/books/${book.id}`} onClick={onClose} className="rounded-md border border-line bg-white/30 px-3 py-2 text-sm">
                 <span className="block truncate text-ink">{book.title}</span>
                 {book.author && <span className="block truncate text-xs text-graphite">{book.author}</span>}
-              </NavLink>
+              </Link>
             ))}
           </ResultGroup>
         )}
@@ -173,10 +182,10 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
         {quoteResults.length > 0 && (
           <ResultGroup title={t('library')}>
             {quoteResults.map((quote) => (
-              <NavLink key={quote.id} to={`/quote/${quote.id}`} onClick={onClose} className="rounded-md border border-line bg-white/30 px-3 py-2 text-sm">
+              <Link key={quote.id} to={`/quote/${quote.id}`} onClick={onClose} className="rounded-md border border-line bg-white/30 px-3 py-2 text-sm">
                 <span className="line-clamp-2 text-ink">{quote.text || quote.note || t('quote')}</span>
                 <span className="mt-1 block truncate text-xs text-graphite">{[quote.author, quote.work].filter(Boolean).join(', ')}</span>
-              </NavLink>
+              </Link>
             ))}
           </ResultGroup>
         )}
@@ -204,9 +213,13 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
 }
 
 // The Favoriten entry shares the /library path with the library: only the query string tells them apart.
-function isCommandActive(to: string, pathActive: boolean, search: string) {
-  if (to === '/library?view=favorites') return pathActive && new URLSearchParams(search).get('view') === 'favorites'
-  if (to === '/library') return pathActive && new URLSearchParams(search).get('view') !== 'favorites'
+// Nested routes (e.g. /books/:id) keep their section current.
+function isCommandActive(to: string, pathname: string, search: string) {
+  const [path] = to.split('?')
+  const pathActive = pathname === path || pathname.startsWith(`${path}/`)
+  const favoritesView = new URLSearchParams(search).get('view') === 'favorites'
+  if (to === '/library?view=favorites') return pathActive && favoritesView
+  if (to === '/library') return pathActive && !favoritesView
   return pathActive
 }
 

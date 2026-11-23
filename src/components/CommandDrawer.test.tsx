@@ -37,6 +37,17 @@ describe('CommandDrawer', () => {
     expect(screen.getByRole('link', { name: en.today })).toBeInTheDocument()
   })
 
+  it('nennt die Seite der ungeklärten Einträge Klären und den Drawer Menü', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Clarify' })).toHaveAttribute('href', '/inbox')
+    expect(screen.queryByRole('link', { name: en.noiseInbox })).not.toBeInTheDocument()
+    expect(screen.getByText('Menu')).toBeInTheDocument()
+    expect(screen.queryByText('Tools')).not.toBeInTheDocument()
+  })
+
   it('hat einen Favoriten-Eintrag, der die Bibliothek auf dem Favoriten-Tab öffnet', () => {
     // Arrange / Act
     renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
@@ -45,17 +56,30 @@ describe('CommandDrawer', () => {
     expect(screen.getByRole('link', { name: en.favorites })).toHaveAttribute('href', '/library?view=favorites')
   })
 
-  it('markiert nur einen der Einträge Favoriten und Sammlung als aktiv', () => {
+  it.each([
+    ['/library?view=favorites', 'favorites'],
+    ['/library', 'library'],
+    ['/today', 'today'],
+    ['/inbox', 'clarifyPageTitle']
+  ] as const)('markiert auf %s genau einen Eintrag als aktuelle Seite', (route, key) => {
     // Arrange / Act
-    const { unmount } = renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />, { route: '/library?view=favorites' })
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />, { route })
 
     // Assert
-    expect(screen.getByRole('link', { name: en.favorites })).toHaveClass('bg-ink')
-    expect(screen.getByRole('link', { name: en.library })).not.toHaveClass('bg-ink')
-    unmount()
-    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />, { route: '/library' })
-    expect(screen.getByRole('link', { name: en.library })).toHaveClass('bg-ink')
-    expect(screen.getByRole('link', { name: en.favorites })).not.toHaveClass('bg-ink')
+    const current = screen.getByRole('dialog').querySelectorAll('[aria-current="page"]')
+    expect(current).toHaveLength(1)
+    expect(current[0]).toBe(screen.getByRole('link', { name: en[key] }))
+  })
+
+  it('setzt den Fokus beim Öffnen auf den Drawer statt auf ein Eingabefeld oder den ersten Eintrag', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
+
+    // Assert
+    const dialog = screen.getByRole('dialog')
+    expect(document.activeElement).toBe(dialog)
+    expect(screen.getByRole('textbox', { name: en.commandSearchPlaceholder })).not.toHaveFocus()
+    expect(screen.getAllByRole('link')[0]).not.toHaveFocus()
   })
 
   it('nutzt für das Suchfeld mindestens 16px auf dem Handy, damit iOS nicht hineinzoomt', () => {

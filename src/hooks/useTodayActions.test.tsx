@@ -193,6 +193,32 @@ describe('useTodayActions', () => {
     expect(useToastStore.getState().toast).toBeNull()
   })
 
+  it('ändert beim Stöbern weder Likes, Abstände, Status noch Aktivität und blättert nur weiter', async () => {
+    // Arrange
+    const quote = makeQuote({ id: 'q', reviewIntervalDays: 3, nextReviewAt: '2026-03-01T05:00:00.000Z' })
+    await upsertQuotes([quote])
+    await useQuoteStore.getState().loadQuotes()
+    const { result, callbacks } = setup({ quote, browsing: true })
+
+    // Act
+    await act(async () => {
+      await result.current.actions.handleMoreOften()
+      await result.current.actions.handleLessOften()
+      result.current.actions.handleRest()
+      result.current.actions.handleContextDiscard()
+    })
+
+    // Assert
+    const stored = await getQuote('q')
+    expect(stored).toMatchObject({ status: 'signal', reviewIntervalDays: 3, nextReviewAt: '2026-03-01T05:00:00.000Z' })
+    expect(stored?.likes ?? 0).toBe(0)
+    expect(stored?.activity).toBeUndefined()
+    expect(stored?.deletedAt).toBeUndefined()
+    expect(callbacks.advanceIndex).toHaveBeenCalledTimes(2)
+    expect(callbacks.hideQuote).not.toHaveBeenCalled()
+    expect(useToastStore.getState().toast).toBeNull()
+  })
+
   it('zeigt keinen Intervall-Toast, wenn der Store keinen Abstand liefert', async () => {
     // Arrange
     const quote = makeQuote({ id: 'q' })
@@ -320,8 +346,6 @@ describe('useTodayActions', () => {
     it.each([
       ['→ in the daily deck', {}, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleMoreOften()],
       ['← in the daily deck', {}, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleLessOften()],
-      ['→ while browsing', { browsing: true }, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleMoreOften()],
-      ['← while browsing', { browsing: true }, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.handleLessOften()],
       ['↑ (thought)', {}, (a: ReturnType<typeof setup>['result']['current']['actions']) => a.openThought()]
     ])('is dismissed by the next deck action: %s', async (_name, props, next) => {
       // Arrange / Act

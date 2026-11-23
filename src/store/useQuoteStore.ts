@@ -3,7 +3,6 @@ import { requestPersistentStorage } from '../services/persistentStorage'
 import {
   clearQuotes,
   createQuote,
-  deleteQuote,
   emptyTrash as emptyTrashDb,
   listQuotes,
   updateQuote,
@@ -31,8 +30,7 @@ import {
   restoreThoughtPatch,
   undoAdoptNotePatch
 } from '../services/thoughts'
-import { tapHaptic } from '../services/haptics'
-import type { Quote, QuoteFilters, QuoteInput, Thought } from '../types/quote'
+import type { Quote, QuoteFilters, QuoteInput, QuoteStatus, Thought } from '../types/quote'
 import { emptyFilters } from '../services/search'
 
 interface QuoteStore {
@@ -44,9 +42,7 @@ interface QuoteStore {
   loadQuotes: () => Promise<void>
   addQuote: (input: QuoteInput) => Promise<Quote>
   saveQuote: (id: string, patch: Partial<Quote>) => Promise<void>
-  likeQuote: (id: string) => Promise<void>
   toggleFavorite: (id: string) => Promise<void>
-  removeQuote: (id: string) => Promise<void>
   snoozeQuote: (id: string) => Promise<void>
   // onPrevious receives the review values of the row the change was actually applied to (for an undo).
   moreOften: (id: string, onPrevious?: (previous: ReviewSnapshot) => void) => Promise<number | undefined>
@@ -54,8 +50,14 @@ interface QuoteStore {
   restoreReview: (id: string, previous: ReviewSnapshot) => Promise<void>
   // Resolves with the time of the logged rest event, so an undo can remove exactly that event.
   restQuote: (id: string) => Promise<string | undefined>
-  // Undo of restQuote: back to signal with the previous snooze, and the rest event logged at restedAt leaves the activity log.
-  undoRest: (id: string, previousSnooze: string | undefined, restedAt: string | undefined) => Promise<void>
+  // Undo of restQuote: back to the previous status (default signal) with the previous snooze, and the rest event logged at
+  // restedAt leaves the activity log.
+  undoRest: (
+    id: string,
+    previousSnooze: string | undefined,
+    restedAt: string | undefined,
+    previousStatus?: Exclude<QuoteStatus, 'rest'>
+  ) => Promise<void>
   wakeQuote: (id: string) => Promise<void>
   addThought: (id: string, text: string) => Promise<void>
   editThought: (id: string, thoughtId: string, text: string) => Promise<void>
@@ -118,24 +120,9 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     )
     await get().loadQuotes()
   },
-  likeQuote: async (id) => {
-    const quote = get().quotes.find((item) => item.id === id)
-    if (!quote) return
-    const next = (quote.likes ?? 0) + 1
-    // Optimistic bump so the count animates instantly, then persist.
-    set((state) => ({
-      quotes: state.quotes.map((item) => (item.id === id ? { ...item, likes: next } : item))
-    }))
-    tapHaptic(8)
-    await updateQuote(id, { likes: next })
-  },
   toggleFavorite: async (id) => {
     if (!get().quotes.some((item) => item.id === id)) return
     await updateQuote(id, (current) => favoriteTogglePatch(current))
-    await get().loadQuotes()
-  },
-  removeQuote: async (id) => {
-    await deleteQuote(id)
     await get().loadQuotes()
   },
   snoozeQuote: async (id) => {
@@ -172,9 +159,9 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     await get().loadQuotes()
     return now.toISOString()
   },
-  undoRest: async (id, previousSnooze, restedAt) => {
+  undoRest: async (id, previousSnooze, restedAt, previousStatus) => {
     if (!get().quotes.some((item) => item.id === id)) return
-    await updateQuote(id, (current) => undoRestPatch(current, previousSnooze, restedAt))
+    await updateQuote(id, (current) => undoRestPatch(current, previousSnooze, restedAt, new Date(), previousStatus))
     await get().loadQuotes()
   },
   wakeQuote: async (id) => {

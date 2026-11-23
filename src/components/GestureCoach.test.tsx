@@ -31,4 +31,13 @@ describe('GestureCoach', () => {
     // Assert
     expect(screen.queryByText(en.coachFooter)).not.toBeInTheDocument()
   })
+
+  it('explains ↓ on Clarify as rest, never as discarding', () => {
+    // Arrange / Act
+    renderCoach('inbox')
+
+    // Assert
+    expect(screen.getByText(`↓ ${en.clarifyRest}`)).toBeInTheDocument()
+    expect(screen.getByRole('dialog').textContent).not.toMatch(/discard/i)
+  })
 })

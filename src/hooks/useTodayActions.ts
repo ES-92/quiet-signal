@@ -20,7 +20,7 @@ interface TodayActionsInput {
 export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo, hideQuote, showQuote }: TodayActionsInput) {
   const { t, tCount } = useI18n()
   const navigate = useNavigate()
-  const { toggleFavorite, likeQuote, moreOften, lessOften, restoreReview, restQuote, undoRest, discardQuote, restoreQuote } = useQuoteStore()
+  const { toggleFavorite, moreOften, lessOften, restoreReview, restQuote, undoRest, discardQuote, restoreQuote } = useQuoteStore()
   const { showToast } = useToastStore()
   const [contextOpen, setContextOpen] = useState(false)
   const [thoughtOpen, setThoughtOpen] = useState(false)
@@ -88,35 +88,26 @@ export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo
     }
   }
 
-  // Browsing never touches the intervals: → only likes the card, ← only moves on, neither shows a toast.
-  async function likeWhileBrowsing() {
-    if (!currentQuote) return
-    const id = currentQuote.id
+  // Browsing is read-only: → and ← (and the "Next" button) only page on; nothing is liked, rescheduled or logged, and no toast.
+  function browseNext() {
+    if (!currentQuote) return Promise.resolve()
     beginDeckAction()
     advanceIndex()
-    try {
-      await likeQuote(id)
-    } catch {
-      showToast({ message: t('saveFailed') })
-    }
+    return Promise.resolve()
   }
 
   function handleMoreOften() {
-    return browsing ? likeWhileBrowsing() : reviewWithInterval(moreOften)
+    return browsing ? browseNext() : reviewWithInterval(moreOften)
   }
 
   function handleLessOften() {
-    if (!browsing) return reviewWithInterval(lessOften)
-    if (currentQuote) {
-      beginDeckAction()
-      advanceIndex()
-    }
-    return Promise.resolve()
+    return browsing ? browseNext() : reviewWithInterval(lessOften)
   }
 
   // Hides the card at once and rests it in the background; undo restores the previous snooze, a failure brings the card back.
   function handleRest() {
-    if (!currentQuote) return
+    // Browsing never changes a status.
+    if (!currentQuote || browsing) return
     const id = currentQuote.id
     const previousSnooze = currentQuote.snoozedUntil
     beginDeckAction()
@@ -181,7 +172,8 @@ export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo
   }
 
   function handleContextDiscard() {
-    if (!currentQuote) return
+    // The browse menu offers no delete; guard here too so browsing stays read-only.
+    if (!currentQuote || browsing) return
     const id = currentQuote.id
     setContextOpen(false)
     discardWithUndo(id)
@@ -200,6 +192,7 @@ export function useTodayActions({ currentQuote, browsing, advanceIndex, rewindTo
     closeContext: () => setContextOpen(false),
     handleMoreOften,
     handleLessOften,
+    browseNext,
     handleRest,
     thoughtOpen,
     openThought,

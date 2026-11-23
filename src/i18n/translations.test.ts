@@ -45,6 +45,43 @@ describe('Übersetzungen', () => {
     expect(missing).toEqual([])
   })
 
+  it('hat die Kurzlabels der Heute-Aktionsleiste in allen Sprachen', () => {
+    // Arrange
+    const keys = ['actionShortMore', 'actionShortThought', 'actionShortLess', 'actionShortRest'] as const
+
+    // Act
+    const labels = Object.fromEntries(
+      languages.map(({ code }) => [code, keys.map((key) => (translations[code] as Record<string, string>)[key]).join(' · ')])
+    )
+
+    // Assert
+    expect(labels).toEqual({
+      de: 'Öfter · Gedanke · Seltener · Ruhen',
+      en: 'More · Thought · Less · Rest',
+      es: 'Más · Idea · Menos · Reposo',
+      fr: 'Plus · Pensée · Moins · Repos'
+    })
+  })
+
+  it('nennt die Seite Klären und den Drawer Menü in allen Sprachen, das Rauschen bleibt als Status', () => {
+    // Arrange
+    const pick = (code: (typeof languages)[number]['code']) => {
+      const table = translations[code] as Record<string, string>
+      return [table.clarifyPageTitle, table.hiddenTools, table.noiseInbox]
+    }
+
+    // Act
+    const names = Object.fromEntries(languages.map(({ code }) => [code, pick(code)]))
+
+    // Assert
+    expect(names).toEqual({
+      de: ['Klären', 'Menü', 'Rauschen'],
+      en: ['Clarify', 'Menu', 'Noise'],
+      es: ['Aclarar', 'Menú', 'Ruido'],
+      fr: ['Clarifier', 'Menu', 'Bruit']
+    })
+  })
+
   it('hat eine Standardsprache, die in der Sprachliste vorkommt', () => {
     // Arrange
     const codes = languages.map((language) => language.code)

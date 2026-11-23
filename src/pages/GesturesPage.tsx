@@ -12,13 +12,13 @@ export function GesturesPage() {
     { dir: '→', label: t('finishSignal') },
     { dir: '←', label: t('later') },
     { dir: '↑', label: t('details') },
-    { dir: '↓', label: t('deleteNoise') }
+    { dir: '↓', label: t('clarifyRest') }
   ]
   const sections = [
     { title: t('gesturesTodaySection'), gestures: todayGestures },
     { title: t('gesturesClarifySection'), gestures: clarifyGestures }
   ]
-  const more = [t('gestureCapture'), t('gestureInbox'), t('gestureMenu'), t('gestureLongPress')]
+  const more = [t('gestureMenu'), t('gestureLongPress')]
 
   return (
     <div className="grid gap-6 pt-3 sm:gap-8 sm:pt-10">

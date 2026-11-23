@@ -6,7 +6,16 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Changed
+- Menü: Beim Öffnen springt der Fokus nicht mehr ins Suchfeld (keine aufpoppende Tastatur), sondern auf das Menü selbst; nur die aktuelle Seite ist als aktiv markiert und sieht nicht mehr aus wie die Erfassen-Taste.
+- Löschen vereinheitlicht: „Löschen“ auf der Detailseite legt den Eintrag jetzt wie auf Heute in den Papierkorb (mit Rückgängig) statt ihn nach Rückfrage endgültig zu löschen; endgültig gelöscht wird nur noch im Papierkorb.
+- Klarere Namen: Die Seite „Rauschen“ heißt jetzt „Klären“ (Titel und Navigation; der Status heißt weiter Rauschen), „Werkzeuge“ heißt jetzt „Menü“.
+- Stöbern ist wirklich nur Ansehen: Die Leiste zeigt nur Gedanke und Weiter, Wischen nach links/rechts blättert nur, ↓ und Löschen gibt es dort nicht; nichts wird geliked, verschoben oder ruhen gelassen. Hinweis: „Nur ansehen – nichts wird verschoben.“
+- Heute: Die Aktionsleiste zeigt unter den Symbolen kurze Beschriftungen (Öfter · Gedanke · Seltener · Ruhen · Aktionen).
+- Klären: Wischen nach unten löscht nicht mehr, sondern legt den Eintrag in die Stille (mit Rückgängig, zurück ins Rauschen); Löschen in den Papierkorb gibt es nur noch über die eigene Löschen-Taste.
 - README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
+
+### Removed
+- Nur ein Erfassen-Weg: Die Rand-Wischgesten (von oben erfassen, vom linken Rand Klären, vom rechten Rand Menü) samt Randmarken und die Erfassen-Pille im Leerzustand von Heute sind weg; erfasst wird über das + unten.
 
 ## [0.4.0] - 2026-11-22
 
