@@ -1,50 +1,32 @@
-import { ArrowRight, Check, Inbox, PenLine, Radio, ShieldCheck, X } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { ArrowRight, Check, Inbox, PenLine, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useI18n } from '../i18n/useI18n'
-import { openCapture } from '../services/captureEvents'
 import { onboardingEventName, markOnboardingSeen, shouldShowOnboarding } from '../services/onboarding'
 import { tapHaptic } from '../services/haptics'
 import { SignalMark } from './SignalMark'
 
 export function Onboarding() {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const [visible, setVisible] = useState(shouldShowOnboarding)
   const [step, setStep] = useState(0)
 
+  // Three short steps: what noise, signal and rest mean, how capture works, how Today works.
   const steps = useMemo(
     () => [
       {
-        icon: <SignalMark className="h-7 w-7" />,
-        eyebrow: t('onboardingEyebrow'),
+        icon: <SignalMark className="h-6 w-6" />,
         title: t('onboardingTitle'),
-        body: t('onboardingBody'),
-        states: [t('onboardingNoise'), t('onboardingSignal'), t('onboardingRest')],
-        action: t('onboardingNext')
+        body: t('onboardingBody')
       },
       {
         icon: <PenLine size={20} />,
-        eyebrow: t('onboardingCaptureEyebrow'),
         title: t('onboardingCaptureTitle'),
-        body: t('onboardingCaptureBody'),
-        action: t('onboardingTryCapture'),
-        skippable: true
+        body: t('onboardingCaptureBody')
       },
       {
         icon: <Inbox size={20} />,
-        eyebrow: t('onboardingClarifyEyebrow'),
-        title: t('onboardingClarifyTitle'),
-        body: t('onboardingClarifyBody'),
-        action: t('onboardingOpenInbox'),
-        skippable: true
-      },
-      {
-        icon: <ShieldCheck size={20} />,
-        eyebrow: t('onboardingBackupEyebrow'),
-        title: t('onboardingBackupTitle'),
-        body: t('onboardingBackupBody'),
-        action: t('onboardingFinish')
+        title: t('onboardingTodayTitle'),
+        body: t('onboardingTodayBody')
       }
     ],
     [t]
@@ -71,26 +53,11 @@ export function Onboarding() {
 
   function next() {
     tapHaptic(8)
-    if (!last) {
-      setStep((value) => value + 1)
-      return
-    }
-    dismiss()
-  }
-
-  function runAction() {
-    tapHaptic([8, 24, 8])
-    if (step === 1) {
+    if (last) {
       dismiss()
-      openCapture('text')
       return
     }
-    if (step === 2) {
-      dismiss()
-      navigate('/inbox')
-      return
-    }
-    next()
+    setStep((value) => value + 1)
   }
 
   return (
@@ -110,27 +77,15 @@ export function Onboarding() {
         </button>
 
         <div className="flex items-center gap-3 pr-10">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-ink text-paper shadow-[0_14px_32px_rgba(31,30,28,0.16)]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-ink text-paper shadow-[0_14px_32px_rgba(31,30,28,0.16)]">
             {current.icon}
           </span>
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-[0.2em] text-graphite">{current.eyebrow}</p>
-            <h2 className="font-serif text-2xl leading-tight sm:text-3xl">{current.title}</h2>
-          </div>
+          <h2 className="min-w-0 font-serif text-2xl leading-tight sm:text-3xl">{current.title}</h2>
         </div>
 
         <p className="mt-4 leading-7 text-graphite">{current.body}</p>
-        {current.states && (
-          <ul className="mt-3 grid gap-2 text-sm leading-6 text-graphite">
-            {current.states.map((line) => (
-              <li key={line} className="rounded-md bg-paper/60 px-3 py-2">
-                {line}
-              </li>
-            ))}
-          </ul>
-        )}
 
-        <div className="mt-5 grid grid-cols-4 gap-1" aria-label={t('onboardingProgress')}>
+        <div className="mt-5 grid grid-cols-3 gap-1" aria-label={t('onboardingProgress')}>
           {steps.map((item, index) => (
             <button
               key={item.title}
@@ -145,36 +100,20 @@ export function Onboarding() {
           ))}
         </div>
 
-        <div className="mt-6 grid gap-2 sm:grid-cols-[1fr_auto]">
-          <button className="min-h-[50px] rounded-md bg-ink px-4 py-3 text-sm text-paper" onClick={runAction}>
+        <div className="mt-5 grid gap-2">
+          <button className="min-h-[50px] rounded-md bg-ink px-4 py-3 text-sm text-paper" onClick={next}>
             <span className="inline-flex items-center justify-center gap-2">
               {last ? <Check size={16} /> : <ArrowRight size={16} />}
-              {current.action}
+              {last ? t('onboardingFinish') : t('onboardingNext')}
             </span>
           </button>
-          {current.skippable && (
-            <button className="min-h-[50px] rounded-md border border-line px-4 py-3 text-sm text-graphite" onClick={next}>
-              {t('onboardingNext')}
+          {!last && (
+            <button className="min-h-[44px] rounded-md px-4 py-2 text-sm text-graphite hover:text-ink" onClick={dismiss}>
+              {t('onboardingSkip')}
             </button>
           )}
         </div>
-
-        <div className="mt-5 grid gap-2 border-t border-line pt-4">
-          <OnboardingHint icon={<Radio size={16} />} title={t('onboardingGestureTitle')} body={t('onboardingGestureBody')} />
-        </div>
       </section>
-    </div>
-  )
-}
-
-function OnboardingHint({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
-  return (
-    <div className="flex gap-3 rounded-md bg-paper/60 p-3">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line text-clay">{icon}</span>
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="mt-1 text-sm leading-6 text-graphite">{body}</p>
-      </div>
     </div>
   )
 }
