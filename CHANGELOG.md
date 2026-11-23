@@ -19,6 +19,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - Installationshinweis: erscheint erst ab dem zweiten Nutzungstag (Datum der ersten Nutzung wird lokal gemerkt) und nie über der Einführung.
 
 ### Removed
+- Aufgeräumt: 21 ungenutzte Übersetzungstexte (u. a. alter Quiet-Mode-Hinweis) in allen vier Sprachen entfernt; ein Test verhindert neue Leichen.
 - Nur ein Erfassen-Weg: Die Rand-Wischgesten (von oben erfassen, vom linken Rand Klären, vom rechten Rand Menü) samt Randmarken und die Erfassen-Pille im Leerzustand von Heute sind weg; erfasst wird über das + unten.
 
 ## [0.4.0] - 2026-11-22
