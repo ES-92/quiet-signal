@@ -645,6 +645,19 @@ describe('TodayPage', () => {
       expect([en.actionShortMore, en.actionShortThought, en.actionShortLess, en.actionShortRest]).toEqual(['More', 'Thought', 'Less', 'Rest'])
     })
 
+    it('zeigt Weiter nur beim Stöbern, nicht im normalen Stapel', async () => {
+      // Arrange
+      await seedStack()
+
+      // Act
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      const toolbar = within(screen.getByRole('toolbar', { name: en.cardActionBar }))
+      expect(toolbar.queryByRole('button', { name: en.next })).not.toBeInTheDocument()
+    })
+
     it('macht gesperrte Schaltflächen sichtbar blasser', async () => {
       // Arrange
       await seedStack()
