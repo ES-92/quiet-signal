@@ -1,9 +1,10 @@
 import { useI18n } from '../../i18n/useI18n'
+import { quoted } from '../../i18n/quotes'
 import type { Quote } from '../../types/quote'
 import { lerp } from '../../utils/math'
 
 export function ClarifyPreviewCard({ quote, depth, lift }: { quote: Quote; depth: 1 | 2; lift: number }) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const y = depth === 1 ? lerp(18, 2, lift) : lerp(34, 16, lift)
   const scale = depth === 1 ? lerp(0.946, 0.982, lift) : lerp(0.902, 0.948, lift)
   const opacity = depth === 1 ? lerp(0.76, 0.92, lift) : lerp(0.44, 0.64, lift)
@@ -23,7 +24,7 @@ export function ClarifyPreviewCard({ quote, depth, lift }: { quote: Quote; depth
         <span className="rounded border border-line px-2 py-1 text-xs text-graphite">{t('entryStatus_inbox')}</span>
       </div>
       <p className="mt-5 line-clamp-4 break-words font-serif text-2xl leading-tight text-ink">
-        {quote.text ? `"${quote.text}"` : quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
+        {quote.text ? quoted(quote.text, quote.author, language) : quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
       </p>
     </article>
   )

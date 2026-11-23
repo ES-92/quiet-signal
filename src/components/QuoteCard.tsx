@@ -1,6 +1,7 @@
 import { BookOpen, Clock, Clock3, ExternalLink, Heart, Sun } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/useI18n'
+import { quoted } from '../i18n/quotes'
 import { dueInDays, formatDueIn, overdueDays } from '../services/dueLabel'
 import { quoteStatus, type Quote } from '../types/quote'
 import { AudioPlayer } from './AudioRecorder'
@@ -16,7 +17,7 @@ interface QuoteCardProps {
 }
 
 export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact = false }: QuoteCardProps) {
-  const { t, tCount, locale } = useI18n()
+  const { t, tCount, locale, language } = useI18n()
   const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
   const status = quoteStatus(quote)
   const thoughtCount = quote.thoughts?.length ?? 0
@@ -49,7 +50,7 @@ export function QuoteCard({ quote, onRead, onLater, onFavorite, onWake, compact 
             compact ? 'text-xl sm:text-3xl' : 'text-2xl sm:text-5xl'
           ].join(' ')}
         >
-          "{quote.text}"
+          {quoted(quote.text, quote.author, language)}
         </blockquote>
       ) : (
         <p className={['break-words font-serif leading-snug text-ink', compact ? 'text-xl sm:text-3xl' : 'text-2xl sm:text-5xl'].join(' ')}>

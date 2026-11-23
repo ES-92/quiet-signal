@@ -1,6 +1,8 @@
 import { Download, Share, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useI18n } from '../i18n/useI18n'
+import { ensureFirstUse, isSecondDayOrLater } from '../services/firstUse'
+import { isOnboardingActive, subscribeOnboardingActive } from '../services/onboarding'
 
 const DISMISS_KEY = 'quiet-signal-install-dismissed'
 
@@ -16,7 +18,13 @@ export function InstallPrompt() {
   const [eligible] = useState(() => !localStorage.getItem(DISMISS_KEY) && !isStandalone())
   // iOS Safari has no beforeinstallprompt — show the manual hint instead.
   const [iosHint] = useState(() => eligible && isIosSafari())
-  const [visible, setVisible] = useState(iosHint)
+  const [dismissed, setDismissed] = useState(false)
+  // Calm start: nothing on the first day of use, and never on top of the onboarding.
+  const [pastFirstDay, setPastFirstDay] = useState(() => {
+    ensureFirstUse()
+    return isSecondDayOrLater()
+  })
+  const onboardingActive = useSyncExternalStore(subscribeOnboardingActive, isOnboardingActive)
 
   useEffect(() => {
     if (!eligible) return
@@ -24,27 +32,35 @@ export function InstallPrompt() {
     function onBeforeInstall(event: Event) {
       event.preventDefault()
       setDeferred(event as BeforeInstallPromptEvent)
-      setVisible(true)
+      setPastFirstDay(isSecondDayOrLater())
     }
 
     function onInstalled() {
-      setVisible(false)
+      setDismissed(true)
       localStorage.setItem(DISMISS_KEY, '1')
+    }
+
+    // An app left open overnight crosses into day two without a reload.
+    function onVisible() {
+      if (document.visibilityState === 'visible') setPastFirstDay(isSecondDayOrLater())
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstall)
     window.addEventListener('appinstalled', onInstalled)
+    document.addEventListener('visibilitychange', onVisible)
 
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall)
       window.removeEventListener('appinstalled', onInstalled)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [eligible])
 
+  const visible = eligible && !dismissed && pastFirstDay && !onboardingActive && (iosHint || deferred !== null)
   if (!visible) return null
 
   function dismiss() {
-    setVisible(false)
+    setDismissed(true)
     localStorage.setItem(DISMISS_KEY, '1')
   }
 

@@ -417,7 +417,7 @@ describe('TodayPage', () => {
     })
 
     // Assert
-    expect(await screen.findByText('"Neu"')).toBeInTheDocument()
+    expect(await screen.findByText('Neu')).toBeInTheDocument()
     expect(screen.getByText('1 of 1')).toBeInTheDocument()
   })
 
@@ -643,6 +643,19 @@ describe('TodayPage', () => {
       expect(toolbar.getByRole('button', { name: en.gestureLessOften })).toHaveTextContent(en.actionShortLess)
       expect(toolbar.getByRole('button', { name: en.gestureRest })).toHaveTextContent(en.actionShortRest)
       expect([en.actionShortMore, en.actionShortThought, en.actionShortLess, en.actionShortRest]).toEqual(['More', 'Thought', 'Less', 'Rest'])
+    })
+
+    it('zeigt Weiter nur beim Stöbern, nicht im normalen Stapel', async () => {
+      // Arrange
+      await seedStack()
+
+      // Act
+      await renderToday()
+      await screen.findByRole('blockquote')
+
+      // Assert
+      const toolbar = within(screen.getByRole('toolbar', { name: en.cardActionBar }))
+      expect(toolbar.queryByRole('button', { name: en.next })).not.toBeInTheDocument()
     })
 
     it('macht gesperrte Schaltflächen sichtbar blasser', async () => {

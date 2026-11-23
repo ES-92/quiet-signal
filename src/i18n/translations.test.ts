@@ -93,3 +93,35 @@ describe('Übersetzungen', () => {
     expect(included).toBe(true)
   })
 })
+
+describe('Klären-Beschriftungen', () => {
+  it('nennt die ↑-Aktion in allen Sprachen Details und nicht wie die Seite', () => {
+    // Arrange
+    const pick = (code: (typeof languages)[number]['code']) => (translations[code] as Record<string, string>).detailsAction
+
+    // Act
+    const labels = Object.fromEntries(languages.map(({ code }) => [code, pick(code)]))
+
+    // Assert
+    expect(labels).toEqual({ de: 'Details', en: 'Details', es: 'Detalles', fr: 'Détails' })
+  })
+
+  it('nennt den Klären-↓-Hinweis wie den Status Stille', () => {
+    // Arrange
+    const table = (code: (typeof languages)[number]['code']) => translations[code] as Record<string, string>
+
+    // Act
+    const toasts = Object.fromEntries(languages.map(({ code }) => [code, table(code).clarifyRestedToast]))
+
+    // Assert
+    expect(toasts).toEqual({ de: 'In der Stille.', en: 'Moved to Rest.', es: 'En reposo.', fr: 'Au repos.' })
+  })
+
+  it('formuliert die spanische Gestenübersicht ohne Satzfragment', () => {
+    // Arrange / Act
+    const text = translations.es.gesturesIntro
+
+    // Assert
+    expect(text).toContain('además están la pulsación larga y el menú.')
+  })
+})

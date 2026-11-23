@@ -1,5 +1,6 @@
 import { PhotoPreview } from '../PhotoCapture'
 import { useI18n } from '../../i18n/useI18n'
+import { quoted } from '../../i18n/quotes'
 import type { selectDailyStack } from '../../services/review'
 import { lerp } from '../../utils/math'
 
@@ -14,7 +15,7 @@ export function DeckPreview({
   depth: 1 | 2
   lift: number
 }) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const meta = [quote.author, quote.work, quote.year].filter(Boolean).join(', ')
   const baseY = depth === 1 ? 18 : 34
   const promotedY = depth === 1 ? -10 : 8
@@ -38,7 +39,7 @@ export function DeckPreview({
       }}
     >
       <div className="flex shrink-0 justify-between text-[0.6rem] uppercase tracking-[0.18em] text-graphite">
-        <span>{t('reviewStack')}</span>
+        <span>{t('todayStack')}</span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-hidden py-3">
         {quote.imageDataUrl && (
@@ -48,7 +49,7 @@ export function DeckPreview({
           />
         )}
         <p className="line-clamp-2 break-words font-serif text-xl leading-[1.12] text-ink sm:text-3xl">
-          {quote.text ? `"${quote.text}"` : quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
+          {quote.text ? quoted(quote.text, quote.author, language) : quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}
         </p>
       </div>
       <p className="truncate border-t border-line pt-2 text-xs text-graphite sm:text-sm">{meta}</p>

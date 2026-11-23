@@ -67,7 +67,7 @@ export function useClarifyActions(
     // Nothing was rested (the entry is gone from the library), so there is nothing to report or undo.
     if (!restedAt) return
     showToast({
-      message: t('restedToast'),
+      message: t('clarifyRestedToast'),
       actionLabel: t('undo'),
       onAction: () => {
         undoRest(id, previousSnooze, restedAt, 'inbox').catch(() => showToast({ message: t('saveFailed') }))

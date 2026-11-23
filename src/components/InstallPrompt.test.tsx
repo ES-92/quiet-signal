@@ -1,8 +1,11 @@
 import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { translations } from '../i18n/translations'
+import { firstUseKey } from '../services/firstUse'
+import { onboardingKey } from '../services/onboarding'
 import { renderWithProviders } from '../test/render'
 import { InstallPrompt } from './InstallPrompt'
+import { Onboarding } from './Onboarding'
 
 const en = translations.en
 const dismissKey = 'quiet-signal-install-dismissed'
@@ -21,9 +24,15 @@ function installEvent(outcome: 'accepted' | 'dismissed' = 'accepted') {
 beforeEach(() => {
   // jsdom has no matchMedia; report "not standalone".
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+  // Day 1 is 22 Nov 2026; most tests start on day 2 with onboarding long finished.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 10, 23, 10, 0))
+  localStorage.setItem(firstUseKey, '2026-11-22')
+  localStorage.setItem(onboardingKey, 'true')
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -159,5 +168,155 @@ describe('InstallPrompt', () => {
     expect(wrapper).not.toBeNull()
     expect(wrapper.className).not.toContain('fixed')
     expect(wrapper.className).toContain('shrink-0')
+  })
+
+  describe('erst ab dem zweiten Nutzungstag', () => {
+    it('merkt sich beim ersten Start das Datum der ersten Nutzung', () => {
+      // Arrange
+      localStorage.removeItem(firstUseKey)
+
+      // Act
+      renderWithProviders(<InstallPrompt />)
+
+      // Assert
+      expect(localStorage.getItem(firstUseKey)).toBe('2026-11-23')
+    })
+
+    it('überschreibt das Datum der ersten Nutzung nicht', () => {
+      // Arrange / Act
+      renderWithProviders(<InstallPrompt />)
+
+      // Assert
+      expect(localStorage.getItem(firstUseKey)).toBe('2026-11-22')
+    })
+
+    it('zeigt am ersten Tag nichts, auch wenn der Browser die Installation anbietet', () => {
+      // Arrange
+      localStorage.removeItem(firstUseKey)
+      renderWithProviders(<InstallPrompt />)
+      const event = installEvent()
+
+      // Act
+      act(() => {
+        window.dispatchEvent(event)
+      })
+
+      // Assert
+      expect(screen.queryByText(en.installTitle)).not.toBeInTheDocument()
+    })
+
+    it('zeigt am ersten Tag auch den iOS-Hinweis nicht', () => {
+      // Arrange
+      localStorage.removeItem(firstUseKey)
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iosUserAgent)
+
+      // Act
+      renderWithProviders(<InstallPrompt />)
+
+      // Assert
+      expect(screen.queryByText(en.installIosHint)).not.toBeInTheDocument()
+    })
+
+    it('zeigt am Abend des ersten Tages noch nichts', () => {
+      // Arrange
+      localStorage.setItem(firstUseKey, '2026-11-23')
+      vi.setSystemTime(new Date(2026, 10, 23, 23, 59))
+      renderWithProviders(<InstallPrompt />)
+
+      // Act
+      act(() => {
+        window.dispatchEvent(installEvent())
+      })
+
+      // Assert
+      expect(screen.queryByText(en.installTitle)).not.toBeInTheDocument()
+    })
+
+    it('zeigt den Hinweis, sobald der zweite Kalendertag beginnt', () => {
+      // Arrange
+      localStorage.setItem(firstUseKey, '2026-11-23')
+      vi.setSystemTime(new Date(2026, 10, 23, 23, 59))
+      renderWithProviders(<InstallPrompt />)
+      act(() => {
+        window.dispatchEvent(installEvent())
+      })
+
+      // Act
+      vi.setSystemTime(new Date(2026, 10, 24, 0, 1))
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+
+      // Assert
+      expect(screen.getByText(en.installTitle)).toBeInTheDocument()
+    })
+
+    it('zeigt den Hinweis beim nächsten Start am zweiten Tag', () => {
+      // Arrange
+      localStorage.setItem(firstUseKey, '2026-11-23')
+      const first = renderWithProviders(<InstallPrompt />)
+      first.unmount()
+      vi.setSystemTime(new Date(2026, 10, 24, 9, 0))
+
+      // Act
+      renderWithProviders(<InstallPrompt />)
+      act(() => {
+        window.dispatchEvent(installEvent())
+      })
+
+      // Assert
+      expect(screen.getByText(en.installTitle)).toBeInTheDocument()
+    })
+
+    it('zeigt auf iOS Safari den manuellen Hinweis am zweiten Tag', () => {
+      // Arrange
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iosUserAgent)
+
+      // Act
+      renderWithProviders(<InstallPrompt />)
+
+      // Assert
+      expect(screen.getByText(en.installIosHint)).toBeInTheDocument()
+    })
+  })
+
+  describe('nie während der Einführung', () => {
+    it('hält den Hinweis zurück, solange die Einführung offen ist, und zeigt ihn danach', () => {
+      // Arrange
+      localStorage.removeItem(onboardingKey)
+      renderWithProviders(
+        <>
+          <InstallPrompt />
+          <Onboarding />
+        </>
+      )
+
+      // Act
+      act(() => {
+        window.dispatchEvent(installEvent())
+      })
+
+      // Assert
+      expect(screen.queryByText(en.installTitle)).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: en.onboardingSkip }))
+      expect(screen.getByText(en.installTitle)).toBeInTheDocument()
+    })
+
+    it('zeigt den iOS-Hinweis nicht über der Einführung', () => {
+      // Arrange
+      localStorage.removeItem(onboardingKey)
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(iosUserAgent)
+
+      // Act
+      renderWithProviders(
+        <>
+          <InstallPrompt />
+          <Onboarding />
+        </>
+      )
+
+      // Assert
+      expect(screen.queryByText(en.installIosHint)).not.toBeInTheDocument()
+    })
   })
 })

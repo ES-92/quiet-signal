@@ -109,20 +109,20 @@ export function CommandDrawer({ open, onClose, onSupport }: CommandDrawerProps) 
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="quiet-sheet outline-none absolute right-3 top-[calc(3.75rem+env(safe-area-inset-top))] grid max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto rounded-md border border-line bg-paper/95 p-3 shadow-[0_24px_70px_rgba(31,30,28,0.18)]"
+        className="quiet-sheet outline-none absolute right-3 top-[calc(3.75rem+env(safe-area-inset-top))] grid grid-cols-[minmax(0,1fr)] max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto rounded-md border border-line bg-paper/95 p-3 shadow-[0_24px_70px_rgba(31,30,28,0.18)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 px-1">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.18em] text-graphite">{t('hiddenTools')}</p>
             <h2 id={titleId} className="font-serif text-2xl">Quiet Signal</h2>
           </div>
-          <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-line text-graphite" onClick={onClose} aria-label={t('close')}>
+          <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line text-graphite" onClick={onClose} aria-label={t('close')}>
             <X size={17} />
           </button>
         </div>
 
-        <label className="flex min-h-[46px] items-center gap-2 rounded-md border border-line bg-white/40 px-3">
+        <label className="flex min-h-[46px] min-w-0 items-center gap-2 rounded-md border border-line bg-white/40 px-3">
           <Search size={16} className="text-graphite" />
           <input
             className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-graphite/65 sm:text-sm"

@@ -171,7 +171,7 @@ describe('InboxPage', () => {
 
     // Assert
     await screen.findByRole('blockquote')
-    expect(currentCardText()).toBe('"Erste Notiz"')
+    expect(currentCardText()).toBe('Erste Notiz')
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
   })
 
@@ -187,7 +187,7 @@ describe('InboxPage', () => {
 
     // Assert
     await screen.findByRole('blockquote')
-    expect(currentCardText()).toBe('"Wieder da"')
+    expect(currentCardText()).toBe('Wieder da')
     expect(screen.getByText('1 of 1')).toBeInTheDocument()
   })
 
@@ -207,7 +207,7 @@ describe('InboxPage', () => {
     ])
     await renderInbox()
     await screen.findByRole('blockquote')
-    expect(currentCardText()).toBe('"Wach"')
+    expect(currentCardText()).toBe('Wach')
 
     // Act
     vi.setSystemTime(new Date('2026-03-01T10:00:00.000Z'))
@@ -217,7 +217,7 @@ describe('InboxPage', () => {
 
     // Assert
     await waitFor(() => expect(screen.getByText('1 of 2')).toBeInTheDocument())
-    expect(currentCardText()).toBe('"Schlummert"')
+    expect(currentCardText()).toBe('Schlummert')
   })
 
   it('übernimmt den Eintrag per "Signal" in die Signale und zeigt den nächsten', async () => {
@@ -231,7 +231,7 @@ describe('InboxPage', () => {
 
     // Assert
     expect(await screen.findByText(en.movedToSignals)).toBeInTheDocument()
-    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'))
+    await waitFor(() => expect(currentCardText()).toBe('Zweite Notiz'))
     expect(screen.getByText('1 of 2')).toBeInTheDocument()
     expect((await getQuote('i-1'))?.status).toBe('signal')
   })
@@ -246,7 +246,7 @@ describe('InboxPage', () => {
     fireEvent.click(screen.getByRole('button', { name: en.later }))
 
     // Assert
-    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'))
+    await waitFor(() => expect(currentCardText()).toBe('Zweite Notiz'))
     expect(useToastStore.getState().toast?.message).toBe(en.snoozedToast)
     expect((await getQuote('i-1'))?.snoozedUntil).toBeTruthy()
   })
@@ -261,11 +261,11 @@ describe('InboxPage', () => {
     swipeCard(0, 160)
 
     // Assert
-    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'), { timeout: 3000 })
+    await waitFor(() => expect(currentCardText()).toBe('Zweite Notiz'), { timeout: 3000 })
     const stored = await getQuote('i-1')
     expect(stored?.status).toBe('rest')
     expect(stored?.deletedAt).toBeUndefined()
-    expect(useToastStore.getState().toast).toMatchObject({ message: en.restedToast, actionLabel: en.undo })
+    expect(useToastStore.getState().toast).toMatchObject({ message: en.clarifyRestedToast, actionLabel: en.undo })
     await waitFor(() => expect(useQuoteStore.getState().quotes.find((quote) => quote.id === 'i-1')?.status).toBe('rest'))
   })
 
@@ -275,13 +275,13 @@ describe('InboxPage', () => {
     await renderInbox()
     await screen.findByRole('blockquote')
     fireEvent.click(screen.getByRole('button', { name: en.clarifyRest }))
-    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'))
+    await waitFor(() => expect(currentCardText()).toBe('Zweite Notiz'))
 
     // Act
     await act(async () => useToastStore.getState().toast?.onAction?.())
 
     // Assert
-    await waitFor(() => expect(currentCardText()).toBe('"Erste Notiz"'))
+    await waitFor(() => expect(currentCardText()).toBe('Erste Notiz'))
     expect((await getQuote('i-1'))?.status).toBe('inbox')
   })
 
@@ -295,7 +295,7 @@ describe('InboxPage', () => {
     fireEvent.click(screen.getByRole('button', { name: en.deleteEntry }))
 
     // Assert
-    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'))
+    await waitFor(() => expect(currentCardText()).toBe('Zweite Notiz'))
     expect(useToastStore.getState().toast).toMatchObject({ message: en.discardedToast, actionLabel: en.undo })
     expect((await getQuote('i-1'))?.deletedAt).toBeTruthy()
   })
@@ -371,7 +371,7 @@ describe('InboxPage', () => {
 
     // Act
     fireEvent.click(screen.getByRole('button', { name: en.later }))
-    await waitFor(() => expect(currentCardText()).toBe('"Zweite Notiz"'))
+    await waitFor(() => expect(currentCardText()).toBe('Zweite Notiz'))
 
     // Assert
     expect(screen.queryByLabelText(en.text)).not.toBeInTheDocument()
@@ -467,8 +467,8 @@ describe('InboxPage', () => {
       // Assert
       await screen.findByRole('blockquote')
       expect(screen.getByText('Eine Anmerkung')).toBeInTheDocument()
-      expect(screen.getByText('"Mitte"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
-      expect(screen.getByText('"Unten"')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
+      expect(screen.getByText('Mitte')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
+      expect(screen.getByText('Unten')).toHaveAttribute('class', expect.stringContaining('line-clamp-4'))
     })
 
     it('zeigt für reine Foto- und Sprachnotizen einen Platzhaltertitel', async () => {

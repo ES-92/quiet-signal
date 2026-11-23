@@ -4,7 +4,7 @@ import { dueInDays, overdueDays } from '../services/dueLabel'
 import { effectiveDueAt } from '../services/lifecycle'
 import { quoteStatus, type Quote } from '../types/quote'
 
-// The one line under the thoughts: when the entry comes back, how often it was met, and its likes (in words).
+// The one line under the thoughts: when the entry comes back, how often it was met, and how often it was asked for more often (in words).
 export function EntryInfoLine({ quote }: { quote: Quote }) {
   const { t, tCount, locale } = useI18n()
   const status = quoteStatus(quote)
@@ -41,6 +41,6 @@ export function EntryInfoLine({ quote }: { quote: Quote }) {
     }
   }
   // In words, so it is not mistaken for the favourite heart.
-  const likes = quote.likes > 0 ? tCount('likesCount', quote.likes) : undefined
+  const likes = quote.likes > 0 ? t('moreOftenCount', { count: quote.likes }) : undefined
   return <p className="text-sm tabular-nums text-graphite">{[lead, encountered, likes].filter(Boolean).join(' · ')}</p>
 }
