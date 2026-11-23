@@ -378,7 +378,7 @@ export const es: Record<keyof typeof en, string> = {
   noiseWaiting: 'Aún hay ruido esperando',
   clarifyNow: 'Aclarar ahora',
   gestures: 'Gestos',
-  gesturesIntro: 'Todos los gestos de un vistazo. Las tarjetas responden a deslizar en cuatro direcciones; además, mantener pulsado y el menú.',
+  gesturesIntro: 'Todos los gestos de un vistazo. Las tarjetas responden a deslizar en cuatro direcciones; además están la pulsación larga y el menú.',
   gesturesTodaySection: 'Hoy',
   gesturesClarifySection: 'Aclarar',
   gesturesMoreSection: 'Más gestos',

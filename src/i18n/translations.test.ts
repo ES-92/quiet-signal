@@ -116,4 +116,12 @@ describe('Klären-Beschriftungen', () => {
     // Assert
     expect(toasts).toEqual({ de: 'In der Stille.', en: 'Moved to Rest.', es: 'En reposo.', fr: 'Au repos.' })
   })
+
+  it('formuliert die spanische Gestenübersicht ohne Satzfragment', () => {
+    // Arrange / Act
+    const text = translations.es.gesturesIntro
+
+    // Assert
+    expect(text).toContain('además están la pulsación larga y el menú.')
+  })
 })
