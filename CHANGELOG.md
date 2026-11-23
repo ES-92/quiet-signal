@@ -16,6 +16,7 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 
 ### Fixed
 - Einführung: „Weiter“ geht jetzt wirklich zum nächsten Schritt statt die Einführung zu beenden; beendet wird nur im letzten Schritt, „Überspringen“ schließt sie jederzeit. Sie hat nur noch drei kurze Schritte (Rauschen/Signal/Stille, Erfassen mit +, Heute) und passt auf kleine Bildschirme.
+- Installationshinweis: erscheint erst ab dem zweiten Nutzungstag (Datum der ersten Nutzung wird lokal gemerkt) und nie über der Einführung.
 
 ### Removed
 - Nur ein Erfassen-Weg: Die Rand-Wischgesten (von oben erfassen, vom linken Rand Klären, vom rechten Rand Menü) samt Randmarken und die Erfassen-Pille im Leerzustand von Heute sind weg; erfasst wird über das + unten.

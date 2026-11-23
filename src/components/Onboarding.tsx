@@ -1,7 +1,7 @@
 import { ArrowRight, Check, Inbox, PenLine, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useI18n } from '../i18n/useI18n'
-import { onboardingEventName, markOnboardingSeen, shouldShowOnboarding } from '../services/onboarding'
+import { onboardingEventName, markOnboardingSeen, setOnboardingOpen, shouldShowOnboarding } from '../services/onboarding'
 import { tapHaptic } from '../services/haptics'
 import { SignalMark } from './SignalMark'
 
@@ -31,6 +31,11 @@ export function Onboarding() {
     ],
     [t]
   )
+
+  useLayoutEffect(() => {
+    setOnboardingOpen(visible)
+    return () => setOnboardingOpen(false)
+  }, [visible])
 
   useEffect(() => {
     function showOnboarding() {
