@@ -2,6 +2,7 @@ import { ChevronsLeft, Flame, Heart } from 'lucide-react'
 import { useFitText } from '../../hooks/useFitText'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
+import { quoted } from '../../i18n/quotes'
 import type { Quote } from '../../types/quote'
 import { lerp } from '../../utils/math'
 import { AudioPlayer } from '../AudioRecorder'
@@ -19,7 +20,7 @@ interface TodayTopCardProps {
 
 // The draggable top card of the daily deck: swipe stamps, progress, text (fitted to the card), source and media.
 export function TodayTopCard({ quote, position, total, deck, browsing = false }: TodayTopCardProps) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   // Shrink long quotes to fit the card instead of clipping them.
   const { containerRef, textRef } = useFitText(quote.id)
   const likeHint = deck.hints.right
@@ -100,7 +101,7 @@ export function TodayTopCard({ quote, position, total, deck, browsing = false }:
             }}
             className="break-words font-serif leading-[1.12] text-ink"
           >
-            "{quote.text}"
+            {quoted(quote.text, quote.author, language)}
           </blockquote>
         ) : (
           <h2

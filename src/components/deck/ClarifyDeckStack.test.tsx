@@ -29,7 +29,7 @@ describe('ClarifyDeckStack', () => {
     // Assert
     const top = container.querySelector('.clarify-top-card') as HTMLElement
     const previews = container.querySelectorAll('article[aria-hidden="true"]')
-    expect(screen.getByText('"Kurz"')).toBeInTheDocument()
+    expect(screen.getByText('Kurz')).toBeInTheDocument()
     expect(top.className).toContain('min-h-[16.5rem]')
     expect(previews).toHaveLength(2)
     previews.forEach((preview) => {

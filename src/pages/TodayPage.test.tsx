@@ -417,7 +417,7 @@ describe('TodayPage', () => {
     })
 
     // Assert
-    expect(await screen.findByText('"Neu"')).toBeInTheDocument()
+    expect(await screen.findByText('Neu')).toBeInTheDocument()
     expect(screen.getByText('1 of 1')).toBeInTheDocument()
   })
 

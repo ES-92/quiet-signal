@@ -1,6 +1,7 @@
 import { ArrowRight, Clock3, Moon, SlidersHorizontal } from 'lucide-react'
 import type { useSwipeDeck } from '../../hooks/useSwipeDeck'
 import { useI18n } from '../../i18n/useI18n'
+import { quoted } from '../../i18n/quotes'
 import { daysUnclarified } from '../../services/lifecycle'
 import type { Quote } from '../../types/quote'
 import { AudioPlayer } from '../AudioRecorder'
@@ -26,7 +27,7 @@ export function ClarifyDeckStack({
   coachVisible,
   onDismissCoach
 }: ClarifyDeckStackProps) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const unclarifiedDays = daysUnclarified(quote)
   const clarifyLift = deck.exit ? 1 : Math.min(1, Math.hypot(deck.drag.x, deck.drag.y) / 132)
 
@@ -92,7 +93,7 @@ export function ClarifyDeckStack({
         )}
         {quote.text ? (
           <blockquote className="mt-4 break-words font-serif text-2xl leading-tight sm:text-4xl">
-            "{quote.text}"
+            {quoted(quote.text, quote.author, language)}
           </blockquote>
         ) : (
           <p className="mt-4 break-words font-serif text-2xl leading-tight sm:text-4xl">

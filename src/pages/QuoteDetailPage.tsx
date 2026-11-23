@@ -8,6 +8,7 @@ import { QuoteForm } from '../components/QuoteForm'
 import { ThoughtList } from '../components/thoughts/ThoughtList'
 import { ThoughtSheet } from '../components/thoughts/ThoughtSheet'
 import { useI18n } from '../i18n/useI18n'
+import { quoted } from '../i18n/quotes'
 import { statusChangePatch } from '../services/lifecycle'
 import { useBookStore } from '../store/useBookStore'
 import { useQuoteStore } from '../store/useQuoteStore'
@@ -15,7 +16,7 @@ import { useToastStore } from '../store/useToastStore'
 import { quoteStatus, type QuoteInput, type Thought } from '../types/quote'
 
 export function QuoteDetailPage() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const { id } = useParams()
   const navigate = useNavigate()
   const { quotes, loadQuotes, saveQuote, toggleFavorite, discardQuote, restoreQuote, addThought, editThought, removeThought, restoreThought, adoptNote, undoAdoptNote, wakeQuote } = useQuoteStore()
@@ -132,7 +133,7 @@ export function QuoteDetailPage() {
             </div>
           )}
           {quote.text ? (
-            <blockquote className="mt-3 break-words font-serif text-3xl leading-tight sm:text-5xl">"{quote.text}"</blockquote>
+            <blockquote className="mt-3 break-words font-serif text-3xl leading-tight sm:text-5xl">{quoted(quote.text, quote.author, language)}</blockquote>
           ) : (
             <h1 className="mt-3 break-words font-serif text-3xl leading-tight sm:text-5xl">{quote.imageDataUrl ? t('untitledPhotoNote') : t('untitledVoiceNote')}</h1>
           )}

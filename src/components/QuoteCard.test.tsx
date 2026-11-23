@@ -171,4 +171,27 @@ describe('QuoteCard', () => {
     expect(container.textContent).not.toContain('3')
     expect(screen.getAllByRole('button')).toHaveLength(1)
   })
+
+  it('setzt ein Zitat mit Autor in Anführungszeichen der Sprache', () => {
+    // Arrange
+    localStorage.setItem('quiet-signal-language', 'de')
+    const quote = makeQuote({ text: 'Sei still', author: 'Seneca' })
+
+    // Act
+    renderWithProviders(<QuoteCard quote={quote} />)
+
+    // Assert
+    expect(screen.getByText('„Sei still“')).toBeInTheDocument()
+  })
+
+  it('zeigt eine eigene Notiz ohne Autor ohne Anführungszeichen', () => {
+    // Arrange
+    const quote = makeQuote({ text: 'Mein Gedanke', author: undefined })
+
+    // Act
+    renderWithProviders(<QuoteCard quote={quote} />)
+
+    // Assert
+    expect(screen.getByText('Mein Gedanke')).toBeInTheDocument()
+  })
 })
