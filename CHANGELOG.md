@@ -15,6 +15,8 @@ All notable changes to Quiet Signal are documented here. Format loosely follows
 - README now leads with what Quiet Signal is for (collecting and revisiting quotes and thoughts for reflection) and why it was built.
 
 ### Fixed
+- Menü: Auf schmalen Bildschirmen (320 px) werden Suchfeld und Schließen-Taste nicht mehr abgeschnitten.
+- Spanisch: Satzfragment in der Gestenübersicht ergänzt.
 - Klären: Der Hinweis nach ↓ lautet „In der Stille.“ wie die Taste, nicht „Ruht jetzt.“.
 - Klären: Die ↑-Aktion heißt „Details“ (statt „Klären“, wie die Seite) – in allen Sprachen.
 - Anführungszeichen: Einträge mit Autor stehen in den typografischen Zeichen der Sprache („…“, “…”, «…», « … »); eigene Notizen ohne Autor erscheinen ohne Anführungszeichen.

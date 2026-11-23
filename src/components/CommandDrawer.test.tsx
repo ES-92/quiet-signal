@@ -191,4 +191,20 @@ describe('CommandDrawer', () => {
     expect(onSupport).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('lässt den Inhalt in die Breite des Menüs schrumpfen, damit bei 320 px nichts abgeschnitten wird', () => {
+    // Arrange / Act
+    renderWithProviders(<CommandDrawer open onClose={vi.fn()} onSupport={vi.fn()} />)
+
+    // Assert
+    // jsdom cannot measure, so the classes carry the guarantee: one shrinkable grid column, a shrinkable header and search row.
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveClass('grid-cols-[minmax(0,1fr)]')
+    const close = screen.getByRole('button', { name: en.close })
+    expect(close).toHaveClass('shrink-0')
+    expect(close.previousElementSibling).toHaveClass('min-w-0')
+    const search = screen.getByRole('textbox', { name: en.commandSearchPlaceholder })
+    expect(search.closest('label')).toHaveClass('min-w-0')
+    expect(search).toHaveClass('min-w-0')
+  })
 })
